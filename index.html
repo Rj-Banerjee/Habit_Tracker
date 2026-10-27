@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aesthetic Monthly Habit Tracker</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modal.css">
+</head>
+<body>
+
+  <div class="app-wrapper">
+
+    <!-- Top Utility & Today Bar -->
+    <header class="top-toolbar">
+      <div class="today-badge-group">
+        <div id="todayDatePill" class="today-pill">
+          <span class="today-dot"></span>
+          <span>Detecting today...</span>
+        </div>
+        <button id="btnJumpToday" class="btn-utility" title="Select current month & scroll to today">
+          📅 Go to Today
+        </button>
+        <button id="btnQuickCheckToday" class="btn-utility btn-primary-action" title="Quickly tick off today's habits in one place">
+          ✓ Quick Log for Today
+        </button>
+      </div>
+
+      <div class="quick-actions">
+        <button id="btnExportData" class="btn-utility" title="Export or Import JSON Data Backup">
+          💾 Backup / Restore
+        </button>
+        <button id="btnResetDemo" class="btn-utility" title="Reset to June 2026 reference template">
+          ↺ Reset Template
+        </button>
+        <button class="btn-utility" onclick="window.print()" title="Print or save as PDF planner">
+          🖨️ Print / PDF
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Header Card: Title, Date Selectors, Wave Chart & Daily Progress -->
+    <section class="header-card">
+      <div class="month-title-box">
+        <h1 id="monthTitle">June</h1>
+        <span class="subtitle">HABIT TRACKER</span>
+        
+        <div class="date-pickers-box">
+          <div class="picker-row">
+            <span>MONTH</span>
+            <select id="monthSelect" class="picker-select" aria-label="Select Month"></select>
+          </div>
+          <div class="picker-row">
+            <span>YEAR</span>
+            <select id="yearSelect" class="picker-select" aria-label="Select Year"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-wave-chart-wrapper" id="waveChartContainer">
+        <!-- SVG Mountain/Wave Area Chart rendered by charts.js -->
+      </div>
+
+      <div class="header-metrics-card">
+        <div class="metric-left">
+          <span class="metric-label">DAILY PROGRESS</span>
+          <span class="metric-huge-val" id="dailyProgressVal">81.33%</span>
+        </div>
+        <div class="metric-right-donut" id="headerDonutContainer">
+          <!-- Circular donut ring rendered by charts.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Upper Dashboard Grid: Motivational Card, Weekly Bars, Top 10 Habits -->
+    <section class="upper-dashboard-grid">
+      <!-- 1. Daily Motivational Quote & Curated Picture Card -->
+      <article class="dashboard-card quote-card">
+        <div class="quote-image-frame">
+          <img id="quoteImage" src="https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=700&q=80" alt="Daily Motivation" />
+        </div>
+        <div class="quote-content-box">
+          <span id="quotePrefix" class="quote-prefix">I am ...</span>
+          <p id="quoteText" class="quote-main-text">"Focused, intentional, and ready for the month ahead."</p>
+          <span id="quoteAuthor" class="quote-author">Mindful Living</span>
+        </div>
+        <div class="quote-footer-bar">
+          <span>Fresh inspiration daily ☀️</span>
+          <button id="btnShuffleQuote" title="Explore other famous daily quotes">Next Quote →</button>
+        </div>
+      </article>
+
+      <!-- 2. Weekly Bar Charts (Weeks 1 to 5) with percentages and donut rings -->
+      <article class="dashboard-card weekly-bars-card">
+        <div id="weeklyBarsContainer" class="weekly-bars-container">
+          <!-- Rendered dynamically by charts.js -->
+        </div>
+      </article>
+
+      <!-- 3. Top 10 Habits Leaderboard -->
+      <article class="dashboard-card top10-card">
+        <div class="top10-header">TOP 10 HABITS</div>
+        <div class="top10-table-wrapper">
+          <table class="top10-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>daily habit</th>
+                <th>progress</th>
+              </tr>
+            </thead>
+            <tbody id="top10TableBody">
+              <!-- Rendered dynamically by app.js -->
+            </tbody>
+          </table>
+        </div>
+        <div id="top10MilestoneMessage" class="top10-footer-celebration">
+          Over 100% on 2 habits — keep going! 🚀
+        </div>
+      </article>
+    </section>
+
+    <!-- Daily Habits Matrix Table Section -->
+    <section class="daily-habits-section">
+      <div class="daily-habits-header-bar">
+        <span class="daily-habits-title">DAILY HABITS</span>
+        <div class="daily-habits-actions">
+          <button id="btnAddDailyHabit" class="btn-utility btn-primary-action" style="font-size: 12px; padding: 4px 12px;">
+            + Add Daily Habit
+          </button>
+        </div>
+      </div>
+
+      <div class="daily-table-container">
+        <table class="daily-matrix-table">
+          <thead id="dailyTableHead">
+            <!-- Headers generated dynamically by app.js for 1..31 days grouped into 5 weeks -->
+          </thead>
+          <tbody id="dailyTableBody">
+            <!-- Habit rows generated dynamically by app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Weekly Habits Checklist & Weekly Progress Section -->
+    <section class="weekly-habits-section">
+      <!-- Left: Weekly Habits Donut Card -->
+      <article class="weekly-summary-card">
+        <div class="weekly-summary-header">WEEKLY HABITS</div>
+        <div class="weekly-summary-body">
+          <div id="weeklyDonutContainer">
+            <!-- SVG Donut Ring rendered by charts.js -->
+          </div>
+          <div id="weeklyStatsList" class="weekly-stats-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </article>
+
+      <!-- Center: 5-Week Checklist Grid -->
+      <div id="weeklyChecklistGrid" class="weekly-checklist-grid">
+        <!-- Week 1 to Week 5 columns rendered dynamically -->
+      </div>
+
+      <!-- Right: Weekly Progress Vertical Bar Chart -->
+      <article class="weekly-progress-card" id="weeklyProgressChartContainer">
+        <!-- Rendered dynamically by charts.js -->
+      </article>
+    </section>
+
+    <!-- Bottom Grid: Monthly Habits Checklist & Lined Reflection Journal -->
+    <section class="bottom-dashboard-grid">
+      <!-- 1. Monthly Habits Donut Card -->
+      <article class="monthly-donut-card">
+        <div class="monthly-donut-header">MONTHLY HABITS</div>
+        <div class="monthly-donut-body" id="monthlyDonutContainer">
+          <!-- Rendered dynamically by charts.js -->
+        </div>
+      </article>
+
+      <!-- 2. Monthly Habits Checklist Card -->
+      <article class="monthly-checklist-card">
+        <div class="monthly-progress-header-row">
+          <span>progress</span>
+          <span id="monthlyPctText" style="font-weight: 700; color: #db2777;">50%</span>
+        </div>
+        <div class="monthly-bar-slot">
+          <div id="monthlyBarFill" class="monthly-bar-fill" style="width: 50%;"></div>
+        </div>
+        <div id="monthlyItemsList" class="monthly-items-list">
+          <!-- Checkboxes rendered dynamically -->
+        </div>
+        <button id="btnAddMonthlyHabit" class="btn-add-item-subtle" style="margin-top: 10px;">
+          + Add Monthly Habit
+        </button>
+      </article>
+
+      <!-- 3. Monthly Reflection & Review Lined Journal Card -->
+      <article class="monthly-reflection-card">
+        <div class="reflection-header-bar">
+          <span class="reflection-title">MONTHLY REFLECTION</span>
+          <button id="btnAutoGenerateReview" class="btn-utility" style="font-size: 11px; padding: 4px 8px;" title="Synthesize month stats into an inspiring reflection">
+            ✨ Auto-Generate Review
+          </button>
+        </div>
+        <div class="reflection-body">
+          <div class="lined-paper-wrapper">
+            <textarea
+              id="reflectionTextarea"
+              class="lined-paper-textarea"
+              placeholder="Reflect on your intentions, wins, and learnings for this month..."
+            ></textarea>
+          </div>
+          <div class="reflection-companion-photo">
+            <img src="https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=700&q=80" alt="Mindful reflection" />
+          </div>
+        </div>
+      </article>
+    </section>
+
+  </div>
+
+  <!-- Reusable Modal Window -->
+  <div id="genericModal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 id="modalTitle" class="modal-title">Habit Settings</h3>
+        <button id="modalCloseBtn" class="modal-close-btn" aria-label="Close modal">&times;</button>
+      </div>
+      <div id="modalBody" class="modal-body">
+        <!-- Injected dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button id="modalCancelBtn" class="btn-secondary">Cancel</button>
+        <button id="modalSubmitBtn" class="btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- App Main Scripts -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

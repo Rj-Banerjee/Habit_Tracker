@@ -1,0 +1,107 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Users {
+  id         String               @id @default(uuid())
+  email      String               @unique
+  created_at DateTime             @default(now())
+
+  dailyHabits        DailyHabits[]
+  weeklyHabits       WeeklyHabits[]
+  monthlyHabits      MonthlyHabits[]
+  monthlyReflections MonthlyReflections[]
+
+  @@map("users")
+}
+
+model DailyHabits {
+  id         String      @id @default(uuid())
+  user_id    String
+  title      String
+  goal_days  Int         @default(30)
+  created_at DateTime    @default(now())
+
+  user Users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  logs DailyLogs[]
+
+  @@map("daily_habits")
+}
+
+model DailyLogs {
+  id           String   @id @default(uuid())
+  habit_id     String
+  date         String   // Stored in ISO format "YYYY-MM-DD" to prevent timezone skew
+  is_completed Boolean  @default(false)
+  updated_at   DateTime @default(now()) @updatedAt
+
+  habit DailyHabits @relation(fields: [habit_id], references: [id], onDelete: Cascade)
+
+  @@unique([habit_id, date])
+  @@index([habit_id, date])
+  @@map("daily_logs")
+}
+
+model WeeklyHabits {
+  id           String   @id @default(uuid())
+  user_id      String
+  title        String
+  week_number  Int      // 1 to 5
+  month        Int      // 1 to 12
+  year         Int
+  is_completed Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  user Users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, year, month, week_number])
+  @@map("weekly_habits")
+}
+
+model MonthlyHabits {
+  id           String   @id @default(uuid())
+  user_id      String
+  title        String
+  month        Int      // 1 to 12
+  year         Int
+  is_completed Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  user Users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, year, month])
+  @@map("monthly_habits")
+}
+
+model MonthlyReflections {
+  id         String   @id @default(uuid())
+  user_id    String
+  month      Int      // 1 to 12
+  year       Int
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  user Users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, month, year])
+  @@map("monthly_reflections")
+}
+
+model DailyQuoteCache {
+  id          String   @id @default(uuid())
+  date        String   @unique // "YYYY-MM-DD"
+  quote       String
+  author      String
+  image_url   String
+  unsplash_id String?
+  cached_at   DateTime @default(now())
+
+  @@map("daily_quote_cache")
+}
