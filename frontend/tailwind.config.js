@@ -5,6 +5,14 @@ module.exports = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/utils/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  safelist: [
+    'bg-blue-600', 'border-blue-600', 'text-blue-600', 'bg-blue-50', 'text-blue-700', 'border-blue-200', 'dark:bg-blue-950/40', 'dark:text-blue-400',
+    'bg-pink-600', 'border-pink-600', 'text-pink-600', 'bg-pink-50', 'text-pink-700', 'border-pink-200', 'dark:bg-pink-950/40', 'dark:text-pink-400',
+    'bg-teal-600', 'border-teal-600', 'text-teal-600', 'bg-teal-50', 'text-teal-700', 'border-teal-200', 'dark:bg-teal-950/40', 'dark:text-teal-400',
+    'bg-amber-600', 'border-amber-600', 'text-amber-600', 'bg-amber-50', 'text-amber-700', 'border-amber-200', 'dark:bg-amber-950/40', 'dark:text-amber-400',
+    'bg-indigo-600', 'border-indigo-600', 'text-indigo-600', 'bg-indigo-50', 'text-indigo-700', 'border-indigo-200', 'dark:bg-indigo-950/40', 'dark:text-indigo-400',
   ],
   theme: {
     extend: {

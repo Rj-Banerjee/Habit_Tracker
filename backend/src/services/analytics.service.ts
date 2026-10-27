@@ -33,7 +33,7 @@ export class AnalyticsService {
     const monthPrefix = `${year}-${pad(month)}-`;
 
     // Fetch user daily habits and logs for this month
-    const habits = await prisma.dailyHabits.findMany({
+    let habits = await prisma.dailyHabits.findMany({
       where: { user_id: userId },
       include: {
         logs: {
@@ -45,6 +45,21 @@ export class AnalyticsService {
       },
       orderBy: { created_at: 'asc' },
     });
+
+    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
+      habits = await prisma.dailyHabits.findMany({
+        where: { user_id: '00000000-0000-0000-0000-000000000001' },
+        include: {
+          logs: {
+            where: {
+              date: { startsWith: monthPrefix },
+              is_completed: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      });
+    }
 
     const totalHabits = habits.length;
 

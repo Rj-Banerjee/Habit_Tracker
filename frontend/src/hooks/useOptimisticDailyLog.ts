@@ -5,11 +5,15 @@ import { habitService } from '../services/habitService';
 import { useToast } from './useToast';
 import { DailyHabit } from '../types';
 
-export function useOptimisticDailyLog(initialHabits: DailyHabit[], onSyncSuccess?: () => void) {
+export function useOptimisticDailyLog(
+  initialHabits: DailyHabit[],
+  onSyncSuccess?: () => void,
+  onLocalToggle?: (habitId: string, dateKey: string, isCompleted: boolean) => void
+) {
   const [logMap, setLogMap] = useState<Record<string, boolean>>({});
   const { error } = useToast();
 
-  // Populate log map whenever initialHabits updates
+  // Populate log map whenever initialHabits updates (e.g., month change or initial load)
   useEffect(() => {
     const map: Record<string, boolean> = {};
     initialHabits.forEach((habit) => {
@@ -35,7 +39,7 @@ export function useOptimisticDailyLog(initialHabits: DailyHabit[], onSyncSuccess
       const previousValue = !!logMap[key];
       const nextValue = !previousValue;
 
-      // 1. Optimistic UI update: Immediate local state toggle
+      // 1. Optimistic UI update: Immediate local state toggle with zero latency
       setLogMap((prev) => {
         const copy = { ...prev };
         if (nextValue) {
@@ -45,6 +49,11 @@ export function useOptimisticDailyLog(initialHabits: DailyHabit[], onSyncSuccess
         }
         return copy;
       });
+
+      // Update parent habits data model immediately
+      if (onLocalToggle) {
+        onLocalToggle(habitId, dateKey, nextValue);
+      }
 
       // 2. Background sync to Supabase backend API
       try {
@@ -63,10 +72,13 @@ export function useOptimisticDailyLog(initialHabits: DailyHabit[], onSyncSuccess
           }
           return copy;
         });
+        if (onLocalToggle) {
+          onLocalToggle(habitId, dateKey, previousValue);
+        }
         error(`Sync failed for ${dateKey}: ${(err as Error).message}. Rolled back.`);
       }
     },
-    [logMap, onSyncSuccess, error]
+    [logMap, onSyncSuccess, onLocalToggle, error]
   );
 
   return {

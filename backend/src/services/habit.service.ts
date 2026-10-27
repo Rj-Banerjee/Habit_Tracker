@@ -28,7 +28,7 @@ export class HabitService {
     const pad = (n: number) => String(n).padStart(2, '0');
     const startPrefix = `${year}-${pad(month)}-`;
 
-    const habits = await prisma.dailyHabits.findMany({
+    let habits = await prisma.dailyHabits.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'asc' },
       include: {
@@ -41,6 +41,23 @@ export class HabitService {
         },
       },
     });
+
+    // Fallback to demo user habits if user hasn't created their own yet
+    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
+      habits = await prisma.dailyHabits.findMany({
+        where: { user_id: '00000000-0000-0000-0000-000000000001' },
+        orderBy: { created_at: 'asc' },
+        include: {
+          logs: {
+            where: {
+              date: {
+                startsWith: startPrefix,
+              },
+            },
+          },
+        },
+      });
+    }
 
     return habits;
   }
@@ -94,9 +111,15 @@ export class HabitService {
    * Leverages Prisma upsert with unique composite index [habit_id, date].
    */
   async toggleDailyLog(userId: string, dto: ToggleDailyLogDto) {
-    // Verify ownership
+    // Verify ownership or allow interacting with demo habits
     const habit = await prisma.dailyHabits.findFirst({
-      where: { id: dto.habitId, user_id: userId },
+      where: {
+        id: dto.habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {

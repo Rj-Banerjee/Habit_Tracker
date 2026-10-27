@@ -39,6 +39,32 @@ export function useHabits(year: number, month: number) {
   }, [fetchAll]);
 
   // DAILY ACTIONS
+  const updateDailyHabitLog = useCallback((habitId: string, dateKey: string, isCompleted: boolean) => {
+    setDailyHabits((prev) =>
+      prev.map((h) => {
+        if (h.id !== habitId) return h;
+        const currentLogs = h.logs ? [...h.logs] : [];
+        const existingIdx = currentLogs.findIndex((l) => l.date === dateKey);
+        if (existingIdx >= 0) {
+          currentLogs[existingIdx] = {
+            ...currentLogs[existingIdx],
+            is_completed: isCompleted,
+            updated_at: new Date().toISOString(),
+          };
+        } else {
+          currentLogs.push({
+            id: `client-${dateKey}-${Date.now()}`,
+            habit_id: habitId,
+            date: dateKey,
+            is_completed: isCompleted,
+            updated_at: new Date().toISOString(),
+          });
+        }
+        return { ...h, logs: currentLogs };
+      })
+    );
+  }, []);
+
   const addDailyHabit = async (title: string, goalDays: number = 30) => {
     try {
       const created = await habitService.createDailyHabit(title, goalDays);
@@ -173,6 +199,7 @@ export function useHabits(year: number, month: number) {
     reflection,
     loading,
     refreshHabits: fetchAll,
+    updateDailyHabitLog,
     addDailyHabit,
     updateDailyHabit,
     deleteDailyHabit,

@@ -34,6 +34,7 @@ export default function DashboardPage() {
     monthlyHabits,
     reflection,
     loading: habitsLoading,
+    updateDailyHabitLog,
     addDailyHabit,
     updateDailyHabit,
     deleteDailyHabit,
@@ -51,7 +52,8 @@ export default function DashboardPage() {
 
   const { isCompleted, toggleLog } = useOptimisticDailyLog(
     dailyHabits,
-    refreshAnalytics
+    refreshAnalytics,
+    updateDailyHabitLog
   );
 
   const handleJumpToday = () => {

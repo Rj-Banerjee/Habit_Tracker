@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Plus, Check, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DailyHabit, MonthCalendar } from '../../types';
+import { WEEK_CHECKBOX_THEMES } from './CheckboxCell';
 
 interface DailyMobileTodayViewProps {
   habits: DailyHabit[];
@@ -171,18 +172,27 @@ export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
                   </div>
                 </div>
 
-                {/* Big Touch-Target Checkbox */}
-                <button
-                  type="button"
-                  aria-label={done ? 'Mark incomplete' : 'Mark completed'}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 shadow-xs ${
-                    done
-                      ? 'bg-blue-600 text-white scale-105'
-                      : 'bg-slate-100 dark:bg-slate-800 text-transparent border border-slate-300 dark:border-slate-700'
-                  }`}
-                >
-                  <Check className={`w-5 h-5 transition-transform duration-200 ${done ? 'scale-100' : 'scale-0'}`} />
-                </button>
+                {/* Big Touch-Target Checkbox with Week Theme */}
+                {(() => {
+                  const theme = WEEK_CHECKBOX_THEMES[selectedDayInfo?.weekIndex || 1] || WEEK_CHECKBOX_THEMES[1];
+                  return (
+                    <button
+                      type="button"
+                      aria-label={done ? 'Mark incomplete' : 'Mark completed'}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 shadow-xs border ${
+                        done
+                          ? `${theme.activeClass} scale-105 shadow-sm`
+                          : 'bg-slate-100 dark:bg-slate-800 text-transparent border-slate-300 dark:border-slate-700'
+                      }`}
+                      style={{
+                        backgroundColor: done ? theme.bg : undefined,
+                        borderColor: done ? theme.border : undefined,
+                      }}
+                    >
+                      <Check className={`w-5 h-5 transition-transform duration-200 text-white ${done ? 'scale-100' : 'scale-0'}`} />
+                    </button>
+                  );
+                })()}
               </div>
             );
           })

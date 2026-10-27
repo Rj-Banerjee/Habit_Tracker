@@ -5,6 +5,7 @@ export const WEEK_PALETTES: Record<number, {
   border: string;
   track: string;
   text: string;
+  color: string;
   checkboxActive: string;
 }> = {
   1: {
@@ -14,6 +15,7 @@ export const WEEK_PALETTES: Record<number, {
     border: '#60a5fa',
     track: '#dbeafe',
     text: '#1e40af',
+    color: '#2563eb',
     checkboxActive: 'bg-blue-600 border-blue-600',
   },
   2: {
@@ -23,6 +25,7 @@ export const WEEK_PALETTES: Record<number, {
     border: '#f472b6',
     track: '#fce7f3',
     text: '#9d174d',
+    color: '#db2777',
     checkboxActive: 'bg-pink-600 border-pink-600',
   },
   3: {
@@ -32,6 +35,7 @@ export const WEEK_PALETTES: Record<number, {
     border: '#2dd4bf',
     track: '#ccfbf1',
     text: '#0f766e',
+    color: '#0d9488',
     checkboxActive: 'bg-teal-600 border-teal-600',
   },
   4: {
@@ -41,15 +45,17 @@ export const WEEK_PALETTES: Record<number, {
     border: '#fbbf24',
     track: '#fef3c7',
     text: '#b45309',
+    color: '#d97706',
     checkboxActive: 'bg-amber-600 border-amber-600',
   },
   5: {
     name: 'Periwinkle Blue',
-    primary: '#bfdbfe',
-    light: '#eff6ff',
-    border: '#93c5fd',
-    track: '#dbeafe',
-    text: '#1e40af',
-    checkboxActive: 'bg-blue-600 border-blue-600',
+    primary: '#c7d2fe',
+    light: '#eef2ff',
+    border: '#818cf8',
+    track: '#e0e7ff',
+    text: '#3730a3',
+    color: '#4f46e5',
+    checkboxActive: 'bg-indigo-600 border-indigo-600',
   },
 };

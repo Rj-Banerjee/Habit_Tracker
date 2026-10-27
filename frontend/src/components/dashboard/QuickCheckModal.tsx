@@ -61,6 +61,10 @@ export const QuickCheckModal: React.FC<QuickCheckModalProps> = ({
                         ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
                         : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600'
                     }`}
+                    style={{
+                      backgroundColor: done ? '#2563eb' : undefined,
+                      borderColor: done ? '#2563eb' : undefined,
+                    }}
                   >
                     {done && (
                       <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current stroke-current">
