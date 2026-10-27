@@ -1,56 +1,78 @@
-# 🌿 Aesthetic Monthly Habit Tracker
+# 🌿 Habit Tracker Enterprise — Full-Stack Dashboard
 
-An elegant, pastel-themed Habit Tracking Web Application designed with the mindful, calming aesthetics of popular notion/bullet-journal spreadsheets.
-
----
-
-## ✨ Features
-
-- **Automatic Current Date Detection**: Automatically identifies today's date, displays it in the header, and highlights today's column with an amber accent so you know exactly what to log today.
-- **1-Click Quick Log for Today**: A dedicated modal lets you review and tick all your habits for today in seconds.
-- **Top Wave Mountain Chart**: Fluid SVG bezier area chart visualizing daily completion trends across the entire month.
-- **Dynamic Weekly Bar Charts**: 5-week breakdown with custom pastel palettes (Soft Sky Blue, Blush Pink, Mint Teal, Golden Apricot, Periwinkle Blue) with daily completion percentage badges and counts.
-- **Interactive Circular Donut Progress Rings**:
-  - Top daily progress ring (`81.33%`, `466 / 573`).
-  - Weekly individual rings (Week 1–5).
-  - Weekly habits summary ring (`71.4%`).
-  - Monthly milestone ring (`50%`).
-- **Top 10 Habits of the Month Leaderboard**: Dynamic ranking table showing habit names, completion percentages, and celebratory milestone indicators (e.g., *"Over 100% on 2 habits — keep going! 🚀"*).
-- **Daily Fresh Motivational Quotes & Curated Pictures**:
-  - Deterministic 365-day rotation that refreshes automatically every midnight.
-  - Curated wisdom from famous figures (Marcus Aurelius, James Clear, Maya Angelou, Seneca, Aristotle, Confucius, etc.).
-  - Matching aesthetic photography that inspires focus and intentionality.
-  - "Next Quote →" button to explore other daily inspirations anytime.
-- **Full Habit Customization**:
-  - Add, edit, or delete **Daily Habits** with customizable monthly target goals.
-  - Add, toggle, or delete **Weekly Habits** across all 5 weeks.
-  - Add, toggle, or delete **Monthly Habits**.
-- **Lined Notebook Monthly Reflection & Progress Review**:
-  - Ruled journal styling with elegant serif italic typography.
-  - **"✨ Auto-Generate Review"** button that synthesizes your monthly statistics, best habits, streaks, and areas of growth into an insightful written summary.
-  - Editable journal text that persists automatically.
-- **Local Persistence & Data Portability**:
-  - Real-time auto-save to `localStorage`.
-  - Full JSON Data Backup & Restore (export/import).
-  - One-click reset to the June 2026 screenshot demo template.
-  - Print / PDF export stylesheet (`@media print`).
+An enterprise-grade, high-performance Habit Tracking Dashboard crafted with modern web standards, aesthetic card-based UI, comprehensive progress analytics, Supabase authentication, and PostgreSQL persistence.
 
 ---
 
-## 🚀 How to Run
+## 🏗️ Architecture & Tech Stack
 
-You can run this application with any standard web browser:
+- **Frontend**: [Next.js 14](https://nextjs.org/) (App Router, TypeScript) + [Tailwind CSS](https://tailwindcss.com/)
+  - Modular enterprise architecture (`/components`, `/hooks`, `/services`, `/utils`, `/types`)
+  - Floating Glassmorphic Header with dynamic time-aware greetings and quick actions
+  - Global Command Palette (`Cmd+K` / `Ctrl+K`)
+  - Off-Canvas Profile & Settings Drawer (Strict Mode, Grace Mode, Core Focus intention, CSV/iCal export)
+  - Interactive Daily Habits Matrix with snap-to-grid responsive layout and mobile Today view
+  - Comprehensive Recharts data visualizations (Wave Mountain Area Chart, Weekly Bars, Donut Rings)
+  - Minimalist Grounding Footer with today's rhythm bar and lifetime conquered counter
+  - Full Light and Dark mode theme support
 
-### Option 1: Live Server in VS Code
-Right-click `index.html` inside VS Code and select **"Open with Live Server"**.
+- **Backend**: [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) (TypeScript)
+  - Layered architecture (`/controllers`, `/routes`, `/services`, `/models`, `/middlewares`)
+  - Secured REST API with Supabase JWT Bearer token authentication
+  - Centralized error handling and Zod request validation
+  - Midnight automated Cron scheduler (`0 0 * * *`) caching fresh inspirational quotes and Unsplash photography
+  - Direct connection to Supabase PostgreSQL on port 5001
 
-### Option 2: Python HTTP Server
-Run the following in terminal:
+- **Database & Auth**: [Supabase](https://supabase.com/) (PostgreSQL) + [Prisma ORM](https://www.prisma.io/)
+  - Strict relational schema for users, daily habits, unique daily logs (`habit_id + date`), weekly milestones, monthly reflections, and daily quote cache
+  - Supabase JWT session management with protected route middleware
+
+---
+
+## 🚀 Quick Start & Local Setup
+
+### Prerequisites
+- Node.js (v18.0.0 or higher)
+- npm or yarn
+
+### 1. Backend Setup
 ```bash
-cd "Habit tracker"
-python3 -m http.server 8000
-```
-Then visit [http://localhost:8000](http://localhost:8000) in your browser.
+cd backend
+npm install
 
-### Option 3: Double-Click
-Simply double-click `index.html` in Finder or file explorer. (Note: ES Modules require a local server or browser flags due to CORS file protocol restrictions; Option 1 or 2 is recommended).
+# Push schema to Supabase PostgreSQL (if needed)
+npx prisma db push
+
+# Start the Express server
+npm run dev
+# Server listening on http://localhost:5001
+```
+
+### 2. Frontend Setup
+```bash
+cd frontend
+npm install
+
+# Start Next.js development server
+npm run dev
+# Dashboard accessible at http://localhost:3001
+```
+
+---
+
+## ⌨️ Keyboard Shortcuts & Power Features
+
+- `Cmd + K` (or `Ctrl + K`): Open Command Palette to search habits, switch themes, or export data.
+- `ESC`: Instantly close open dialogs, command palette, or profile drawer.
+- **Floating Header**: Dynamic greeting that adjusts to morning, afternoon, or evening based on your local time.
+- **Off-Canvas Settings**:
+  - **My Core Focus**: Anchor your daily habits with a personal North Star intention.
+  - **Strict Mode**: Automatically breaks active streak if goals are incomplete at midnight.
+  - **Grace Mode**: Allows 24-hour back-logging for missed days without resetting streaks.
+  - **Export Data (CSV)**: Instantly generate and download a `.csv` spreadsheet of all habits and completion logs.
+  - **Sync Calendar**: Export habit routines to Apple Calendar or Google Calendar via `.ics`.
+
+---
+
+## 📄 License
+MIT License. Built for mindful productivity and consistent daily growth.
