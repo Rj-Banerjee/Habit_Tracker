@@ -21,13 +21,16 @@ export const AreaProgressChart: React.FC<AreaProgressChartProps> = ({
   height = 80,
 }) => {
   if (!data || data.length === 0) {
-    return <div className="h-20 flex items-center justify-center text-xs text-slate-400">No data</div>;
+    return (
+      <div className="h-20 flex items-center justify-center text-xs text-slate-400">
+        No tracking points yet
+      </div>
+    );
   }
 
-  // Format data for Recharts, ensuring a gentle baseline
   const chartData = data.map((d) => ({
     ...d,
-    displayPct: Math.max(d.percentage, 10), // aesthetic mountain baseline
+    displayPct: Math.max(d.percentage, 10),
   }));
 
   return (
@@ -36,8 +39,8 @@ export const AreaProgressChart: React.FC<AreaProgressChartProps> = ({
         <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="pastelBlueGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stop-color="#bfdbfe" stopOpacity={0.85} />
-              <stop offset="95%" stop-color="#eff6ff" stopOpacity={0.15} />
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.6} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <XAxis dataKey="day" hide />
@@ -47,8 +50,8 @@ export const AreaProgressChart: React.FC<AreaProgressChartProps> = ({
               if (active && payload && payload.length) {
                 const item = payload[0].payload as DayProgressPoint;
                 return (
-                  <div className="bg-slate-900 text-white text-[11px] px-2.5 py-1 rounded shadow-md pointer-events-none">
-                    <p className="font-semibold">Day {item.day}</p>
+                  <div className="bg-slate-900 dark:bg-slate-800 text-white text-[11px] px-2.5 py-1.5 rounded-lg shadow-md border border-slate-700 pointer-events-none">
+                    <p className="font-bold">Day {item.day}</p>
                     <p className="text-slate-300">
                       {item.completedCount}/{item.totalHabits} habits ({item.percentage}%)
                     </p>
@@ -61,7 +64,7 @@ export const AreaProgressChart: React.FC<AreaProgressChartProps> = ({
           <Area
             type="monotone"
             dataKey="displayPct"
-            stroke="#93c5fd"
+            stroke="#3b82f6"
             strokeWidth={2.5}
             fillOpacity={1}
             fill="url(#pastelBlueGrad)"

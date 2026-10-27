@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, BookOpen } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 interface MonthlyReflectionCardProps {
@@ -28,46 +28,51 @@ export const MonthlyReflectionCard: React.FC<MonthlyReflectionCardProps> = ({
   };
 
   return (
-    <article className="bg-[#fffdfa] border border-[#f1ebd8] rounded-2xl overflow-hidden shadow-xs flex flex-col h-full">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between px-5 py-2.5 bg-amber-100/70 border-b border-amber-200/80">
-        <span className="text-xs font-bold tracking-widest uppercase text-amber-900">
-          MONTHLY REFLECTION
-        </span>
-        <Button
-          onClick={onAutoGenerate}
-          variant="secondary"
-          size="sm"
-          className="text-xs bg-white/80 hover:bg-white text-amber-900 border-amber-200 py-1"
-          title="Synthesize monthly stats into a written review"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-          <span>Auto-Generate Review</span>
-        </Button>
-      </div>
-
-      {/* Body: Lined Paper & Companion Photo */}
-      <div className="grid grid-cols-[1fr_210px] gap-4 p-4 flex-1">
-        {/* Lined Journal Textarea */}
-        <div className="relative w-full h-full min-h-[170px]">
-          <textarea
-            value={content}
-            onChange={handleChange}
-            placeholder="This month, I stayed consistent with my habits and noticed small details..."
-            className="w-full h-full border-none bg-transparent outline-none resize-none font-serif italic text-sm text-slate-800 leading-[28px] p-1"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(transparent, transparent 27px, #f1ebd8 28px)',
-            }}
-          />
+    <article className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full transition-colors duration-200">
+      <div>
+        {/* Header Bar */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-amber-500" />
+            <h3 className="font-bold text-sm tracking-wide text-slate-900 dark:text-white uppercase">
+              Monthly Reflection
+            </h3>
+          </div>
+          <Button
+            onClick={onAutoGenerate}
+            variant="secondary"
+            size="sm"
+            className="text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 py-1"
+            title="Synthesize monthly stats into a written review"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <span>Auto-Generate</span>
+          </Button>
         </div>
 
-        {/* Companion Aesthetic Photo */}
-        <div className="w-full h-full min-h-[170px] rounded-xl overflow-hidden bg-amber-50">
-          <img
-            src="https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=700&q=80"
-            alt="Mindful Reflection"
-            className="w-full h-full object-cover"
-          />
+        {/* Body: Lined Paper & Companion Photo */}
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-4">
+          {/* Lined Journal Textarea */}
+          <div className="relative w-full min-h-[180px]">
+            <textarea
+              value={content}
+              onChange={handleChange}
+              placeholder="Reflect on your intentions, wins, and learnings for this month..."
+              className="w-full h-full min-h-[180px] border-none bg-transparent outline-none resize-none font-serif italic text-sm text-slate-800 dark:text-slate-200 leading-[28px] p-1"
+              style={{
+                backgroundImage: 'repeating-linear-gradient(transparent, transparent 27px, rgba(148, 163, 184, 0.2) 28px)',
+              }}
+            />
+          </div>
+
+          {/* Companion Photo */}
+          <div className="hidden sm:block w-full h-full min-h-[180px] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+            <img
+              src="https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=700&q=80"
+              alt="Mindful Reflection"
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+            />
+          </div>
         </div>
       </div>
     </article>

@@ -3,11 +3,11 @@
 import React, { useState } from 'react';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { TopToolbar } from '../components/dashboard/TopToolbar';
-import { DashboardHeader } from '../components/dashboard/DashboardHeader';
 import { MotivationalCard } from '../components/dashboard/MotivationalCard';
-import { WeeklyBarsChart } from '../components/charts/WeeklyBarsChart';
-import { Top10Leaderboard } from '../components/dashboard/Top10Leaderboard';
+import { MonthlyOverviewCard } from '../components/dashboard/MonthlyOverviewCard';
 import { DailyMatrix } from '../components/matrix/DailyMatrix';
+import { DailyMobileTodayView } from '../components/matrix/DailyMobileTodayView';
+import { AnalyticsSection } from '../components/analytics/AnalyticsSection';
 import { WeeklyHabitsSection } from '../components/weekly/WeeklyHabitsSection';
 import { MonthlyHabitsSection } from '../components/monthly/MonthlyHabitsSection';
 import { MonthlyReflectionCard } from '../components/dashboard/MonthlyReflectionCard';
@@ -21,7 +21,7 @@ import { useOptimisticDailyLog } from '../hooks/useOptimisticDailyLog';
 
 export default function DashboardPage() {
   const today = getTodayInfo();
-  // Default to June 2026 if matching screenshot demo or current year/month
+  // Default to June 2026 matching screenshot demo data, or current calendar
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // June
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
@@ -61,8 +61,8 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-[#fbfaf8] p-5 md:p-6 lg:p-7">
-        <div className="max-w-[1540px] mx-auto flex flex-col gap-5">
+      <main className="min-h-screen bg-gray-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 transition-colors duration-200">
+        <div className="max-w-7xl mx-auto flex flex-col gap-6">
           {/* 1. Top Utility Toolbar */}
           <TopToolbar
             todayFormatted={today.formatted}
@@ -70,60 +70,65 @@ export default function DashboardPage() {
             onOpenQuickLog={() => setIsQuickLogOpen(true)}
           />
 
-          {/* 2. Main Dashboard Header */}
-          <DashboardHeader
-            year={selectedYear}
-            month={selectedMonth}
-            onYearChange={setSelectedYear}
-            onMonthChange={setSelectedMonth}
-            dailyProgress={analytics?.dailyProgress || []}
-            overallPercentage={analytics?.overallPercentage || 0}
-            totalCompletions={analytics?.totalMonthCompletions || 0}
-            totalPossible={analytics?.totalPossibleCompletions || 1}
-          />
+          {/* 2. Top Two-Column Grid: Left 1/3 Quote, Right 2/3 Monthly Progress */}
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {/* Left Column (1/3 Width): Daily Motivation Quote & Picture */}
+            <div className="lg:col-span-1">
+              <MotivationalCard />
+            </div>
 
-          {/* 3. Upper Grid: Motivational Card, Weekly Bars, Top 10 Habits */}
-          <section className="grid grid-cols-[260px_1fr_330px] gap-5 items-stretch min-h-[380px]">
-            {/* Left: Motivational Quote & Curated Picture Card */}
-            <MotivationalCard />
-
-            {/* Center: Weekly Bar Charts (Weeks 1 to 5) with percentages and donut rings */}
-            <article className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-center">
-              {habitsLoading ? (
-                <div className="grid grid-cols-5 gap-3 h-full">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-64" />
-                  ))}
-                </div>
-              ) : (
-                <WeeklyBarsChart
-                  dailyPoints={analytics?.dailyProgress || []}
-                  weeklyProgress={analytics?.weeklyProgress || []}
-                />
-              )}
-            </article>
-
-            {/* Right: Top 10 Habits Leaderboard */}
-            <Top10Leaderboard top10={analytics?.top10Habits || []} />
+            {/* Right Column (2/3 Width): High-Level Monthly Progress Metrics */}
+            <div className="lg:col-span-2">
+              <MonthlyOverviewCard
+                year={selectedYear}
+                month={selectedMonth}
+                onYearChange={setSelectedYear}
+                onMonthChange={setSelectedMonth}
+                dailyProgress={analytics?.dailyProgress || []}
+                overallPercentage={analytics?.overallPercentage || 0}
+                totalCompletions={analytics?.totalMonthCompletions || 0}
+                totalPossible={analytics?.totalPossibleCompletions || 1}
+              />
+            </div>
           </section>
 
-          {/* 4. Daily Habits Matrix Section */}
+          {/* 3. Daily Tracking Section (Responsive: Desktop Table vs Mobile Today View) */}
           <section>
             {habitsLoading ? (
               <Skeleton className="h-96 w-full rounded-2xl" />
             ) : (
-              <DailyMatrix
-                habits={dailyHabits}
-                calendar={calendar}
-                todayDateKey={today.dateKey}
-                isCompleted={isCompleted}
-                onToggle={toggleLog}
-                onAddHabit={addDailyHabit}
-                onUpdateHabit={updateDailyHabit}
-                onDeleteHabit={deleteDailyHabit}
-              />
+              <>
+                {/* Desktop & Tablet View (Hidden on mobile) */}
+                <DailyMatrix
+                  habits={dailyHabits}
+                  calendar={calendar}
+                  todayDateKey={today.dateKey}
+                  isCompleted={isCompleted}
+                  onToggle={toggleLog}
+                  onAddHabit={addDailyHabit}
+                  onUpdateHabit={updateDailyHabit}
+                  onDeleteHabit={deleteDailyHabit}
+                />
+
+                {/* Mobile Crucial Today View (Visible only on < md screens) */}
+                <DailyMobileTodayView
+                  habits={dailyHabits}
+                  calendar={calendar}
+                  todayDateKey={today.dateKey}
+                  isCompleted={isCompleted}
+                  onToggle={toggleLog}
+                  onAddHabit={() => addDailyHabit('New Habit', 30)}
+                />
+              </>
             )}
           </section>
+
+          {/* 4. Dedicated Insights & Analytics Section (Top 10 + Weekly Bars) */}
+          <AnalyticsSection
+            dailyPoints={analytics?.dailyProgress || []}
+            weeklyProgress={analytics?.weeklyProgress || []}
+            top10Habits={analytics?.top10Habits || []}
+          />
 
           {/* 5. Weekly Habits Section */}
           <WeeklyHabitsSection
@@ -133,9 +138,9 @@ export default function DashboardPage() {
             onAddWeekly={addWeeklyHabit}
           />
 
-          {/* 6. Bottom Grid: Monthly Habits Checklist & Lined Reflection Journal */}
-          <section className="grid grid-cols-[640px_1fr] gap-5 items-stretch">
-            {/* Monthly Habits Section */}
+          {/* 6. Monthly Milestones & Reflection Section (Two-Column Balanced Grid) */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            {/* Monthly Habits Milestone Card */}
             <MonthlyHabitsSection
               monthlyHabits={monthlyHabits}
               onToggleMonthly={toggleMonthlyHabit}
@@ -152,7 +157,7 @@ export default function DashboardPage() {
           </section>
         </div>
 
-        {/* Quick Log for Today Modal */}
+        {/* 1-Click Quick Log for Today Modal */}
         <QuickCheckModal
           isOpen={isQuickLogOpen}
           onClose={() => setIsQuickLogOpen(false)}

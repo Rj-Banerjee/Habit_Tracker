@@ -33,17 +33,17 @@ export const WeekColumn: React.FC<WeekColumnProps> = ({
   };
 
   const headerBgs: Record<number, string> = {
-    1: 'bg-blue-100 text-blue-900',
-    2: 'bg-pink-100 text-pink-900',
-    3: 'bg-teal-100 text-teal-900',
-    4: 'bg-amber-100 text-amber-900',
-    5: 'bg-blue-100 text-blue-900',
+    1: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
+    2: 'bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300',
+    3: 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300',
+    4: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
+    5: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300',
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col h-full">
+    <div className="bg-slate-50/60 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col h-full transition-colors">
       {/* Header */}
-      <div className={`py-1.5 px-3 font-serif italic text-sm font-semibold text-center ${headerBgs[weekNum] || 'bg-slate-100'}`}>
+      <div className={`py-1.5 px-3 font-serif italic text-xs font-semibold text-center ${headerBgs[weekNum] || 'bg-slate-100 text-slate-700'}`}>
         week {weekNum}
       </div>
 
@@ -58,10 +58,10 @@ export const WeekColumn: React.FC<WeekColumnProps> = ({
               <button
                 type="button"
                 onClick={() => onToggle(item.id)}
-                className={`w-4 h-4 mt-0.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors ${
+                className={`w-4 h-4 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition-all ${
                   item.is_completed
                     ? `${palette.checkboxActive} text-white`
-                    : 'bg-white border-slate-300 hover:border-slate-400'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 hover:border-slate-400'
                 }`}
               >
                 {item.is_completed && (
@@ -74,7 +74,9 @@ export const WeekColumn: React.FC<WeekColumnProps> = ({
               <span
                 onClick={() => onToggle(item.id)}
                 className={`flex-1 leading-snug ${
-                  item.is_completed ? 'line-through text-slate-400 italic' : 'text-slate-700'
+                  item.is_completed
+                    ? 'line-through text-slate-400 dark:text-slate-500 italic'
+                    : 'text-slate-700 dark:text-slate-200 font-medium'
                 }`}
               >
                 {item.title}
@@ -93,7 +95,7 @@ export const WeekColumn: React.FC<WeekColumnProps> = ({
         </div>
 
         {/* Add item button / input */}
-        <div className="mt-2 pt-2 border-t border-slate-100">
+        <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
           {isAdding ? (
             <form onSubmit={handleAddSubmit} className="flex gap-1">
               <input
@@ -102,11 +104,11 @@ export const WeekColumn: React.FC<WeekColumnProps> = ({
                 placeholder="New habit..."
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full text-xs px-2 py-1 border border-slate-300 rounded outline-none focus:border-blue-500"
+                className="w-full text-xs px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none focus:border-blue-500 text-slate-900 dark:text-white"
               />
               <button
                 type="submit"
-                className="px-2 py-1 bg-slate-900 text-white rounded text-xs font-semibold"
+                className="px-2 py-1 bg-slate-900 dark:bg-blue-600 text-white rounded-lg text-xs font-semibold"
               >
                 Add
               </button>
@@ -115,10 +117,10 @@ export const WeekColumn: React.FC<WeekColumnProps> = ({
             <button
               type="button"
               onClick={() => setIsAdding(true)}
-              className="w-full py-1 text-center text-[11px] text-slate-500 hover:text-slate-800 border border-dashed border-slate-200 hover:border-slate-300 rounded flex items-center justify-center gap-1 transition-colors"
+              className="w-full py-1 text-center text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 rounded-lg flex items-center justify-center gap-1 transition-colors"
             >
               <Plus className="w-3 h-3" />
-              <span>Add Habit</span>
+              <span>Add</span>
             </button>
           )}
         </div>

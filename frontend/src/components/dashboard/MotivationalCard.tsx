@@ -21,7 +21,7 @@ export const MotivationalCard: React.FC = () => {
         if (data && data.quote) setQuoteData(data);
       })
       .catch(() => {
-        // use default fallback
+        // fallback to default
       });
   }, []);
 
@@ -38,36 +38,37 @@ export const MotivationalCard: React.FC = () => {
   };
 
   return (
-    <article className="flex flex-col justify-between p-3.5 bg-amber-50/20 border border-amber-200/50 rounded-2xl shadow-xs text-center h-full">
+    <article className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between h-full transition-colors duration-200">
       {/* Framed Image */}
-      <div className="w-full h-56 rounded-xl overflow-hidden bg-slate-100 shadow-inner relative group">
+      <div className="w-full h-48 sm:h-52 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 relative group shadow-xs">
         <img
           src={quoteData.imageUrl}
           alt={quoteData.author}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60" />
       </div>
 
       {/* Quote Text */}
-      <div className="py-3 px-1 flex flex-col justify-center flex-1">
-        <span className="font-serif italic text-xs text-slate-500">I am ...</span>
-        <p className="font-serif italic text-base font-semibold text-slate-800 leading-snug mt-1">
+      <div className="py-4 flex flex-col justify-center flex-1 text-center">
+        <span className="font-serif italic text-xs text-slate-400 dark:text-slate-500">I am ...</span>
+        <p className="font-serif italic text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-100 leading-snug mt-1">
           &ldquo;{quoteData.quote}&rdquo;
         </p>
-        <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400 mt-2">
+        <span className="text-[11px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500 mt-2">
           {quoteData.author}
         </span>
       </div>
 
       {/* Footer Info */}
-      <div className="flex items-center justify-between pt-2 border-t border-amber-200/30 text-[10px] text-slate-400">
-        <span>Fresh inspiration daily ☀️</span>
+      <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-400">
+        <span>Daily Inspiration ☀️</span>
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 font-medium underline disabled:opacity-50 cursor-pointer"
+          className="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 inline-flex items-center gap-1 font-medium transition-colors disabled:opacity-50 cursor-pointer"
         >
-          <Sparkles className="w-3 h-3 text-amber-500" />
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           <span>{loading ? 'Refreshing...' : 'Next Quote →'}</span>
         </button>
       </div>

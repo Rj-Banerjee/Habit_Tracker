@@ -31,8 +31,8 @@ export const QuickCheckModal: React.FC<QuickCheckModalProps> = ({
       maxWidth="max-w-lg"
     >
       <div className="flex flex-col gap-3">
-        <p className="text-xs text-slate-500">
-          Quickly log completions for today: <strong className="text-slate-800">{todayFormatted}</strong>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Quickly log completions for today: <strong className="text-slate-800 dark:text-white">{todayFormatted}</strong>
         </p>
 
         <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
@@ -45,25 +45,25 @@ export const QuickCheckModal: React.FC<QuickCheckModalProps> = ({
                 <div
                   key={h.id}
                   onClick={() => onToggle(h.id, todayDateKey)}
-                  className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all active:scale-[0.99] select-none ${
                     done
-                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900 text-blue-900 dark:text-blue-100'
+                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <span className={`text-sm font-medium ${done ? 'line-through text-slate-500' : ''}`}>
+                  <span className={`text-sm font-semibold truncate pr-2 ${done ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
                     {h.title}
                   </span>
 
                   <div
-                    className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
                       done
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'bg-white border-slate-300'
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600'
                     }`}
                   >
                     {done && (
-                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current stroke-current">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current stroke-current">
                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                       </svg>
                     )}

@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 
 interface DonutRingProps {
@@ -15,8 +17,8 @@ export const DonutRing: React.FC<DonutRingProps> = ({
   percentage,
   size = 100,
   strokeWidth = 10,
-  color = '#f472b6',
-  trackColor = '#fce7f3',
+  color = '#3b82f6',
+  trackColor = '#f1f5f9',
   centerMain,
   centerSub,
   subAbove = false,
@@ -37,6 +39,7 @@ export const DonutRing: React.FC<DonutRingProps> = ({
           fill="transparent"
           stroke={trackColor}
           strokeWidth={strokeWidth}
+          className="dark:opacity-20"
         />
         <circle
           cx={center}
@@ -54,17 +57,17 @@ export const DonutRing: React.FC<DonutRingProps> = ({
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
         {subAbove && centerSub && (
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 leading-tight">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-tight">
             {centerSub}
           </span>
         )}
         {centerMain && (
-          <span className="text-sm font-bold text-slate-800 leading-tight">
+          <span className="text-sm font-bold text-slate-800 dark:text-white leading-tight">
             {centerMain}
           </span>
         )}
         {!subAbove && centerSub && (
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 leading-tight mt-0.5">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-tight mt-0.5">
             {centerSub}
           </span>
         )}

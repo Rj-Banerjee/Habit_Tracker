@@ -5,6 +5,7 @@ import { DonutRing } from '../charts/DonutRing';
 import { WeekColumn } from './WeekColumn';
 import { WeeklyHabitsRechart } from '../charts/WeeklyHabitsRechart';
 import { WeeklyHabit } from '../../types';
+import { CalendarRange } from 'lucide-react';
 
 interface WeeklyHabitsSectionProps {
   weeklyHabits: WeeklyHabit[];
@@ -37,63 +38,73 @@ export const WeeklyHabitsSection: React.FC<WeeklyHabitsSectionProps> = ({
   });
 
   return (
-    <section className="grid grid-cols-[220px_1fr_220px] gap-5 items-stretch">
-      {/* 1. Left Summary Donut Card */}
-      <article className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs flex flex-col">
-        <div className="bg-blue-100/70 py-2 px-4 text-xs font-bold tracking-wider uppercase text-blue-900 border-b border-blue-200">
-          WEEKLY HABITS
+    <section className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <CalendarRange className="w-5 h-5 text-blue-500" />
+            Weekly Habits
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Checklist targets grouped across all 5 calendar weeks
+          </p>
         </div>
-
-        <div className="p-4 flex flex-col items-center justify-center flex-1 gap-4">
-          <DonutRing
-            percentage={percentage}
-            size={110}
-            strokeWidth={11}
-            color="#93c5fd"
-            trackColor="#dbeafe"
-            centerMain={`${percentage.toFixed(1)}%`}
-            centerSub="weekly progress"
-          />
-
-          <div className="w-full flex flex-col gap-1.5 text-xs border-t border-slate-100 pt-3">
-            <div className="flex justify-between text-slate-500 italic">
-              <span>% completed</span>
-              <strong className="text-slate-800 not-italic">{percentage.toFixed(1)}%</strong>
-            </div>
-            <div className="flex justify-between text-slate-500 italic">
-              <span>completed</span>
-              <strong className="text-slate-800 not-italic">{completed}</strong>
-            </div>
-            <div className="flex justify-between text-slate-500 italic">
-              <span>incomplete</span>
-              <strong className="text-slate-800 not-italic">{incomplete}</strong>
-            </div>
-            <div className="flex justify-between text-slate-500 italic">
-              <span>total habits</span>
-              <strong className="text-slate-800 not-italic">{total}</strong>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      {/* 2. Center 5-Week Checklist Grid */}
-      <div className="grid grid-cols-5 gap-3">
-        {[1, 2, 3, 4, 5].map((w) => (
-          <WeekColumn
-            key={w}
-            weekNum={w}
-            habits={weeklyHabits.filter((h) => h.week_number === w)}
-            onToggle={onToggleWeekly}
-            onDelete={onDeleteWeekly}
-            onAdd={onAddWeekly}
-          />
-        ))}
       </div>
 
-      {/* 3. Right Recharts Vertical Bar Chart */}
-      <article className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs flex flex-col">
-        <WeeklyHabitsRechart data={chartData} />
-      </article>
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_220px] gap-6 items-stretch">
+        {/* 1. Left Summary Donut Card */}
+        <article className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between transition-colors duration-200">
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800 text-xs font-bold tracking-wider uppercase text-blue-900 dark:text-blue-300">
+            Weekly Progress
+          </div>
+
+          <div className="py-4 flex flex-col items-center justify-center flex-1 gap-4">
+            <DonutRing
+              percentage={percentage}
+              size={104}
+              strokeWidth={10}
+              color="#3b82f6"
+              trackColor="#e2e8f0"
+              centerMain={`${percentage.toFixed(1)}%`}
+              centerSub="Overall"
+            />
+
+            <div className="w-full flex flex-col gap-1.5 text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400 italic">
+                <span>Completed</span>
+                <strong className="text-slate-800 dark:text-white not-italic">{completed}</strong>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400 italic">
+                <span>Remaining</span>
+                <strong className="text-slate-800 dark:text-white not-italic">{incomplete}</strong>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400 italic">
+                <span>Total tasks</span>
+                <strong className="text-slate-800 dark:text-white not-italic">{total}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        {/* 2. Center 5-Week Checklist Grid */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 transition-colors duration-200">
+          {[1, 2, 3, 4, 5].map((w) => (
+            <WeekColumn
+              key={w}
+              weekNum={w}
+              habits={weeklyHabits.filter((h) => h.week_number === w)}
+              onToggle={onToggleWeekly}
+              onDelete={onDeleteWeekly}
+              onAdd={onAddWeekly}
+            />
+          ))}
+        </div>
+
+        {/* 3. Right Recharts Vertical Bar Chart */}
+        <article className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col transition-colors duration-200 overflow-hidden">
+          <WeeklyHabitsRechart data={chartData} />
+        </article>
+      </div>
     </section>
   );
 };
