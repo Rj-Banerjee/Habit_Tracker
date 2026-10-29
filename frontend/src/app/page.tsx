@@ -17,6 +17,9 @@ import { MonthlyHabitsSection } from '../components/monthly/MonthlyHabitsSection
 import { MonthlyReflectionCard } from '../components/dashboard/MonthlyReflectionCard';
 import { QuickCheckModal } from '../components/dashboard/QuickCheckModal';
 import { Skeleton } from '../components/ui/Skeleton';
+import { AICoachTrigger } from '../components/coach/AICoachTrigger';
+import { AICoachDrawer } from '../components/coach/AICoachDrawer';
+import { aiCoachService } from '../services/aiCoachService';
 
 import { getTodayInfo, getMonthCalendar } from '../utils/dateUtils';
 import { useHabits } from '../hooks/useHabits';
@@ -36,7 +39,22 @@ export default function DashboardPage() {
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState<boolean>(false);
+  const [isAICoachOpen, setIsAICoachOpen] = useState<boolean>(false);
+  const [hasUnreadProactive, setHasUnreadProactive] = useState<boolean>(false);
   const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | 'support' | null>(null);
+
+  // Check for proactive background check-in messages on mount
+  useEffect(() => {
+    aiCoachService
+      .getChatHistory(6)
+      .then((history) => {
+        const lastMsg = history[history.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.metadata?.type === 'proactive_checkin') {
+          setHasUnreadProactive(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const calendar = getMonthCalendar(selectedYear, selectedMonth);
 
@@ -89,6 +107,17 @@ export default function DashboardPage() {
   // Calculate Today's completion stats for Footer
   const completedTodayCount = dailyHabits.filter((h) => isCompleted(h.id, today.dateKey)).length;
   const totalTodayHabits = dailyHabits.length;
+
+  // Real-time State Syncing for AI Coach tool executions
+  const handleAIHabitLogUpdated = (habitId: string, date: string, status: boolean) => {
+    updateDailyHabitLog(habitId, date, status);
+    refreshAnalytics();
+  };
+
+  const handleAIHabitTargetScaled = (habitId: string, newGoal: number) => {
+    updateDailyHabit(habitId, undefined, newGoal);
+    refreshAnalytics();
+  };
 
   // Total Lifetime Days Conquered (sum of all completions across dataset)
   const totalDaysConquered =
@@ -257,6 +286,10 @@ export default function DashboardPage() {
           onJumpToday={handleJumpToday}
           onOpenProfile={() => setIsProfileDrawerOpen(true)}
           onExportCSV={handleExportCSV}
+          onOpenAICoach={() => {
+            setIsAICoachOpen(true);
+            setHasUnreadProactive(false);
+          }}
         />
 
         {/* 10. Off-Canvas Profile & Settings Panel */}
@@ -272,6 +305,26 @@ export default function DashboardPage() {
           isOpen={legalModalType !== null}
           onClose={() => setLegalModalType(null)}
           type={legalModalType}
+        />
+
+        {/* 12. Floating AI Coach Trigger Button */}
+        <AICoachTrigger
+          onClick={() => {
+            setIsAICoachOpen(true);
+            setHasUnreadProactive(false);
+          }}
+          isOpen={isAICoachOpen}
+          hasUnreadProactive={hasUnreadProactive}
+        />
+
+        {/* 13. Conversational AI Coach Drawer */}
+        <AICoachDrawer
+          isOpen={isAICoachOpen}
+          onClose={() => setIsAICoachOpen(false)}
+          todayDateKey={today.dateKey}
+          onHabitLogUpdated={handleAIHabitLogUpdated}
+          onHabitTargetScaled={handleAIHabitTargetScaled}
+          onRefreshAnalytics={refreshAnalytics}
         />
       </main>
     </ProtectedRoute>

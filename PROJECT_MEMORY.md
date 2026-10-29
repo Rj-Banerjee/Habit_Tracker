@@ -125,6 +125,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="sb_publishable_oQCmzhlt8VQsFZ3Q2e5Ydg_PcnWrWah"
   - `id`: UUID (Primary Key)
   - `date`: String (Unique `"YYYY-MM-DD"`)
   - `quote`: Text, `author`: String, `image_url`: Text
+- **`coach_profiles`**:
+  - `id`: UUID (Primary Key)
+  - `user_id`: Foreign Key (`users.id`, Unique)
+  - `coaching_style`: String (Default: `'EMPATHETIC_FIRM'`)
+  - `target_identity`: String? (Default: `'High-performing & disciplined builder'`)
+  - `behavioral_tags`: Text Array (Default: `['atomic-habits', 'frictionless-downshifting', 'identity-based']`)
+  - `created_at`, `updated_at`: Timestamps
+- **`chat_messages`**:
+  - `id`: UUID (Primary Key)
+  - `user_id`: Foreign Key (`users.id`)
+  - `role`: String (`user` | `assistant` | `system`)
+  - `content`: Text
+  - `metadata`: JSON (contains `toolsExecuted`, `type`, `slot`, etc.)
+  - `created_at`: Timestamp (Indexed on `[user_id, created_at]`)
 
 ---
 
@@ -169,6 +183,20 @@ To prevent Tailwind build-time CSS purging on dynamic classes, checkboxes use:
    - `backgroundColor: isCompleted ? theme.bg : undefined`
    - `borderColor: isCompleted ? theme.border : undefined`
    (Hex values: `#2563eb`, `#db2777`, `#0d9488`, `#d97706`, `#4f46e5`).
+
+### 6. Floating AI Coach Trigger (`AICoachTrigger.tsx`)
+- **Positioning**: `fixed bottom-6 right-6 z-40`
+- **Glassmorphism Base**: `bg-white/80 backdrop-blur-md dark:bg-slate-900/80 border border-white/60 dark:border-slate-800/80 shadow-2xl`
+- **Breathing Animation**: Keyframe pulse & subtle breathe (`animate-breathe`, `animate-pulse`) with gradient glow ring.
+- **Micro-Pills**: Displays "AI Coach", "Atomic" badge, and proactive check-in alert status.
+
+### 7. Conversational AI Coach Drawer (`AICoachDrawer.tsx`)
+- Off-canvas right panel (`rounded-l-3xl`, soft shadows, pastel/slate palette).
+- **RAG Architecture & Behavioral System**: Integrates James Clear's "Atomic Habits" principles with strict enforcement of **Frictionless Downshifting** when fatigue/burnout is expressed.
+- **Action Chips**: `["Quick Log My Day", "I'm Feeling Burned Out", "Review My Week", "Emergency Downscale"]`.
+- **Real-Time Streaming**: Server-Sent Events (SSE) streaming with auto-scrolling message bubbles.
+- **Optimistic State Syncing**: Intercepts AI tool executions (`toggleHabitLog`, `scaleHabitTarget`) to update the habit matrix and charts immediately without page reload.
+
 
 ---
 

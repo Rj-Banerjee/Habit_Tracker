@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Calendar, CheckCircle2, User, Moon, Sun, Download, ArrowRight, X } from 'lucide-react';
+import { Search, Calendar, CheckCircle2, User, Moon, Sun, Download, ArrowRight, X, Sparkles } from 'lucide-react';
 import { DailyHabit } from '../../types';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -13,6 +13,7 @@ interface CommandPaletteModalProps {
   onJumpToday: () => void;
   onOpenProfile: () => void;
   onExportCSV: () => void;
+  onOpenAICoach?: () => void;
 }
 
 export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
@@ -23,6 +24,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onJumpToday,
   onOpenProfile,
   onExportCSV,
+  onOpenAICoach,
 }) => {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +61,16 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   if (!isOpen) return null;
 
   const quickActions = [
+    {
+      id: 'ai-coach',
+      title: 'Open AI Habit Coach',
+      subtitle: 'James Clear behavioral strategist & frictionless downshifting',
+      icon: <Sparkles className="w-4 h-4 text-indigo-500" />,
+      action: () => {
+        onClose();
+        onOpenAICoach?.();
+      },
+    },
     {
       id: 'quick-log',
       title: 'Quick Log for Today',

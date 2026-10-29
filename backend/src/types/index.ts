@@ -45,3 +45,35 @@ export interface SaveReflectionDto {
   year: number;
   content: string;
 }
+
+// AI Coach Types
+export type AIChatRole = 'user' | 'assistant' | 'system';
+
+export interface ChatMessageDto {
+  id: string;
+  userId: string;
+  role: AIChatRole;
+  content: string;
+  metadata?: Record<string, any> | null;
+  createdAt: string | Date;
+}
+
+export interface CoachProfileDto {
+  id?: string;
+  userId: string;
+  coachingStyle: string;
+  targetIdentity?: string | null;
+  behavioralTags: string[];
+}
+
+export interface SendMessageDto {
+  message: string;
+  currentDate?: string;
+}
+
+export interface ToolExecutionRecord {
+  tool: 'getDailyHabits' | 'toggleHabitLog' | 'scaleHabitTarget';
+  args: Record<string, any>;
+  result: Record<string, any>;
+}
+

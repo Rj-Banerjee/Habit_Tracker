@@ -112,3 +112,33 @@ export interface MonthCalendar {
   days: DayCalendarInfo[];
   weeks: Record<number, DayCalendarInfo[]>;
 }
+
+// AI Coach Types
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+}
+
+export interface CoachProfile {
+  id: string;
+  userId: string;
+  coachingStyle: string;
+  targetIdentity: string;
+  behavioralTags: string[];
+}
+
+export interface ToolExecutionRecord {
+  tool: 'getDailyHabits' | 'toggleHabitLog' | 'scaleHabitTarget';
+  args: Record<string, any>;
+  result: Record<string, any>;
+}
+
+export interface AIChatResponse {
+  response: string;
+  toolsExecuted: ToolExecutionRecord[];
+}
+

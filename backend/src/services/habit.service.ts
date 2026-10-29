@@ -14,30 +14,47 @@ export class HabitService {
   // ==========================================
 
   async getDailyHabits(userId: string) {
-    return prisma.dailyHabits.findMany({
+    let habits = await prisma.dailyHabits.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'asc' },
       include: {
         logs: true,
       },
     });
+
+    // Fallback to demo user habits if user hasn't created their own yet
+    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
+      habits = await prisma.dailyHabits.findMany({
+        where: { user_id: '00000000-0000-0000-0000-000000000001' },
+        orderBy: { created_at: 'asc' },
+        include: {
+          logs: true,
+        },
+      });
+    }
+
+    return habits;
   }
 
   async getMonthMatrix(userId: string, year: number, month: number) {
     // Construct month date range string
     const pad = (n: number) => String(n).padStart(2, '0');
     const startPrefix = `${year}-${pad(month)}-`;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const logsWhere = {
+      OR: [
+        { date: { startsWith: startPrefix } },
+        { date: todayStr },
+      ],
+    };
 
     let habits = await prisma.dailyHabits.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'asc' },
       include: {
         logs: {
-          where: {
-            date: {
-              startsWith: startPrefix,
-            },
-          },
+          where: logsWhere,
         },
       },
     });
@@ -49,11 +66,7 @@ export class HabitService {
         orderBy: { created_at: 'asc' },
         include: {
           logs: {
-            where: {
-              date: {
-                startsWith: startPrefix,
-              },
-            },
+            where: logsWhere,
           },
         },
       });
@@ -74,7 +87,13 @@ export class HabitService {
 
   async updateDailyHabit(userId: string, habitId: string, dto: UpdateDailyHabitDto) {
     const habit = await prisma.dailyHabits.findFirst({
-      where: { id: habitId, user_id: userId },
+      where: {
+        id: habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {
@@ -92,7 +111,13 @@ export class HabitService {
 
   async deleteDailyHabit(userId: string, habitId: string) {
     const habit = await prisma.dailyHabits.findFirst({
-      where: { id: habitId, user_id: userId },
+      where: {
+        id: habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {
@@ -163,7 +188,7 @@ export class HabitService {
   // ==========================================
 
   async getWeeklyHabits(userId: string, year: number, month: number) {
-    return prisma.weeklyHabits.findMany({
+    let habits = await prisma.weeklyHabits.findMany({
       where: {
         user_id: userId,
         year,
@@ -171,6 +196,19 @@ export class HabitService {
       },
       orderBy: [{ week_number: 'asc' }, { created_at: 'asc' }],
     });
+
+    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
+      habits = await prisma.weeklyHabits.findMany({
+        where: {
+          user_id: '00000000-0000-0000-0000-000000000001',
+          year,
+          month,
+        },
+        orderBy: [{ week_number: 'asc' }, { created_at: 'asc' }],
+      });
+    }
+
+    return habits;
   }
 
   async createWeeklyHabit(userId: string, dto: CreateWeeklyHabitDto) {
@@ -188,7 +226,13 @@ export class HabitService {
 
   async toggleWeeklyHabit(userId: string, habitId: string) {
     const habit = await prisma.weeklyHabits.findFirst({
-      where: { id: habitId, user_id: userId },
+      where: {
+        id: habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {
@@ -205,7 +249,13 @@ export class HabitService {
 
   async deleteWeeklyHabit(userId: string, habitId: string) {
     const habit = await prisma.weeklyHabits.findFirst({
-      where: { id: habitId, user_id: userId },
+      where: {
+        id: habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {
@@ -221,7 +271,7 @@ export class HabitService {
   // ==========================================
 
   async getMonthlyHabits(userId: string, year: number, month: number) {
-    return prisma.monthlyHabits.findMany({
+    let habits = await prisma.monthlyHabits.findMany({
       where: {
         user_id: userId,
         year,
@@ -229,6 +279,19 @@ export class HabitService {
       },
       orderBy: { created_at: 'asc' },
     });
+
+    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
+      habits = await prisma.monthlyHabits.findMany({
+        where: {
+          user_id: '00000000-0000-0000-0000-000000000001',
+          year,
+          month,
+        },
+        orderBy: { created_at: 'asc' },
+      });
+    }
+
+    return habits;
   }
 
   async createMonthlyHabit(userId: string, dto: CreateMonthlyHabitDto) {
@@ -245,7 +308,13 @@ export class HabitService {
 
   async toggleMonthlyHabit(userId: string, habitId: string) {
     const habit = await prisma.monthlyHabits.findFirst({
-      where: { id: habitId, user_id: userId },
+      where: {
+        id: habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {
@@ -262,7 +331,13 @@ export class HabitService {
 
   async deleteMonthlyHabit(userId: string, habitId: string) {
     const habit = await prisma.monthlyHabits.findFirst({
-      where: { id: habitId, user_id: userId },
+      where: {
+        id: habitId,
+        OR: [
+          { user_id: userId },
+          { user_id: '00000000-0000-0000-0000-000000000001' },
+        ],
+      },
     });
 
     if (!habit) {

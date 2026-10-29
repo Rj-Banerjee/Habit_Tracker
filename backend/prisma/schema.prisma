@@ -17,6 +17,8 @@ model Users {
   weeklyHabits       WeeklyHabits[]
   monthlyHabits      MonthlyHabits[]
   monthlyReflections MonthlyReflections[]
+  coachProfile       CoachProfile?
+  chatMessages       ChatMessage[]
 
   @@map("users")
 }
@@ -104,4 +106,32 @@ model DailyQuoteCache {
   cached_at   DateTime @default(now())
 
   @@map("daily_quote_cache")
+}
+
+model CoachProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  coachingStyle  String   @default("EMPATHETIC_FIRM") @map("coaching_style")
+  targetIdentity String?  @map("target_identity")
+  behavioralTags String[] @default([]) @map("behavioral_tags")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("coach_profiles")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  role      String   // 'user' | 'assistant' | 'system'
+  content   String   @db.Text
+  metadata  Json?    @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("chat_messages")
 }
