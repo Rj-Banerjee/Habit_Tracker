@@ -15,15 +15,29 @@ export const aiCoachService = {
   /**
    * Send a message and await complete response and executed tools
    */
-  async sendMessage(message: string, currentDate?: string): Promise<AIChatResponse> {
-    return ApiClient.post<AIChatResponse>('/ai/chat', { message, currentDate });
+  async sendMessage(
+    messageOrHistory: string | ChatMessage[],
+    currentDate?: string
+  ): Promise<AIChatResponse> {
+    const formattedMessages = Array.isArray(messageOrHistory)
+      ? messageOrHistory.map((m) => ({ role: m.role, content: m.content }))
+      : [{ role: 'user', content: messageOrHistory }];
+    const lastMessage = Array.isArray(messageOrHistory)
+      ? messageOrHistory[messageOrHistory.length - 1]?.content
+      : messageOrHistory;
+
+    return ApiClient.post<AIChatResponse>('/ai/chat', {
+      messages: formattedMessages,
+      message: lastMessage,
+      currentDate,
+    });
   },
 
   /**
    * Real-time SSE streaming message sender
    */
   async streamMessage(
-    message: string,
+    messageOrHistory: string | ChatMessage[],
     currentDate: string | undefined,
     onDelta: (text: string) => void,
     onComplete: (fullText: string, toolsExecuted: ToolExecutionRecord[]) => void,
@@ -40,13 +54,24 @@ export const aiCoachService = {
         // Fallback to dev token
       }
 
+      const formattedMessages = Array.isArray(messageOrHistory)
+        ? messageOrHistory.map((m) => ({ role: m.role, content: m.content }))
+        : [{ role: 'user', content: messageOrHistory }];
+      const lastMessage = Array.isArray(messageOrHistory)
+        ? messageOrHistory[messageOrHistory.length - 1]?.content
+        : messageOrHistory;
+
       const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: authHeader,
         },
-        body: JSON.stringify({ message, currentDate }),
+        body: JSON.stringify({
+          messages: formattedMessages,
+          message: lastMessage,
+          currentDate,
+        }),
       });
 
       if (!response.ok) {

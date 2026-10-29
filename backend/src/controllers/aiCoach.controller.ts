@@ -29,13 +29,23 @@ export class AICoachController {
   async sendMessage(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { message, currentDate } = req.body;
+      const { message, messages, currentDate } = req.body;
 
-      if (!message || typeof message !== 'string' || !message.trim()) {
-        throw new AppError('Message is required and must be non-empty', 400);
+      let conversationMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+      if (Array.isArray(messages) && messages.length > 0) {
+        conversationMessages = messages;
+      } else if (message && typeof message === 'string' && message.trim()) {
+        conversationMessages = [{ role: 'user', content: message.trim() }];
+      } else {
+        throw new AppError('Either messages array or message string is required', 400);
       }
 
-      const result = await aiCoachService.processMessage(userId, message.trim(), currentDate);
+      const result = await aiCoachService.processConversation(
+        userId,
+        conversationMessages,
+        currentDate
+      );
 
       res.json({
         status: 'success',
@@ -56,10 +66,16 @@ export class AICoachController {
   async streamMessage(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const { message, currentDate } = req.body;
+      const { message, messages, currentDate } = req.body;
 
-      if (!message || typeof message !== 'string' || !message.trim()) {
-        throw new AppError('Message is required and must be non-empty', 400);
+      let conversationMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+      if (Array.isArray(messages) && messages.length > 0) {
+        conversationMessages = messages;
+      } else if (message && typeof message === 'string' && message.trim()) {
+        conversationMessages = [{ role: 'user', content: message.trim() }];
+      } else {
+        throw new AppError('Either messages array or message string is required', 400);
       }
 
       // Configure SSE response headers
@@ -72,7 +88,11 @@ export class AICoachController {
 
       res.write(': keepalive\n\n');
 
-      const result = await aiCoachService.processMessage(userId, message.trim(), currentDate);
+      const result = await aiCoachService.processConversation(
+        userId,
+        conversationMessages,
+        currentDate
+      );
 
       // Stream the response in natural rhythmic chunks
       const words = result.response.split(' ');

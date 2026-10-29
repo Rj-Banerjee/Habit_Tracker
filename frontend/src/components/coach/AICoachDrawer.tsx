@@ -173,14 +173,15 @@ export const AICoachDrawer: React.FC<AICoachDrawerProps> = ({
       createdAt: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, tempUserMsg]);
+    const updatedHistory = [...messages, tempUserMsg];
+    setMessages(updatedHistory);
     setInputValue('');
     setIsLoading(true);
     setStreamingText('');
 
     try {
       await aiCoachService.streamMessage(
-        textToSend,
+        updatedHistory,
         todayDateKey,
         (delta) => {
           setStreamingText((prev) => (prev ? prev + delta : delta));
@@ -195,7 +196,7 @@ export const AICoachDrawer: React.FC<AICoachDrawerProps> = ({
             createdAt: new Date().toISOString(),
           };
 
-          setMessages((prev) => [...prev, finalAssistantMsg]);
+          setMessages([...updatedHistory, finalAssistantMsg]);
           setStreamingText(null);
           setIsLoading(false);
 
@@ -208,7 +209,7 @@ export const AICoachDrawer: React.FC<AICoachDrawerProps> = ({
           console.warn('Streaming encountered an issue, falling back to standard JSON call:', streamErr);
           // Fallback to standard request
           aiCoachService
-            .sendMessage(textToSend, todayDateKey)
+            .sendMessage(updatedHistory, todayDateKey)
             .then((res) => {
               const assistantMsg: ChatMessage = {
                 id: `assistant-${Date.now()}`,
@@ -218,7 +219,7 @@ export const AICoachDrawer: React.FC<AICoachDrawerProps> = ({
                 metadata: { toolsExecuted: res.toolsExecuted },
                 createdAt: new Date().toISOString(),
               };
-              setMessages((prev) => [...prev, assistantMsg]);
+              setMessages([...updatedHistory, assistantMsg]);
               setStreamingText(null);
               setIsLoading(false);
               if (res.toolsExecuted) handleToolExecutions(res.toolsExecuted);

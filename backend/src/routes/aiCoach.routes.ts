@@ -16,7 +16,15 @@ router.post(
   '/chat',
   validateRequest({
     body: z.object({
-      message: z.string().min(1, 'Message is required'),
+      messages: z
+        .array(
+          z.object({
+            role: z.enum(['user', 'assistant', 'system']),
+            content: z.string(),
+          })
+        )
+        .optional(),
+      message: z.string().optional(),
       currentDate: z.string().optional(),
     }),
   }),
@@ -27,7 +35,15 @@ router.post(
   '/chat/stream',
   validateRequest({
     body: z.object({
-      message: z.string().min(1, 'Message is required'),
+      messages: z
+        .array(
+          z.object({
+            role: z.enum(['user', 'assistant', 'system']),
+            content: z.string(),
+          })
+        )
+        .optional(),
+      message: z.string().optional(),
       currentDate: z.string().optional(),
     }),
   }),

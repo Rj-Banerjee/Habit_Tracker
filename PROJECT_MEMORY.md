@@ -192,9 +192,16 @@ To prevent Tailwind build-time CSS purging on dynamic classes, checkboxes use:
 
 ### 7. Conversational AI Coach Drawer (`AICoachDrawer.tsx`)
 - Off-canvas right panel (`rounded-l-3xl`, soft shadows, pastel/slate palette).
-- **RAG Architecture & Behavioral System**: Integrates James Clear's "Atomic Habits" principles with strict enforcement of **Frictionless Downshifting** when fatigue/burnout is expressed.
+- **RAG Architecture & Behavioral Persona**:
+  - Exact system prompt instruction:
+    * RULE 1: Never use canned, robotic greetings.
+    * RULE 2: Always respond directly and authentically to the user's specific input first (validates emotional states, uses user name if provided).
+    * RULE 3: Only after validating, gently steer conversation back to daily systems and habits.
+    * RULE 4: If user expresses extreme fatigue or burnout, explicitly offer to trigger an "Emergency Downscale" via autonomous tools.
+  - Injects live RAG context (`DailyLog` completion counts, incomplete habits list, and `CoachProfile`) into the LLM system prompt.
+- **LLM Integrations**: Official OpenAI SDK (`openai`) and Anthropic SDK (`@anthropic-ai/sdk`) with tool calling (`getDailyHabits`, `toggleHabitLog`, `scaleHabitTarget`) and multi-turn `messages` array support.
 - **Action Chips**: `["Quick Log My Day", "I'm Feeling Burned Out", "Review My Week", "Emergency Downscale"]`.
-- **Real-Time Streaming**: Server-Sent Events (SSE) streaming with auto-scrolling message bubbles.
+- **Real-Time Streaming**: Server-Sent Events (SSE) streaming with auto-scrolling message bubbles and input field clearing.
 - **Optimistic State Syncing**: Intercepts AI tool executions (`toggleHabitLog`, `scaleHabitTarget`) to update the habit matrix and charts immediately without page reload.
 
 

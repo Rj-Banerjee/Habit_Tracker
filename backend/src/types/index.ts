@@ -67,7 +67,8 @@ export interface CoachProfileDto {
 }
 
 export interface SendMessageDto {
-  message: string;
+  message?: string;
+  messages?: Array<{ role: AIChatRole; content: string }>;
   currentDate?: string;
 }
 
