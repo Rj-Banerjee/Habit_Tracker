@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RangeHabit } from './api';
 import {
   addDays,
+  canChangeDay,
   dayCellStatus,
   dayLabel,
   dayName,
@@ -10,6 +11,7 @@ import {
   localDate,
   monthDates,
   monthLabel,
+  scrollEdges,
   shiftMonth,
   weekCompletion,
   weekDates,
@@ -82,6 +84,28 @@ describe('dayCellStatus', () => {
     ['protected', null, '2026-11-08', 'protected'],
   ] as const)('maps %s at level %s on %s to %s', (status, level, date, expected) => {
     expect(dayCellStatus(status, level, date, today)).toBe(expected);
+  });
+});
+
+describe('canChangeDay', () => {
+  it.each([
+    ['2026-11-10', true],
+    ['2026-11-09', true],
+    ['2026-11-08', false],
+    ['2026-11-11', false],
+  ])('on %s is %s', (date, expected) => {
+    expect(canChangeDay(date, '2026-11-10')).toBe(expected);
+  });
+});
+
+describe('scrollEdges', () => {
+  it.each([
+    ['everything fits', 0, 1200, 1116, false, false],
+    ['at the start', 0, 976, 1116, false, true],
+    ['in the middle', 70, 976, 1116, true, true],
+    ['at the end', 140, 976, 1116, true, false],
+  ])('%s', (_name, offset, view, content, before, after) => {
+    expect(scrollEdges(offset, view, content)).toEqual({ before, after });
   });
 });
 

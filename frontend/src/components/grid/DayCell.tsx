@@ -20,6 +20,7 @@ interface DayCellProps {
   identity: IdentityToken;
   isToday: boolean;
   repairOn: string | null;
+  editable: boolean;
   onPress: () => void;
   onActions: () => void;
 }
@@ -32,6 +33,7 @@ export function DayCell({
   identity,
   isToday,
   repairOn,
+  editable,
   onPress,
   onActions,
 }: DayCellProps) {
@@ -48,18 +50,19 @@ export function DayCell({
       onPress={onPress}
       onLongPress={onActions}
       delayLongPress={350}
+      disabled={!editable}
       accessibilityRole="button"
       accessibilityLabel={`${title}, ${dayLabel(date)}, ${label}`}
-      style={({ hovered, focused }: PressableState) => [
+      style={({ hovered: pointerOver }: PressableState) => [
         styles.cell,
         {
           width: size,
           height: size,
-          backgroundColor: hovered ? colors.surfaceSunken : isToday ? colors.surface : 'transparent',
-          borderColor: focused ? colors.text : 'transparent',
+          backgroundColor:
+            pointerOver && editable ? colors.surfaceSunken : isToday ? colors.surface : 'transparent',
         },
       ]}
-      {...rightClick(onActions)}
+      {...rightClick(editable ? onActions : undefined)}
     >
       <StatusMark status={status} identity={identity} size={22} />
     </Pressable>
@@ -71,6 +74,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-    borderWidth: 2,
   },
 });

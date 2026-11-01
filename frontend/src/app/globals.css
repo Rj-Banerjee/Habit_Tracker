@@ -31,6 +31,18 @@ body {
   }
 }
 
+/* Keyboard focus only, so clicking leaves no ring. These match the text tokens. */
+:focus-visible {
+  outline: 2px solid #2b2620;
+  outline-offset: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :focus-visible {
+    outline-color: #f1ebe1;
+  }
+}
+
 #app-root {
   display: flex;
   flex-direction: column;

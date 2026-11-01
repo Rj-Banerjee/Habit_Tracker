@@ -103,16 +103,29 @@ describe('MonthGrid', () => {
     await open();
     fireEvent.click(screen.getByRole('button', { name: /10 Nov, Due today/ }));
     await waitFor(() => expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-10', 'full'));
-    fireEvent.click(screen.getByRole('button', { name: /2 Nov, Done/ }));
-    await waitFor(() => expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-02'));
+    api.getDayStatuses.mockResolvedValue(
+      statuses.map((s) => (s.date === '2026-11-09' ? { ...s, status: 'done' } : s))
+    );
+    fireEvent.click(screen.getByRole('button', { name: /9 Nov, Not logged yet/ }));
+    await waitFor(() => expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-09', 'full'));
+  });
+
+  it('leaves days past the back-log window inactive', async () => {
+    await open();
+    const closed = screen.getByRole('button', { name: /7 Nov, Not done/ });
+    expect(closed.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(closed);
+    expect(api.logHabit).not.toHaveBeenCalled();
+    fireEvent.contextMenu(closed);
+    expect(screen.queryByText('Skip this day')).toBeNull();
   });
 
   it('puts a refused log back and explains why', async () => {
     api.logHabit.mockRejectedValue(new Error('The back-log window for that day has closed'));
     await open();
-    fireEvent.click(screen.getByRole('button', { name: /7 Nov, Not done/ }));
+    fireEvent.click(screen.getByRole('button', { name: /9 Nov, Not logged yet/ }));
     expect(await screen.findByText('The back-log window for that day has closed')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /7 Nov, Not done/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /9 Nov, Not logged yet/ })).toBeTruthy();
   });
 
   it('changes month with the keyboard, and returns to this month', async () => {
@@ -158,6 +171,7 @@ describe('DayCell', () => {
           identity="identity-1"
           isToday
           repairOn={null}
+          editable
           onPress={() => {}}
           onActions={onActions}
         />

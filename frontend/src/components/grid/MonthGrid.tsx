@@ -3,12 +3,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import {
+  canChangeDay,
   dayName,
   dayNumber,
   groupHabits,
   layout,
   monthDates,
   monthLabel,
+  scrollEdges,
   shiftMonth,
   space,
 } from '@habit-tracker/core';
@@ -41,6 +43,19 @@ export function MonthGrid() {
   const cell = useCellSize();
   const [target, setTarget] = useState<DayTarget | null>(null);
   const days = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const metrics = useRef({ offset: 0, view: 0, content: 0 });
+  const [edges, setEdges] = useState({ before: false, after: false });
+
+  const measure = (patch: Partial<typeof metrics.current>) => {
+    metrics.current = { ...metrics.current, ...patch };
+    const { offset, view, content } = metrics.current;
+    setEdges(scrollEdges(offset, view, content));
+  };
+
+  const page = (direction: 1 | -1) => {
+    const { offset, view } = metrics.current;
+    days.current?.scrollTo({ x: Math.max(0, offset + direction * view * 0.8), animated: true });
+  };
 
   const step = (delta: number) => setView(shiftMonth(current.year, current.month, delta));
   useShortcut('[', () => step(-1));
@@ -131,7 +146,14 @@ export function MonthGrid() {
           )}
         </View>
       ) : (
-        <View style={styles.table}>
+        <View style={styles.tableArea}>
+          {edges.before || edges.after ? (
+            <View style={styles.pager}>
+              {edges.before ? <Button quiet label="‹ Earlier days" onPress={() => page(-1)} /> : null}
+              {edges.after ? <Button quiet label="Later days ›" onPress={() => page(1)} /> : null}
+            </View>
+          ) : null}
+          <View style={styles.table}>
           <View style={{ width: NAME_WIDTH }}>
             <View style={[styles.headerRow, { height: 44 }]} />
             {groups.map((group) => (
@@ -150,7 +172,15 @@ export function MonthGrid() {
             ))}
           </View>
 
-          <ScrollView horizontal ref={days} style={styles.days}>
+          <ScrollView
+            horizontal
+            ref={days}
+            style={styles.days}
+            scrollEventThrottle={100}
+            onLayout={(event) => measure({ view: event.nativeEvent.layout.width })}
+            onContentSizeChange={(width) => measure({ content: width })}
+            onScroll={(event) => measure({ offset: event.nativeEvent.contentOffset.x })}
+          >
             <View>
               <View style={[styles.headerRow, { height: 44 }]}>
                 {dates.map((date) => (
@@ -184,6 +214,7 @@ export function MonthGrid() {
                           identity={group.colour}
                           isToday={date === today}
                           repairOn={range.repairOn(habit.id, date)}
+                          editable={canChangeDay(date, today)}
                           onPress={() => tap(targetFor(habit, date))}
                           onActions={() => setTarget(targetFor(habit, date))}
                         />
@@ -212,11 +243,12 @@ export function MonthGrid() {
               </View>
             ))}
           </View>
+          </View>
         </View>
       )}
 
       <Text variant="small" muted>
-        Click to log. Right click for smaller versions or to skip. Keys: [ and ] change month, T jumps to
+        Click today or yesterday to log. Right click for smaller versions or to skip. Keys: [ and ] change month, T jumps to
         this month.
       </Text>
 
@@ -246,6 +278,8 @@ const styles = StyleSheet.create({
   month: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   notice: { gap: space.md, maxWidth: layout.readingWidth },
   compact: { gap: space.sm },
+  tableArea: { gap: space.sm },
+  pager: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm },
   table: { flexDirection: 'row' },
   days: { flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-end', paddingBottom: space.xs },

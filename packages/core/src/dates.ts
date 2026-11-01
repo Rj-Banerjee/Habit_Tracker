@@ -72,6 +72,19 @@ export function dayCellStatus(
   }
 }
 
+// Today and yesterday can still change: yesterday's back-log window stays open
+// until today ends. The server has the final word.
+export const canChangeDay = (date: string, today: string) =>
+  date >= addDays(today, -1) && date <= today;
+
+// Whether a sideways-scrolling area has more to show on each side.
+export function scrollEdges(offset: number, viewWidth: number, contentWidth: number) {
+  return {
+    before: offset > 1,
+    after: offset + viewWidth < contentWidth - 1,
+  };
+}
+
 export interface HabitGroup {
   identityId: string;
   name: string;

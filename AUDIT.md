@@ -891,7 +891,7 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - Narrow windows show today's cards, because the grid needs the width.
 - The two React rules relaxed for the old screens are errors again, and lint now reports no problems.
 
-**Touch targets:** grid cells are 48px on touch screens and 36px with a mouse, so a whole month fits on a desktop screen. Every other control keeps the 48px minimum.
+**Touch targets:** grid cells are 48px on touch screens and 36px with a mouse. The owner approved this exception, and it's recorded in `PLAN.md`. All 31 days fit at 1440 wide. Narrower windows and touch screens scroll, with "Earlier days" and "Later days" buttons shown when days are out of view. Every other control keeps the 48px minimum.
 
 **Results**
 
@@ -906,3 +906,8 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not done:** weekly review is a form for now. Its coach summary comes with the Sunday Review in item 6.
 
+**Grid review fixes**
+
+- Added "Earlier days" and "Later days" buttons when days are out of view. A fade was considered, but the design avoids gradients.
+- Keyboard focus now uses a token colour instead of the browser's blue, and clicking leaves no ring.
+- Days past the back-log window are now inactive in the grid, instead of looking clickable and being refused by the server.

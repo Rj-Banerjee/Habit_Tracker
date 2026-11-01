@@ -242,6 +242,7 @@ Design runs one phase ahead of build: screens for phase N are tested before phas
 - 8 identity accent colours, each checked for contrast in both modes and for colour-blind users.
 - Habit card states: due, done, done-minimum, skipped, not logged yet, missed (hollow), repaired (welded), protected.
 - Motion: check-off under 400 ms with a haptic tick; fracture and weld animations for streaks.
+- Touch targets: 48px minimum. The one exception is the desktop grid with a mouse, where cells are 36px so a month fits on screen. On touch screens they stay 48px.
 
 **Screens in build order:**
 
