@@ -1,8 +1,6 @@
 import React from 'react';
-import { BottomSheet } from '../components/BottomSheet';
-import { SheetOption } from '../components/SheetOption';
-import { HabitLevel, TodayRow } from '../services/tracker';
-import { levelOptions, repairDescription } from './todayModel';
+import { HabitLevel, levelOptions, repairDescription, TodayRow } from '@habit-tracker/core';
+import { BottomSheet, SheetOption } from '@habit-tracker/ui';
 
 const LEVEL_NAMES: Record<HabitLevel, string> = {
   full: 'Full version',

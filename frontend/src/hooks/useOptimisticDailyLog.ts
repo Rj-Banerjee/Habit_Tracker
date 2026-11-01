@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { trackerService } from '../services/trackerService';
+import { MonthHabit } from '@habit-tracker/core';
+import { tracker } from '../services/tracker';
 import { useToast } from './useToast';
-import { Habit } from '../types';
 
-export function useOptimisticDailyLog(habits: Habit[], onSaved: () => void) {
+export function useOptimisticDailyLog(habits: MonthHabit[], onSaved: () => void) {
   const [logMap, setLogMap] = useState<Record<string, boolean>>({});
   const { error } = useToast();
 
@@ -45,7 +45,11 @@ export function useOptimisticDailyLog(habits: Habit[], onSaved: () => void) {
       setKey(key, !previous);
 
       try {
-        await trackerService.setLog(habitId, dateKey, !previous);
+        if (previous) {
+          await tracker.undoLog(habitId, dateKey);
+        } else {
+          await tracker.logHabit(habitId, dateKey);
+        }
         onSaved();
       } catch (err) {
         setKey(key, previous);

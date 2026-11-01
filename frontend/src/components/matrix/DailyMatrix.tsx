@@ -6,16 +6,17 @@ import { HabitRow } from './HabitRow';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { Habit, MonthCalendar } from '../../types';
+import { MonthHabit } from '@habit-tracker/core';
+import { MonthCalendar } from '../../types';
 
 interface DailyMatrixProps {
-  habits: Habit[];
+  habits: MonthHabit[];
   streaks: Record<string, number>;
   calendar: MonthCalendar;
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
   onToggle: (habitId: string, dateKey: string) => void;
-  onAddHabit: (title: string) => Promise<unknown>;
+  onAddHabit: (title: string, minimum: string) => Promise<unknown>;
   onRenameHabit: (id: string, title: string) => Promise<unknown>;
   onDeleteHabit: (id: string) => Promise<unknown>;
 }
@@ -35,9 +36,10 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [selectedHabit, setSelectedHabit] = useState<MonthHabit | null>(null);
 
   const [formTitle, setFormTitle] = useState('');
+  const [formMinimum, setFormMinimum] = useState('');
 
   // Auto-focus current date on load
   useEffect(() => {
@@ -54,16 +56,17 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
 
   const handleOpenAdd = () => {
     setFormTitle('');
+    setFormMinimum('');
     setIsAddModalOpen(true);
   };
 
   const handleSaveAdd = async () => {
-    if (!formTitle.trim()) return;
-    await onAddHabit(formTitle.trim());
+    if (!formTitle.trim() || !formMinimum.trim()) return;
+    await onAddHabit(formTitle.trim(), formMinimum.trim());
     setIsAddModalOpen(false);
   };
 
-  const handleOpenEdit = (habit: Habit) => {
+  const handleOpenEdit = (habit: MonthHabit) => {
     setSelectedHabit(habit);
     setFormTitle(habit.title);
     setIsEditModalOpen(true);
@@ -228,13 +231,22 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
           </>
         }
       >
-        <Input
-          label="Habit Title"
-          placeholder="e.g. Meditate for 10 minutes"
-          value={formTitle}
-          onChange={(e) => setFormTitle(e.target.value)}
-          autoFocus
-        />
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Habit Title"
+            placeholder="e.g. Meditate for 10 minutes"
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.target.value)}
+            autoFocus
+          />
+          <Input
+            label="Minimum version"
+            placeholder="e.g. One slow breath"
+            value={formMinimum}
+            onChange={(e) => setFormMinimum(e.target.value)}
+            helperText="The smallest version that still counts on a hard day."
+          />
+        </div>
       </Modal>
 
       {/* Edit Habit Modal */}

@@ -13,7 +13,7 @@ import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { supabase } from './src/services/supabase';
-import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
+import { ThemeProvider, useTheme } from '@habit-tracker/ui';
 
 function Root() {
   const { colors } = useTheme();

@@ -3,17 +3,18 @@
 import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { CheckboxCell } from './CheckboxCell';
-import { Habit, DayCalendarInfo } from '../../types';
+import { MonthHabit } from '@habit-tracker/core';
+import { DayCalendarInfo } from '../../types';
 
 interface HabitRowProps {
-  habit: Habit;
+  habit: MonthHabit;
   streak: number;
   index: number;
   days: DayCalendarInfo[];
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
   onToggle: (habitId: string, dateKey: string) => void;
-  onEdit: (habit: Habit) => void;
+  onEdit: (habit: MonthHabit) => void;
   onDelete: (habitId: string) => void;
 }
 
@@ -31,7 +32,7 @@ export const HabitRow: React.FC<HabitRowProps> = ({
   const completedCount = days.filter((d) => isCompleted(habit.id, d.dateKey)).length;
 
   const handleDelete = () => {
-    if (window.confirm(`Delete "${habit.title}" and all of its logs?`)) {
+    if (window.confirm(`Archive "${habit.title}"? Its history is kept.`)) {
       onDelete(habit.id);
     }
   };
@@ -60,7 +61,7 @@ export const HabitRow: React.FC<HabitRowProps> = ({
             <button
               onClick={handleDelete}
               className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-              title="Delete habit"
+              title="Archive habit"
             >
               <Trash2 className="w-3 h-3" />
             </button>

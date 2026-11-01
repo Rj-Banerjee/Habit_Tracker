@@ -1,38 +1,45 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../components/Button';
-import { HabitCard } from '../components/HabitCard';
-import { Text } from '../components/Text';
-import { useToday } from '../hooks/useToday';
-import { HabitLevel, TodayRow } from '../services/tracker';
-import { useTheme } from '../theme/ThemeProvider';
-import { space } from '../theme/tokens';
-import { ShrinkSheet } from '../today/ShrinkSheet';
-import { SkipSheet } from '../today/SkipSheet';
-import { SwipeToSkip } from '../today/SwipeToSkip';
 import {
   cardDetail,
-  cardLabel,
   cardStatus,
   dayPart,
   eveningNote,
   greeting,
   groupByIdentity,
+  HabitLevel,
   isLogged,
+  layout,
   progressLabel,
+  repairOnLabel,
+  RepairRow,
   showYesterdayFirst,
-} from '../today/todayModel';
+  space,
+  TodayRow,
+} from '@habit-tracker/core';
+import { Button, HabitCard, Text, useLayoutSize, useShortcut, useTheme } from '@habit-tracker/ui';
+import { useToday } from '../hooks/useToday';
+import { checkOffTick } from '../services/haptics';
+import { ShrinkSheet } from '../today/ShrinkSheet';
+import { SkipSheet } from '../today/SkipSheet';
+import { SwipeToSkip } from '../today/SwipeToSkip';
 
 export function TodayScreen() {
   const { colors } = useTheme();
-  const { rows, loading, loadFailed, message, refresh, log, undo, skip, repair } = useToday();
+  const { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair } =
+    useToday();
+  const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
 
   const part = dayPart(new Date().getHours());
   const today = rows.filter((row) => row.is_today);
   const yesterday = rows.filter((row) => !row.is_today);
+
+  const refreshNow = useCallback(() => {
+    refresh();
+  }, [refresh]);
 
   const tap = (row: TodayRow) => (isLogged(row) ? undo(row) : log(row, 'full'));
 
@@ -48,13 +55,34 @@ export function TodayScreen() {
         identity={row.colour_token}
         streak={row.current_streak}
         detail={cardDetail(row)}
-        statusLabel={cardLabel(row)}
         onPress={() => tap(row)}
         onLongPress={() => setShrinkRow(row)}
         onSkip={() => setSkipRow(row)}
+        onCheckOff={checkOffTick}
       />
     </SwipeToSkip>
   );
+
+  useShortcut('r', refreshNow);
+
+  const repairSection =
+    repairs.length > 0 ? (
+      <View style={styles.group}>
+        <Text variant="small" muted accessibilityRole="header">
+          Can still be repaired
+        </Text>
+        {repairs.map((row: RepairRow) => (
+          <HabitCard
+            key={row.habit_id}
+            title={row.title}
+            status="missed"
+            statusLabel={repairOnLabel(row.repair_on)}
+            identity={row.colour_token}
+            streak={row.current_streak}
+          />
+        ))}
+      </View>
+    ) : null;
 
   const yesterdaySection =
     yesterday.length > 0 ? (
@@ -68,7 +96,7 @@ export function TodayScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.canvas }]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}>
         <View style={styles.header}>
           <Text variant="small" muted>
             {greeting(part)}
@@ -96,7 +124,7 @@ export function TodayScreen() {
             <Text>Your habits couldn&apos;t load.</Text>
             <Button label="Try again" onPress={refresh} />
           </View>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && repairs.length === 0 ? (
           <View style={styles.notice}>
             <Text>Nothing is due today.</Text>
             <Text variant="small" muted>
@@ -115,6 +143,7 @@ export function TodayScreen() {
               </View>
             ))}
             {showYesterdayFirst(part) ? null : yesterdaySection}
+            {repairSection}
           </>
         )}
       </ScrollView>
@@ -152,10 +181,11 @@ const styles = StyleSheet.create({
   content: {
     gap: space.xl,
     width: '100%',
-    maxWidth: 560,
+    maxWidth: layout.readingWidth,
     alignSelf: 'center',
     padding: space.lg,
   },
+  contentWide: { paddingTop: space.xxl },
   header: { gap: space.xs, paddingTop: space.lg },
   group: { gap: space.sm },
   notice: { gap: space.md },

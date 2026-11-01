@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
-import { HabitLevel, tracker, TodayRow } from '../services/tracker';
-import { levelTarget } from '../today/todayModel';
+import { HabitLevel, levelTarget, RepairRow, TodayRow } from '@habit-tracker/core';
+import { tracker } from '../services/tracker';
 
 type Patch = Partial<Pick<TodayRow, 'status' | 'level_done' | 'amount' | 'current_streak'>>;
 
 export function useToday() {
   const [rows, setRows] = useState<TodayRow[]>([]);
+  const [repairs, setRepairs] = useState<RepairRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      setRows(await tracker.getToday());
+      const [today, repairable] = await Promise.all([tracker.getToday(), tracker.getRepairs()]);
+      setRows(today);
+      setRepairs(repairable);
       setLoadFailed(false);
     } catch {
       setLoadFailed(true);
@@ -74,5 +77,5 @@ export function useToday() {
       () => tracker.repairHabit(row.habit_id, row.day, row.repair_amount)
     );
 
-  return { rows, loading, loadFailed, message, refresh, log, undo, skip, repair };
+  return { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair };
 }

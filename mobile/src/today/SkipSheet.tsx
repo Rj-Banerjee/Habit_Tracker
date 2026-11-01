@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
-import { BottomSheet } from '../components/BottomSheet';
-import { Button } from '../components/Button';
-import { SheetOption } from '../components/SheetOption';
-import { Text } from '../components/Text';
-import { TodayRow } from '../services/tracker';
-import { useTheme } from '../theme/ThemeProvider';
-import { layout, radius, space, textStyles } from '../theme/tokens';
+import { layout, radius, space, textStyles, TodayRow } from '@habit-tracker/core';
+import { BottomSheet, Button, SheetOption, Text, useTheme } from '@habit-tracker/ui';
 
 const REASONS = ['Sick', 'Travelling', 'Rest day', 'Too busy'];
 

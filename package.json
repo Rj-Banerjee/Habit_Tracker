@@ -3,12 +3,18 @@
   "version": "2.0.0",
   "description": "Mobile-first habit tracker (Next.js, Supabase)",
   "scripts": {
-    "lint": "cd frontend && npm run lint",
-    "test": "cd frontend && npm test && cd ../mobile && npm test -- --watchAll=false",
-    "typecheck": "cd frontend && npx tsc --noEmit && cd ../mobile && npm run typecheck",
-    "dev": "cd frontend && npm run dev",
+    "lint": "npm run lint -w habit-tracker-frontend",
+    "test": "npm test -w @habit-tracker/core && npm test -w habit-tracker-frontend && npm test -w habit-tracker-mobile -- --watchAll=false",
+    "typecheck": "npm run typecheck -w @habit-tracker/core && npm run typecheck -w habit-tracker-frontend && npm run typecheck -w habit-tracker-mobile",
+    "dev": "npm run dev -w habit-tracker-frontend",
     "test:db": "supabase test db",
-    "build": "cd frontend && npm run build",
-    "mobile": "cd mobile && npx expo start"
-  }
+    "build": "npm run build -w habit-tracker-frontend",
+    "mobile": "npm start -w habit-tracker-mobile"
+  },
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "mobile",
+    "frontend"
+  ]
 }

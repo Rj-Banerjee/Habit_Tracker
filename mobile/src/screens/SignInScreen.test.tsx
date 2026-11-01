@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { supabase } from '../services/supabase';
-import { ThemeProvider } from '../theme/ThemeProvider';
+import { ThemeProvider } from '@habit-tracker/ui';
 import { SignInScreen } from './SignInScreen';
 
 jest.mock('../services/supabase', () => ({

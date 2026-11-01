@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
-import { Button } from '../components/Button';
-import { Text } from '../components/Text';
+import { layout, radius, space, textStyles } from '@habit-tracker/core';
+import { Button, Text, useTheme } from '@habit-tracker/ui';
 import { supabase } from '../services/supabase';
-import { useTheme } from '../theme/ThemeProvider';
-import { layout, radius, space, textStyles } from '../theme/tokens';
 
 const AUTH_MESSAGES: Record<string, string> = {
   over_email_send_rate_limit:

@@ -1,8 +1,7 @@
 import React, { useMemo, useRef } from 'react';
-import { Animated, PanResponder, StyleSheet, View } from 'react-native';
-import { Text } from '../components/Text';
-import { useTheme } from '../theme/ThemeProvider';
-import { motion, radius, space } from '../theme/tokens';
+import { Animated, PanResponder, Platform, StyleSheet, View } from 'react-native';
+import { radius, space } from '@habit-tracker/core';
+import { Text, useTheme } from '@habit-tracker/ui';
 
 const TRIGGER_DISTANCE = 96;
 
@@ -25,7 +24,7 @@ export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
       Animated.timing(offset, {
         toValue: 0,
         duration: 160,
-        useNativeDriver: motion.useNativeDriver,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
 
     return PanResponder.create({

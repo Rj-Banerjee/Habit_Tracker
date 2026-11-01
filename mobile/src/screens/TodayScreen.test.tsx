@@ -1,13 +1,15 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { tracker, TodayRow } from '../services/tracker';
-import { ThemeProvider } from '../theme/ThemeProvider';
+import { TodayRow } from '@habit-tracker/core';
+import { ThemeProvider } from '@habit-tracker/ui';
+import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/tracker', () => ({
   tracker: {
     getToday: jest.fn(),
+    getRepairs: jest.fn(() => Promise.resolve([])),
     logHabit: jest.fn(() => Promise.resolve()),
     undoLog: jest.fn(() => Promise.resolve()),
     skipHabit: jest.fn(() => Promise.resolve()),
@@ -135,10 +137,29 @@ describe('TodayScreen', () => {
     expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null);
   });
 
-  it('labels an open day from yesterday correctly', async () => {
+  it('labels an open day from yesterday as not logged yet', async () => {
     await open([row({ day: '2026-11-02', is_today: false })]);
-    expect(screen.getByRole('button', { name: /^Run, Still open/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Run, Not logged yet/ })).toBeTruthy();
     expect(screen.queryByText(/Due today/)).toBeNull();
+  });
+
+  it('shows a closed miss with its repair day', async () => {
+    api.getRepairs.mockResolvedValueOnce([
+      {
+        habit_id: 'h9',
+        identity_id: 'i1',
+        identity_name: 'The Athlete',
+        colour_token: 'identity-1',
+        title: 'Stretch',
+        missed_on: '2026-11-02',
+        repair_on: '2026-11-05',
+        current_streak: 0,
+      },
+    ]);
+    await open([]);
+    expect(screen.getByText('Can still be repaired')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Stretch, Repair on Thu' })).toBeTruthy();
+    expect(screen.queryByText('Nothing is due today.')).toBeNull();
   });
 
   describe.each([

@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
-import { trackerService } from '../../services/trackerService';
-import { StreakMode } from '../../types';
+import { StreakMode } from '@habit-tracker/core';
+import { tracker } from '../../services/tracker';
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
 
   useEffect(() => {
     if (isOpen) {
-      trackerService.getMode().then(setMode).catch(() => {});
+      tracker.getMode().then(setMode).catch(() => {});
     }
   }, [isOpen]);
 
@@ -33,7 +33,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
     const previous = mode;
     setMode(next);
     try {
-      await trackerService.setMode(user.id, next);
+      await tracker.setMode(user.id, next);
     } catch (err) {
       setMode(previous);
       error((err as Error).message);

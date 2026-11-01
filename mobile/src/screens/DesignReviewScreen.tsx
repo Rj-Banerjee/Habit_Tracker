@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { HabitCard } from '../components/HabitCard';
-import { HabitCardStatus, statusLabels } from '../components/habitCardStatus';
-import { StatusMark } from '../components/StatusMark';
-import { Text } from '../components/Text';
-import { ThemeProvider, useTheme } from '../theme/ThemeProvider';
 import {
+  HabitCardStatus,
   IdentityToken,
   identityColors,
   radius,
   space,
+  statusLabels,
   ThemeColors,
   ThemeName,
-} from '../theme/tokens';
+} from '@habit-tracker/core';
+import { HabitCard, StatusMark, Text, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
 const SWATCHES: Array<keyof ThemeColors> = [
   'canvas',
@@ -35,6 +33,7 @@ const SAMPLE_CARDS: Array<{
   { title: 'Morning run', status: 'done', identity: 'identity-1', streak: 24, detail: '5 km' },
   { title: 'Read', status: 'doneMinimum', identity: 'identity-5', streak: 8, detail: '1 page' },
   { title: 'Meditate', status: 'skipped', identity: 'identity-2', streak: 15, detail: 'Sick' },
+  { title: 'Plank', status: 'open', identity: 'identity-8', streak: 6 },
   { title: 'Stretch', status: 'missed', identity: 'identity-1', streak: 0 },
   { title: 'Journal', status: 'repaired', identity: 'identity-6', streak: 31 },
   { title: 'Plan tomorrow', status: 'protected', identity: 'identity-7', streak: 19 },

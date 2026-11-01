@@ -92,7 +92,7 @@ function Dashboard() {
               todayDateKey={today.dateKey}
               isCompleted={isCompleted}
               onToggle={toggleLog}
-              onAddHabit={() => addHabit('New habit')}
+              onAddHabit={() => addHabit('New habit', 'Two minutes of it')}
             />
           </>
         )}

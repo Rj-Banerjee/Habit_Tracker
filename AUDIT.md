@@ -803,3 +803,64 @@ Editing a habit's schedule currently applies to its whole history, because sched
 
 With `Confirm email` on, sign-up succeeds without a session, and the sign-in screen showed nothing, so repeat presses sent more emails until Supabase's email limit was reached. The screen now says to check email and moves to sign in, and common auth errors are explained in plain words. Local Supabase has confirmation off, which is why local testing never showed this.
 
+### Shared core, dated settings and activity history (1 Nov 2026)
+
+**Phone test:** in Expo Go, sign-in worked and the evening and empty states showed. Haptics and swipe are still unconfirmed, because no habits exist yet.
+
+**Database**
+
+- New migration `20261102000000_dated_settings_and_activity.sql`.
+- Schedules, targets and Shrink levels are stored by date in `tracker.habit_versions`. Past days keep the settings they had, and Streak Repair uses the target from the missed day.
+- `activity_events` is append-only. A trigger writes it in the same transaction as every `habit_logs` change, so a failed change leaves no event. Even privileged roles can't edit it. Rows go only when the account does.
+- Habit changes now go through `create_habit`, `update_habit` and `archive_habit`, so limits and history always apply. Clients can't write `habits` or `habit_levels` directly.
+- The server enforces the 3-habit cap and the 2 consistent weeks rule.
+- Added `get_repairs`, and `repair_on` in `get_day_statuses`, for "Repair on Thu".
+- Added `habits.milestone_amount` and `milestone_label` for the Forecaster.
+
+**Decision made where the rule was silent:** days with nothing due neither count toward nor break a run of 2 consistent weeks.
+
+**Shared code**
+
+- The repo is now an npm workspace, with one copy of React across both apps.
+- `packages/core` holds types, Supabase API functions, form logic, Today logic and design tokens. The AI client joins it in item 6.
+- `packages/ui` holds components for React Native and the web, with hover, focus rings, right click for long press, layout sizes and keyboard shortcuts.
+- `packages/web-shims` lets the web build use the shared components.
+- Haptics stay in the Expo app, so shared code has no native dependency.
+
+**Static web app**
+
+The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`. A shared `HabitCard` was confirmed rendering from a static build.
+
+**What needs a server**
+
+| Feature | Needs | Notes |
+| --- | --- | --- |
+| Sign-in, habits, logs, streaks | Supabase | Reached from the client, so it works in a packaged desktop app |
+| AI coach and voice parsing | FastAPI service | Holds the Anthropic key, so it can never ship in the app |
+| Push notifications | Server-side sending | Mobile only for now |
+| Nightly jobs | Supabase cron and FastAPI workers | Not built yet |
+| Next.js routes, middleware, image optimisation | None used | Static export rules these out, and none are needed |
+| Secure desktop sign-in storage | Decide with the desktop app | The web client stores the session in browser storage |
+
+**Miss labels:** a past open day shows "Not logged yet", and a closed miss shows "Repair on Thu" or "Not done". "Protected" is a state in `PLAN.md`.
+
+**Habit creation:** form logic, form components and API functions are built, and the spec is in `docs/handoff/habit-creation.md`.
+
+**Results**
+
+| Check | Result |
+| --- | --- |
+| Database tests | 248 passing, including a new privacy suite |
+| Core tests | 95 passing |
+| Mobile and shared UI tests | 158 passing across iOS, Android and web presets |
+| Web tests | 6 passing |
+| Typecheck and static build | Pass |
+| Mobile in Chrome | 0 errors and 0 warnings across all gestures |
+| Web in Chrome | Sign-up, create, log, undo, archive and sign-out work |
+
+**Known and accepted for now**
+
+- 12 moderate production `npm audit` advisories, all `glob` and `minimatch` in Expo's tooling.
+- The web dev server still logs a hydration warning, to be checked in the Next.js rebuild.
+- With a repair offered while yesterday is still open, logging yesterday normally is usually the better choice, but both are allowed.
+

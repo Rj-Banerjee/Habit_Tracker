@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { Plus, Check, Flame } from 'lucide-react';
-import { Habit, MonthCalendar } from '../../types';
+import { MonthHabit } from '@habit-tracker/core';
+import { MonthCalendar } from '../../types';
 import { WEEK_CHECKBOX_THEMES } from './CheckboxCell';
 
 interface DailyMobileTodayViewProps {
-  habits: Habit[];
+  habits: MonthHabit[];
   streaks: Record<string, number>;
   calendar: MonthCalendar;
   todayDateKey: string;
