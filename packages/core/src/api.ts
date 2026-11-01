@@ -129,18 +129,38 @@ export interface HabitInput {
   milestoneLabel?: string | null;
 }
 
-export type HabitChanges = Partial<Omit<HabitInput, 'identityId' | 'type'>>;
+export interface NewIdentityInput {
+  name: string;
+  colourToken: IdentityToken;
+  whyText?: string;
+}
+
+// Leaving a field out keeps it, and null clears it. newIdentity moves the habit
+// to an identity created in the same save.
+export type HabitChanges = Partial<Omit<HabitInput, 'type'>> & { newIdentity?: NewIdentityInput };
+
+const toNewIdentity = (identity: NewIdentityInput) => ({
+  name: identity.name,
+  colour_token: identity.colourToken,
+  why_text: identity.whyText ?? null,
+});
+
+const OFFLINE = /Failed to fetch|Network request failed|NetworkError|Load failed/;
+
+// The network layer's own wording means nothing to the person using the app.
+const friendly = (message: string) =>
+  OFFLINE.test(message) ? "Can't reach the server. Check your connection and try again." : message;
 
 export function createTrackerApi(client: SupabaseClient) {
   const call = async <T>(name: string, args?: Record<string, unknown>): Promise<T> => {
     const { data, error } = await client.rpc(name, args);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendly(error.message));
     return data as T;
   };
 
   const select = async <T>(query: PromiseLike<{ data: unknown; error: { message: string } | null }>) => {
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendly(error.message));
     return data as T;
   };
 
@@ -171,9 +191,11 @@ export function createTrackerApi(client: SupabaseClient) {
 
     getHabitAllowance: async () => (await call<HabitAllowance[]>('get_habit_allowance'))[0],
 
-    createHabit: (input: HabitInput) =>
+    // A new identity saves with the habit, so a refused habit leaves nothing behind.
+    createHabit: (input: HabitInput, newIdentity?: NewIdentityInput) =>
       call<string>('create_habit', {
-        p_identity_id: input.identityId,
+        p_identity_id: newIdentity ? null : input.identityId,
+        p_new_identity: newIdentity ? toNewIdentity(newIdentity) : null,
         p_title: input.title,
         p_levels: input.levels,
         p_type: input.type ?? 'boolean',
@@ -187,20 +209,24 @@ export function createTrackerApi(client: SupabaseClient) {
         p_milestone_label: input.milestoneLabel ?? null,
       }),
 
-    // Leaving a field out keeps it. Changes apply from today, never to past days.
+    // Changes apply from today, never to past days. A moved habit keeps its logs.
     updateHabit: (habitId: string, changes: HabitChanges) =>
       call('update_habit', {
         p_habit_id: habitId,
-        p_title: changes.title ?? null,
-        p_target: changes.target ?? null,
-        p_unit: changes.unit ?? null,
-        p_schedule_days: changes.scheduleDays ?? null,
-        p_window_start: changes.windowStart ?? null,
-        p_window_end: changes.windowEnd ?? null,
-        p_voice_aliases: changes.voiceAliases ?? null,
-        p_milestone_amount: changes.milestoneAmount ?? null,
-        p_milestone_label: changes.milestoneLabel ?? null,
-        p_levels: changes.levels ?? null,
+        p_changes: {
+          title: changes.title,
+          target: changes.target,
+          unit: changes.unit,
+          schedule_days: changes.scheduleDays,
+          window_start: changes.windowStart,
+          window_end: changes.windowEnd,
+          voice_aliases: changes.voiceAliases,
+          milestone_amount: changes.milestoneAmount,
+          milestone_label: changes.milestoneLabel,
+          levels: changes.levels,
+          identity_id: changes.identityId,
+          new_identity: changes.newIdentity && toNewIdentity(changes.newIdentity),
+        },
       }),
 
     archiveHabit: (habitId: string) => call('archive_habit', { p_habit_id: habitId }),
@@ -219,15 +245,6 @@ export function createTrackerApi(client: SupabaseClient) {
     listIdentities: () =>
       select<Identity[]>(
         client.from('identities').select('id, name, colour_token, why_text').order('created_at')
-      ),
-
-    createIdentity: (userId: string, name: string, colourToken: IdentityToken, whyText?: string) =>
-      select<Identity>(
-        client
-          .from('identities')
-          .insert({ user_id: userId, name, colour_token: colourToken, why_text: whyText ?? null })
-          .select('id, name, colour_token, why_text')
-          .single()
       ),
 
     listHabitsInRange: (from: string, to: string) =>

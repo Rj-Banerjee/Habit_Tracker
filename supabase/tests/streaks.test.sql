@@ -941,13 +941,90 @@ select throws_like(
 select t.make_user(87);
 select t.make_habit(97, 87, '2020-01-06', '{1}', 'count', 10);
 insert into public.habit_levels (habit_id, level, description, target) values (t.h(97), 'full', 'Ten', 10), (t.h(97), 'minimum', 'One', 1);
-select tracker.update_habit(t.u(87), t.h(97), 'New name', 20, null, null, null, null, null, null, null,
-  '[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]', now());
+select tracker.update_habit(t.u(87), t.h(97), '{"title":"New name","target":20,"levels":[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]}', now());
 select is((select title from public.habits where id = t.h(97)), 'New name', 'a habit can be edited');
 select is(tracker.target_on(t.h(97), tracker.local_date(t.u(87), now())), 20::numeric, 'the new target applies today');
 select is(
   (select (tracker.version_on(t.h(97), '2020-01-06')).schedule_days), '{1}'::smallint[],
   'and the first version is untouched'
+);
+
+-- A missing field keeps its value, and an explicit null clears it.
+select t.make_user(88);
+select t.make_habit(98, 88, '2026-11-02', '{1,4}', 'count', 10);
+insert into public.habit_levels (habit_id, level, description, target) values (t.h(98), 'full', 'Ten', 10), (t.h(98), 'minimum', 'One', 1);
+update public.habits set unit = 'pages', milestone_amount = 300, milestone_label = 'book', voice_aliases = '{book}' where id = t.h(98);
+select tracker.update_habit(t.u(88), t.h(98), '{"title":"Renamed"}', now());
+select is(
+  (select unit || '/' || milestone_amount || '/' || milestone_label || '/' || voice_aliases[1] || '/' || target from public.habits where id = t.h(98)),
+  'pages/300/book/book/10',
+  'fields left out keep their values'
+);
+select tracker.update_habit(t.u(88), t.h(98), '{"unit":null}', now());
+select is((select unit from public.habits where id = t.h(98)), null::text, 'an explicit null clears the unit');
+select is((select milestone_label from public.habits where id = t.h(98)), 'book', 'and leaves everything else');
+select tracker.update_habit(t.u(88), t.h(98), '{"milestone_amount":null,"milestone_label":null}', now());
+select is((select milestone_amount from public.habits where id = t.h(98)), null::numeric, 'a milestone can be cleared');
+select tracker.update_habit(t.u(88), t.h(98), '{"voice_aliases":null}', now());
+select is((select voice_aliases from public.habits where id = t.h(98)), '{}'::text[], 'clearing voice names leaves an empty list');
+select throws_like(
+  $$ select tracker.update_habit(t.u(88), t.h(98), '{"milestone_amount":300}', now()) $$,
+  '%amount and a name%', 'half a milestone is refused'
+);
+select throws_like(
+  $$ select tracker.update_habit(t.u(88), t.h(98), '{"target":null}', now()) $$,
+  '%Set a target%', 'a count habit cannot lose its target'
+);
+select throws_like(
+  $$ select tracker.update_habit(t.u(88), t.h(98), '{"title":null}', now()) $$,
+  '%Give the habit a name%', 'a habit cannot lose its name'
+);
+select throws_like(
+  $$ select tracker.update_habit(t.u(88), t.h(98), '{"schedule_days":null}', now()) $$,
+  '%at least one day%', 'a habit cannot lose its schedule'
+);
+select throws_like(
+  $$ select tracker.update_habit(t.u(88), t.h(98), '{"levels":null}', now()) $$,
+  '%full version and a minimum%', 'a habit cannot lose its ladder'
+);
+
+-- Moving a habit to another identity.
+select t.make_user(89);
+select t.make_habit(99, 89, '2026-11-02');
+insert into public.habit_levels (habit_id, level, description) values (t.h(99), 'full', 'All'), (t.h(99), 'minimum', 'Some');
+select t.done(99, '2026-11-02', '2026-11-05');
+insert into public.identities (id, user_id, name) values ('cccccccc-0000-4000-8000-000000000089', t.u(89), 'Second');
+select tracker.settle(t.u(89), t.noon(89, '2026-11-05'));
+create temp table before_move on commit drop as
+  select t.streak(99, '2026-11-05', t.noon(89, '2026-11-05')) as streak,
+    (select count(*) from public.habit_logs where habit_id = t.h(99)) as logs,
+    (select count(*) from tracker.habit_versions where habit_id = t.h(99)) as versions;
+select tracker.update_habit(t.u(89), t.h(99), '{"identity_id":"cccccccc-0000-4000-8000-000000000089"}', t.noon(89, '2026-11-05'));
+select is((select name from public.identities i join public.habits h on h.identity_id = i.id where h.id = t.h(99)), 'Second', 'a habit can move to another identity');
+select is((select count(*) from public.habit_logs where habit_id = t.h(99)), (select logs from before_move), 'it keeps all its logs');
+select is(t.streak(99, '2026-11-05', t.noon(89, '2026-11-05')), (select streak from before_move), 'and its streak');
+select is((tracker.version_on(t.h(99), '2026-11-03')).schedule_days, '{1,2,3,4,5,6,7}'::smallint[], 'and its dated settings');
+select is(tracker.day_status(t.h(99), '2026-11-03', t.noon(89, '2026-11-05')), 'done', 'past days are unchanged');
+select is(tracker.habit_owner(t.h(99)), t.u(89), 'it stays with the same owner');
+select is(
+  (select payload ->> 'to_identity' from public.activity_events where user_id = t.u(89) and kind = 'habit_moved'),
+  'cccccccc-0000-4000-8000-000000000089',
+  'the move is in the activity history'
+);
+select throws_like(
+  $$ select tracker.update_habit(t.u(89), t.h(99), '{"identity_id":"bbbbbbbb-0000-4000-8000-000000000001"}', now()) $$,
+  '%Identity not found%', 'a habit cannot move to another user''s identity'
+);
+select tracker.update_habit(t.u(89), t.h(99), '{"new_identity":{"name":" Third ","colour_token":"identity-4"}}', now());
+select is(
+  (select i.name || '/' || i.colour_token from public.identities i join public.habits h on h.identity_id = i.id where h.id = t.h(99)),
+  'Third/identity-4',
+  'a habit can move to a brand new identity'
+);
+select tracker.update_habit(t.u(89), t.h(99), '{"title":"Same place"}', now());
+select is(
+  (select count(*)::int from public.activity_events where user_id = t.u(89) and kind = 'habit_moved'), 2,
+  'an edit that stays put records no move'
 );
 
 -- ---------------------------------------------------------------------------
@@ -1063,6 +1140,25 @@ select is((select current_streak from public.get_streaks()), 1, 'and sees the st
 select is((select count(*)::int from public.get_day_statuses(current_date, current_date)), 1, 'and day statuses');
 select is(public.get_grace_bank(), 0, 'and their Grace Day bank');
 select is((select count(*)::int from public.get_today()), 1, 'and their Today list');
+select lives_ok(
+  $$ select public.create_habit(null, 'Second', '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', p_new_identity => '{"name":"Fresh","colour_token":"identity-3"}') $$,
+  'a new identity and habit save in one call'
+);
+select is((select count(*)::int from public.identities where name = 'Fresh'), 1, 'and the identity exists');
+select public.create_habit(null, 'Third', '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', p_new_identity => '{"name":"Fresher"}');
+select throws_like(
+  $$ select public.create_habit(null, 'Fourth', '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', p_new_identity => '{"name":"Stray"}') $$,
+  '%2 consistent weeks unlock 2 more%', 'a habit over the limit is refused, with the app''s wording'
+);
+select is((select count(*)::int from public.identities where name = 'Stray'), 0, 'and leaves no stray identity behind');
+select throws_like(
+  $$ select public.create_habit(null, 'X', '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', p_new_identity => '{"name":"  "}') $$,
+  '%Give the identity a name%', 'a new identity needs a name'
+);
+select throws_like(
+  $$ select public.update_habit('aaaaaaaa-0000-4000-8000-000000000099', '{"title":"Hacked"}') $$,
+  '%Habit not found%', 'clients cannot edit another user''s habit'
+);
 select throws_ok(
   $$ insert into public.habit_logs (habit_id, date, level_done, status) values ('c0000000-0000-4000-8000-000000000002', '2020-01-01', 'full', 'done') $$,
   '42501', null, 'clients cannot write logs directly and skip the rules'

@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   emptyHabitForm,
+  FIELD_LIMITS,
   habitFormFromDetail,
   habitLimitMessage,
   hasErrors,
   toggleDay,
   toHabitInput,
+  usesTarget,
   validateHabitForm,
 } from './habitForm';
+import { HabitType } from './api';
 
 const valid = (patch = {}) => ({
   ...emptyHabitForm('i1'),
@@ -36,6 +39,16 @@ describe('validateHabitForm', () => {
     ['milestoneAmount', { milestoneAmount: 'x', milestoneLabel: 'book' }],
   ])('flags %s for %j', (field, patch) => {
     expect(validateHabitForm(valid(patch))).toHaveProperty(field);
+  });
+});
+
+describe('validateHabitForm with a new identity', () => {
+  it('needs no chosen identity', () => {
+    expect(hasErrors(validateHabitForm(valid({ identityId: null }), 'Reader'))).toBe(false);
+  });
+
+  it('needs a name', () => {
+    expect(validateHabitForm(valid(), '  ').identityId).toBe('Give the identity a name');
   });
 });
 
@@ -104,12 +117,23 @@ describe('habitFormFromDetail', () => {
 });
 
 describe('helpers', () => {
+  it('knows which types have a target', () => {
+    expect(['boolean', 'count', 'duration', 'quit'].filter((t) => usesTarget(t as HabitType))).toEqual([
+      'count',
+      'duration',
+    ]);
+  });
+
+  it('matches the database limit on a level description', () => {
+    expect(FIELD_LIMITS.levelDescription).toBe(200);
+  });
+
   it('toggles days', () => {
     expect(toggleDay([1, 2], 2)).toEqual([1]);
     expect(toggleDay([1], 3)).toEqual([1, 3]);
   });
 
   it('explains the habit limit', () => {
-    expect(habitLimitMessage(3, 3)).toBe("You're using 3 of 3 habits. 14 consistent days unlock 2 more.");
+    expect(habitLimitMessage(3, 3)).toBe("You're using 3 of 3 habits. 2 consistent weeks unlock 2 more.");
   });
 });

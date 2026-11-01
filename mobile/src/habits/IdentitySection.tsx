@@ -1,15 +1,13 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Identity, space } from '@habit-tracker/core';
+import { FIELD_LIMITS, Identity, space } from '@habit-tracker/core';
 import { Chip, ColourPicker, FormMessage, Text, TextField } from '@habit-tracker/ui';
-import { FIELD_LIMITS, NewIdentity } from '../hooks/useHabitForm';
+import { NewIdentity } from '../hooks/useHabitForm';
 
 interface IdentitySectionProps {
   identities: Identity[];
   selectedId: string | null;
   draft: NewIdentity | null;
-  // A saved habit can't move to another identity yet.
-  locked: boolean;
   error?: string;
   onChoose: (id: string) => void;
   onToggleNew: () => void;
@@ -20,22 +18,11 @@ export function IdentitySection({
   identities,
   selectedId,
   draft,
-  locked,
   error,
   onChoose,
   onToggleNew,
   onDraftChange,
 }: IdentitySectionProps) {
-  if (locked) {
-    return (
-      <View style={styles.section}>
-        <Text variant="small">Identity</Text>
-        <Text>{identities.find((identity) => identity.id === selectedId)?.name}</Text>
-        <FormMessage message="Moving a habit to another identity isn't available yet." />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.section}>
       <Text variant="small">Identity</Text>

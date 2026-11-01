@@ -52,10 +52,9 @@ This is a UI task. Rules, validation and data access already exist, so **don't w
 | --- | --- |
 | `getHabitAllowance()` | Returns `{ allowed, active, can_add }`. Call it when opening the create form |
 | `listIdentities()` | Fills the identity choices |
-| `createIdentity(userId, name, colourToken, whyText)` | Adds an identity |
-| `createHabit(toHabitInput(values))` | Saves a new habit. The server enforces the limit |
+| `createHabit(toHabitInput(values))` | Saves a new habit. The server enforces the limit. Pass a new identity as the second argument and both save together |
 | `getHabit(id)` | Loads a habit to edit. Pass the result to `habitFormFromDetail` |
-| `updateHabit(id, changes)` | Saves edits. Pass only what changed |
+| `updateHabit(id, changes)` | Saves edits. Pass only what changed; null clears a field, and identityId or newIdentity moves the habit |
 | `archiveHabit(id)` | Removes a habit from Today and keeps its history |
 
 ## Form fields, in order

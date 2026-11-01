@@ -40,10 +40,50 @@ describe('createTrackerApi', () => {
     });
   });
 
-  it('leaves out fields that are not being changed', async () => {
-    await api.updateHabit('h1', { title: 'New' });
-    expect(rpc.mock.calls[0][1]).toMatchObject({ p_title: 'New', p_target: null, p_levels: null });
+  it('saves a new identity with the habit', async () => {
+    await api.createHabit(
+      { identityId: '', title: 'Read', levels: [] },
+      { name: 'Reader', colourToken: 'identity-2' }
+    );
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_identity_id: null,
+      p_new_identity: { name: 'Reader', colour_token: 'identity-2', why_text: null },
+    });
   });
+
+  // What the server receives, since a field's presence is what keeps or clears it.
+  const sentChanges = () => JSON.parse(JSON.stringify(rpc.mock.calls[0][1].p_changes));
+
+  it('sends only the fields being changed', async () => {
+    await api.updateHabit('h1', { title: 'New' });
+    expect(sentChanges()).toEqual({ title: 'New' });
+  });
+
+  it('sends null for a field being cleared', async () => {
+    await api.updateHabit('h1', { unit: null, milestoneAmount: null, milestoneLabel: null });
+    expect(sentChanges()).toEqual({ unit: null, milestone_amount: null, milestone_label: null });
+  });
+
+  it('moves a habit to an identity, existing or new', async () => {
+    await api.updateHabit('h1', { identityId: 'i2' });
+    expect(sentChanges()).toEqual({ identity_id: 'i2' });
+
+    rpc.mockClear();
+    await api.updateHabit('h1', { newIdentity: { name: 'Reader', colourToken: 'identity-2' } });
+    expect(sentChanges()).toEqual({
+      new_identity: { name: 'Reader', colour_token: 'identity-2', why_text: null },
+    });
+  });
+
+  it.each(['TypeError: Failed to fetch', 'Network request failed', 'NetworkError', 'Load failed'])(
+    'explains %s in plain words',
+    async (message) => {
+      rpc.mockResolvedValue({ data: null, error: { message } });
+      await expect(api.getToday()).rejects.toThrow(
+        "Can't reach the server. Check your connection and try again."
+      );
+    }
+  );
 
   it('turns a server refusal into an error with its message', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'That day has not happened yet' } });

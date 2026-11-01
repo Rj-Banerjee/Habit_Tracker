@@ -1,6 +1,13 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { BackHandler, Dimensions, Platform, ScrollView } from 'react-native';
+import {
+  BackHandler,
+  Dimensions,
+  Keyboard,
+  KeyboardEvent,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   HabitDetail,
@@ -19,7 +26,6 @@ jest.mock('../services/tracker', () => ({
   tracker: {
     getHabitAllowance: jest.fn(),
     listIdentities: jest.fn(),
-    createIdentity: jest.fn(),
     createHabit: jest.fn(),
     getHabit: jest.fn(),
     updateHabit: jest.fn(),
@@ -83,7 +89,7 @@ const inApp = (element: React.ReactElement) => (
 const settle = () => act(async () => {});
 
 const openForm = async (habitId?: string) => {
-  await render(inApp(<HabitFormScreen userId="u1" habitId={habitId} onClose={onClose} />));
+  await render(inApp(<HabitFormScreen habitId={habitId} onClose={onClose} />));
   await settle();
 };
 
@@ -102,7 +108,6 @@ describe('HabitFormScreen', () => {
     api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 1, can_add: true });
     api.listIdentities.mockResolvedValue([athlete]);
     api.createHabit.mockResolvedValue('new-habit');
-    api.createIdentity.mockResolvedValue(reader);
     api.getHabit.mockResolvedValue(readHabit);
     api.updateHabit.mockResolvedValue(undefined);
     api.archiveHabit.mockResolvedValue(undefined);
@@ -164,7 +169,7 @@ describe('HabitFormScreen', () => {
     });
 
     it('shows the server message and keeps the form when another device took the slot', async () => {
-      const message = 'You have reached your habit limit. 2 consistent weeks unlocks 2 more.';
+      const message = 'You have reached your habit limit. 2 consistent weeks unlock 2 more.';
       api.createHabit.mockRejectedValueOnce(new Error(message));
       await openForm();
       await fillRequired();
@@ -218,7 +223,7 @@ describe('HabitFormScreen', () => {
       await fillRequired();
       await press('Save');
       await settle();
-      expect(api.createHabit).toHaveBeenCalledWith(
+      expect(api.createHabit.mock.calls[0][0]).toEqual(
         expect.objectContaining({
           identityId: 'i1',
           title: 'Run',
@@ -241,7 +246,7 @@ describe('HabitFormScreen', () => {
       await type('Unit', 'pages');
       await press('Save');
       await settle();
-      expect(api.createHabit).toHaveBeenCalledWith(
+      expect(api.createHabit.mock.calls[0][0]).toEqual(
         expect.objectContaining({ type: habitType, target: 30, unit: 'pages' })
       );
     });
@@ -255,7 +260,7 @@ describe('HabitFormScreen', () => {
       await fillRequired();
       await press('Save');
       await settle();
-      expect(api.createHabit).toHaveBeenCalledWith(
+      expect(api.createHabit.mock.calls[0][0]).toEqual(
         expect.objectContaining({ type: 'boolean', target: null })
       );
       const { levels } = api.createHabit.mock.calls[0][0];
@@ -310,7 +315,7 @@ describe('HabitFormScreen', () => {
       await type('Milestone label', 'book');
       await press('Save');
       await settle();
-      expect(api.createHabit).toHaveBeenCalledWith(
+      expect(api.createHabit.mock.calls[0][0]).toEqual(
         expect.objectContaining({
           voiceAliases: ['jog', 'morning run'],
           milestoneAmount: 300,
@@ -328,29 +333,31 @@ describe('HabitFormScreen', () => {
       expect(screen.queryByRole('button', { name: 'New identity' })).toBeNull();
     });
 
-    it('creates the identity on save, not before, and uses it for the habit', async () => {
+    it('saves the new identity and the habit in one call', async () => {
       api.listIdentities.mockResolvedValue([]);
       await openForm();
       await type('Identity name', ' The Reader ');
       await type('Why this matters', 'Calm evenings');
-      expect(api.createIdentity).not.toHaveBeenCalled();
       await fillRequired();
       await press('Save');
       await settle();
-      expect(api.createIdentity).toHaveBeenCalledWith('u1', 'The Reader', 'identity-1', 'Calm evenings');
-      expect(api.createHabit).toHaveBeenCalledWith(expect.objectContaining({ identityId: 'i2' }));
+      expect(api.createHabit).toHaveBeenCalledTimes(1);
+      expect(api.createHabit.mock.calls[0][1]).toEqual({
+        name: 'The Reader',
+        colourToken: 'identity-1',
+        whyText: 'Calm evenings',
+      });
     });
 
     it('defaults the colour to the first one not in use', async () => {
       api.listIdentities.mockResolvedValue([athlete, reader]);
-      api.createIdentity.mockResolvedValue({ ...reader, id: 'i3', name: 'The Maker' });
       await openForm();
       await press('New identity');
       await type('Identity name', 'The Maker');
       await fillRequired();
       await press('Save');
       await settle();
-      expect(api.createIdentity).toHaveBeenCalledWith('u1', 'The Maker', 'identity-3', undefined);
+      expect(api.createHabit.mock.calls[0][1]).toMatchObject({ colourToken: 'identity-3' });
     });
 
     it('uses the colour picked', async () => {
@@ -361,7 +368,7 @@ describe('HabitFormScreen', () => {
       await fillRequired();
       await press('Save');
       await settle();
-      expect(api.createIdentity).toHaveBeenCalledWith('u1', 'The Maker', 'identity-5', undefined);
+      expect(api.createHabit.mock.calls[0][1]).toMatchObject({ colourToken: 'identity-5' });
     });
 
     it('requires a name for a new identity and sends nothing', async () => {
@@ -371,7 +378,6 @@ describe('HabitFormScreen', () => {
       await press('Save');
       await settle();
       expect(screen.getByText('Give the identity a name')).toBeTruthy();
-      expect(api.createIdentity).not.toHaveBeenCalled();
       expect(api.createHabit).not.toHaveBeenCalled();
     });
 
@@ -381,24 +387,8 @@ describe('HabitFormScreen', () => {
       expect(screen.getByLabelText('Identity name').props.maxLength).toBe(80);
     });
 
-    it("doesn't make a second identity when the habit fails and is retried", async () => {
+    it('keeps everything typed when the save fails, and sends the identity again on retry', async () => {
       api.createHabit.mockRejectedValueOnce(new Error('Network request failed'));
-      await openForm();
-      await press('New identity');
-      await type('Identity name', 'The Reader');
-      await fillRequired();
-      await press('Save');
-      await settle();
-      expect(screen.getByText('Network request failed')).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'The Reader', selected: true })).toBeTruthy();
-      await press('Save');
-      await settle();
-      expect(api.createIdentity).toHaveBeenCalledTimes(1);
-      expect(api.createHabit).toHaveBeenLastCalledWith(expect.objectContaining({ identityId: 'i2' }));
-    });
-
-    it('keeps everything typed when the identity fails to save', async () => {
-      api.createIdentity.mockRejectedValueOnce(new Error('Network request failed'));
       await openForm();
       await press('New identity');
       await type('Identity name', 'The Maker');
@@ -407,7 +397,9 @@ describe('HabitFormScreen', () => {
       await settle();
       expect(screen.getByText('Network request failed')).toBeTruthy();
       expect(screen.getByLabelText('Identity name').props.value).toBe('The Maker');
-      expect(api.createHabit).not.toHaveBeenCalled();
+      await press('Save');
+      await settle();
+      expect(api.createHabit.mock.calls[1][1]).toMatchObject({ name: 'The Maker' });
     });
   });
 
@@ -433,11 +425,46 @@ describe('HabitFormScreen', () => {
       expect(screen.getByText('Changes apply from today. Past days stay as they were.')).toBeTruthy();
     });
 
-    it('shows the identity without offering a change the server would drop', async () => {
+    it('shows the current identity selected, with the others to move to', async () => {
       await openForm('h1');
-      expect(screen.getByText('The Reader')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'The Athlete' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'New identity' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'The Reader', selected: true })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'The Athlete', selected: false })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'New identity' })).toBeTruthy();
+    });
+
+    it('moves the habit to another identity', async () => {
+      await openForm('h1');
+      await press('The Athlete');
+      await press('Save');
+      await settle();
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', { identityId: 'i1' });
+    });
+
+    it('moves the habit to a new identity', async () => {
+      await openForm('h1');
+      await press('New identity');
+      await type('Identity name', 'The Maker');
+      await press('Save');
+      await settle();
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', {
+        newIdentity: { name: 'The Maker', colourToken: 'identity-3', whyText: undefined },
+      });
+    });
+
+    it('needs a name before moving to a new identity', async () => {
+      await openForm('h1');
+      await press('New identity');
+      await press('Save');
+      await settle();
+      expect(screen.getByText('Give the identity a name')).toBeTruthy();
+      expect(api.updateHabit).not.toHaveBeenCalled();
+    });
+
+    it('counts a move as an unsaved change', async () => {
+      await openForm('h1');
+      await press('The Athlete');
+      await press('Back');
+      expect(screen.getByText('Discard your changes?')).toBeTruthy();
     });
 
     it('sends only what changed', async () => {
@@ -507,18 +534,41 @@ describe('HabitFormScreen', () => {
       expect(onClose).toHaveBeenCalled();
     });
 
-    it('explains that a saved unit stays when blanked', async () => {
+    it('sends null to clear a saved unit', async () => {
       await openForm('h1');
       await type('Unit', '');
-      expect(screen.getByText("A saved unit can't be removed yet, so it stays.")).toBeTruthy();
+      await press('Save');
+      await settle();
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', { unit: null });
     });
 
-    it('explains that a saved milestone stays when blanked', async () => {
+    it('sends null to clear a saved milestone', async () => {
       await openForm('h1');
       await press('More options');
       await type('Milestone amount', '');
       await type('Milestone label', '');
-      expect(screen.getByText("A saved milestone can't be removed yet, so it stays.")).toBeTruthy();
+      await press('Save');
+      await settle();
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', {
+        milestoneAmount: null,
+        milestoneLabel: null,
+      });
+    });
+
+    it('keeps the unit and milestone hints free of old warnings', async () => {
+      await openForm('h1');
+      await press('More options');
+      await type('Unit', '');
+      await type('Milestone amount', '');
+      await type('Milestone label', '');
+      expect(screen.getByText('For example, 300 pages = 1 book.')).toBeTruthy();
+      expect(screen.queryByText(/can't be removed/)).toBeNull();
+    });
+
+    it('still asks for both halves of a milestone', async () => {
+      await openForm('h1');
+      await press('More options');
+      await type('Milestone label', '');
       await press('Save');
       await settle();
       expect(api.updateHabit).not.toHaveBeenCalled();
@@ -708,6 +758,45 @@ describe('HabitFormScreen', () => {
       await settle();
       expect(screen.getByText('Network request failed')).toBeTruthy();
       expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('keyboard', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    // Runs React Native's own calculation, with a 390x844 phone's real numbers.
+    it('lifts the form above the keyboard', async () => {
+      const listeners: Record<string, (event: KeyboardEvent) => void> = {};
+      jest.spyOn(Keyboard, 'addListener').mockImplementation((name, listener) => {
+        listeners[name] = listener as (event: KeyboardEvent) => void;
+        return { remove: jest.fn() } as unknown as ReturnType<typeof Keyboard.addListener>;
+      });
+      jest.spyOn(Keyboard, 'isVisible').mockReturnValue(false);
+      await openForm();
+
+      await act(async () => {
+        fireEvent(screen.getByTestId('habit-form-keyboard'), 'layout', {
+          persist: () => {},
+          nativeEvent: { layout: { x: 0, y: 47, width: 390, height: 763 } },
+        });
+      });
+      await act(async () => {
+        const opened = listeners.keyboardWillShow ?? listeners.keyboardDidShow;
+        opened({
+          duration: 0,
+          endCoordinates: { screenY: 508, height: 336, screenX: 0, width: 390 },
+        } as KeyboardEvent);
+      });
+
+      // The form's bottom edge is at 810 and the keyboard's top is at 508.
+      expect(screen.getByTestId('habit-form-keyboard')).toHaveStyle({ paddingBottom: 302 });
+    });
+
+    it('lets a drag put the keyboard away', async () => {
+      await openForm();
+      expect(screen.getByTestId('habit-form').props.keyboardDismissMode).toBe(
+        Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+      );
     });
   });
 

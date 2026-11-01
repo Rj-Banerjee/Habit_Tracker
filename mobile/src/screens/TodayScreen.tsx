@@ -33,8 +33,8 @@ import { ShrinkSheet } from '../today/ShrinkSheet';
 import { SwipeToSkip } from '../today/SwipeToSkip';
 
 interface TodayScreenProps {
-  onAddHabit?: () => void;
-  onEditHabit?: (habitId: string) => void;
+  onAddHabit: () => void;
+  onEditHabit: (habitId: string) => void;
 }
 
 export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
@@ -142,7 +142,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             <Text variant="small" muted>
               Habits you add will show up here on the days they&apos;re scheduled.
             </Text>
-            <Button label="Add habit" onPress={() => onAddHabit?.()} />
+            <Button label="Add habit" onPress={onAddHabit} />
           </View>
         ) : (
           <>
@@ -157,7 +157,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             ))}
             {showYesterdayFirst(part) ? null : yesterdaySection}
             {repairSection}
-            <Button label="Add habit" quiet onPress={() => onAddHabit?.()} />
+            <Button label="Add habit" quiet onPress={onAddHabit} />
           </>
         )}
       </ScrollView>
@@ -179,7 +179,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
         }}
         onEdit={(row) => {
           setShrinkRow(null);
-          onEditHabit?.(row.habit_id);
+          onEditHabit(row.habit_id);
         }}
       />
       <SkipSheet

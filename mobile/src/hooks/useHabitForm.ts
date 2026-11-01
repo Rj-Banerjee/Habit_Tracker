@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   emptyHabitForm,
   HabitChanges,
@@ -8,24 +8,16 @@ import {
   HabitFormValues,
   HabitInput,
   habitLimitMessage,
-  HabitType,
   hasErrors,
   Identity,
   IDENTITY_TOKENS,
   IdentityToken,
+  NewIdentityInput,
   toHabitInput,
+  usesTarget,
   validateHabitForm,
 } from '@habit-tracker/core';
 import { tracker } from '../services/tracker';
-
-// The longest values the database accepts. See docs/handoff/habit-creation-notes.md.
-export const FIELD_LIMITS = {
-  title: 100,
-  unit: 30,
-  milestoneLabel: 40,
-  identityName: 80,
-  whyText: 2000,
-} as const;
 
 // The form's order, so the first problem is the one nearest the top.
 const FIELD_ORDER: HabitFormField[] = [
@@ -39,8 +31,10 @@ const FIELD_ORDER: HabitFormField[] = [
   'milestoneLabel',
 ];
 
-// Everything updateHabit can change. A null leaves a field as it was.
+// Everything updateHabit can change. A field left out keeps its value, and a null
+// clears it.
 const EDITABLE_FIELDS = [
+  'identityId',
   'title',
   'target',
   'unit',
@@ -58,8 +52,6 @@ export interface NewIdentity {
 }
 
 type Status = 'loading' | 'failed' | 'limit' | 'ready';
-
-export const usesTarget = (type: HabitType) => type === 'count' || type === 'duration';
 
 const firstFreeColour = (identities: Identity[]) =>
   IDENTITY_TOKENS.find((token) => !identities.some((i) => i.colour_token === token)) ??
@@ -83,33 +75,33 @@ function formFromHabit(habit: HabitDetail): HabitFormValues {
 const visibleValues = (values: HabitFormValues): HabitFormValues =>
   usesTarget(values.type) ? values : { ...values, target: '', unit: '', minimumTarget: '' };
 
-function findProblems(values: HabitFormValues, draft: NewIdentity | null) {
-  // The identity of a new draft only exists once the habit is saved.
-  const identityId = draft ? 'new' : values.identityId;
-  const problems = validateHabitForm({ ...visibleValues(values), identityId });
-  if (draft && !draft.name.trim()) problems.identityId = 'Give the identity a name';
-  return problems;
-}
+const findProblems = (values: HabitFormValues, draft: NewIdentity | null) =>
+  validateHabitForm(visibleValues(values), draft && draft.name);
 
 function changedFields(before: HabitInput, after: HabitInput): HabitChanges {
   const changed = EDITABLE_FIELDS.filter(
-    (field) =>
-      after[field] !== null && JSON.stringify(after[field]) !== JSON.stringify(before[field])
+    (field) => JSON.stringify(after[field]) !== JSON.stringify(before[field])
   );
   return Object.fromEntries(changed.map((field) => [field, after[field]]));
 }
+
+const toNewIdentity = (draft: NewIdentity): NewIdentityInput => ({
+  name: draft.name.trim(),
+  colourToken: draft.colourToken,
+  whyText: draft.whyText.trim() || undefined,
+});
 
 const snapshot = (values: HabitFormValues) =>
   JSON.stringify({ ...values, scheduleDays: [...values.scheduleDays].sort((a, b) => a - b) });
 
 interface HabitFormOptions {
-  userId: string;
   habitId?: string;
   onDone: () => void;
 }
 
-export function useHabitForm({ userId, habitId, onDone }: HabitFormOptions) {
+export function useHabitForm({ habitId, onDone }: HabitFormOptions) {
   const [status, setStatus] = useState<Status>('loading');
+  const [attempt, setAttempt] = useState(0);
   const [limitMessage, setLimitMessage] = useState('');
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [initial, setInitial] = useState(emptyHabitForm);
@@ -121,38 +113,33 @@ export function useHabitForm({ userId, habitId, onDone }: HabitFormOptions) {
   // A state update comes too late to stop a double tap.
   const busy = useRef(false);
 
-  const load = useCallback(async () => {
-    try {
-      const [list, habit, allowance] = await Promise.all([
-        tracker.listIdentities(),
-        habitId ? tracker.getHabit(habitId) : null,
-        habitId ? null : tracker.getHabitAllowance(),
-      ]);
-      if (allowance && !allowance.can_add) {
-        setLimitMessage(habitLimitMessage(allowance.allowed, allowance.active));
-        setStatus('limit');
-        return;
-      }
-      const start = habit
-        ? formFromHabit(habit)
-        : emptyHabitForm(list.length === 1 ? list[0].id : null);
-      setIdentities(list);
-      setInitial(start);
-      setValues(start);
-      setDraft(!habit && list.length === 0 ? blankIdentity(list) : null);
-      setStatus('ready');
-    } catch {
-      setStatus('failed');
-    }
-  }, [habitId]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    Promise.all([
+      tracker.listIdentities(),
+      habitId ? tracker.getHabit(habitId) : null,
+      habitId ? null : tracker.getHabitAllowance(),
+    ])
+      .then(([list, habit, allowance]) => {
+        if (allowance && !allowance.can_add) {
+          setLimitMessage(habitLimitMessage(allowance.allowed, allowance.active));
+          setStatus('limit');
+          return;
+        }
+        const start = habit
+          ? formFromHabit(habit)
+          : emptyHabitForm(list.length === 1 ? list[0].id : null);
+        setIdentities(list);
+        setInitial(start);
+        setValues(start);
+        setDraft(!habit && list.length === 0 ? blankIdentity(list) : null);
+        setStatus('ready');
+      })
+      .catch(() => setStatus('failed'));
+  }, [habitId, attempt]);
 
   const retry = () => {
     setStatus('loading');
-    load();
+    setAttempt((count) => count + 1);
   };
 
   const set = <K extends HabitFormField>(field: K, value: HabitFormValues[K]) =>
@@ -165,20 +152,6 @@ export function useHabitForm({ userId, habitId, onDone }: HabitFormOptions) {
 
   const toggleNewIdentity = () =>
     setDraft((current) => (current ? null : blankIdentity(identities)));
-
-  // The identity is kept even if the habit then fails, so a retry can't make a second one.
-  const saveDraft = async (identity: NewIdentity) => {
-    const saved = await tracker.createIdentity(
-      userId,
-      identity.name.trim(),
-      identity.colourToken,
-      identity.whyText.trim() || undefined
-    );
-    setIdentities((current) => [...current, saved]);
-    setDraft(null);
-    set('identityId', saved.id);
-    return saved.id;
-  };
 
   const run = async (action: () => Promise<unknown>) => {
     busy.current = true;
@@ -202,17 +175,17 @@ export function useHabitForm({ userId, habitId, onDone }: HabitFormOptions) {
     const problems = findProblems(values, draft);
     if (hasErrors(problems)) return FIELD_ORDER.find((field) => problems[field]) ?? null;
 
+    const input = toHabitInput(visibleValues(values));
+    const newIdentity = draft ? toNewIdentity(draft) : undefined;
+
     await run(async () => {
       if (habitId) {
-        const changes = changedFields(
-          toHabitInput(visibleValues(initial)),
-          toHabitInput(visibleValues(values))
-        );
+        const changes = changedFields(toHabitInput(visibleValues(initial)), input);
+        if (newIdentity) changes.newIdentity = newIdentity;
         if (Object.keys(changes).length > 0) await tracker.updateHabit(habitId, changes);
         return;
       }
-      const identityId = draft ? await saveDraft(draft) : values.identityId;
-      await tracker.createHabit(toHabitInput({ ...visibleValues(values), identityId }));
+      await tracker.createHabit(input, newIdentity);
     });
     return null;
   };
@@ -245,12 +218,5 @@ export function useHabitForm({ userId, habitId, onDone }: HabitFormOptions) {
     dirty,
     save,
     archive,
-    // The server can't blank these yet, so saving leaves the old value in place.
-    unitKept: !!habitId && !!initial.unit && !values.unit.trim(),
-    milestoneKept:
-      !!habitId &&
-      !!initial.milestoneAmount &&
-      !values.milestoneAmount.trim() &&
-      !values.milestoneLabel.trim(),
   };
 }

@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  FIELD_LIMITS,
   HABIT_TYPE_LABELS,
   HabitFormField,
   HabitType,
   layout,
   space,
+  usesTarget,
 } from '@habit-tracker/core';
 import {
   BottomSheet,
@@ -31,7 +33,7 @@ import {
   WeekdayPicker,
 } from '@habit-tracker/ui';
 import { IdentitySection } from '../habits/IdentitySection';
-import { FIELD_LIMITS, useHabitForm, usesTarget } from '../hooks/useHabitForm';
+import { useHabitForm } from '../hooks/useHabitForm';
 
 const TYPE_OPTIONS = (Object.keys(HABIT_TYPE_LABELS) as HabitType[]).map((value) => ({
   value,
@@ -61,15 +63,14 @@ function FieldAnchor({ field, onMeasure, style, children }: FieldAnchorProps) {
 }
 
 interface HabitFormScreenProps {
-  userId: string;
   habitId?: string;
   onClose: () => void;
 }
 
-export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenProps) {
+export function HabitFormScreen({ habitId, onClose }: HabitFormScreenProps) {
   const { colors } = useTheme();
   const size = useLayoutSize();
-  const form = useHabitForm({ userId, habitId, onDone: onClose });
+  const form = useHabitForm({ habitId, onDone: onClose });
   const [showMore, setShowMore] = useState(false);
   const [sheet, setSheet] = useState<'discard' | 'archive' | null>(null);
 
@@ -157,13 +158,16 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.canvas }]}>
       <KeyboardAvoidingView
+        testID="habit-form-keyboard"
         style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Android is edge to edge, so the window no longer shrinks for the keyboard.
+        behavior={Platform.OS === 'web' ? undefined : 'padding'}
       >
         <ScrollView
           ref={scroller}
           testID="habit-form"
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}
         >
           <View style={styles.header}>
@@ -178,7 +182,6 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
               identities={form.identities}
               selectedId={values.identityId}
               draft={form.draft}
-              locked={form.isEditing}
               error={errors.identityId}
               onChoose={form.chooseIdentity}
               onToggleNew={form.toggleNewIdentity}
@@ -223,7 +226,6 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
                   label="Unit"
                   value={values.unit}
                   maxLength={FIELD_LIMITS.unit}
-                  hint={form.unitKept ? "A saved unit can't be removed yet, so it stays." : undefined}
                   onChangeText={(unit) => form.set('unit', unit)}
                 />
               </View>
@@ -243,6 +245,7 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
             label="Full version"
             value={values.fullDescription}
             placeholder={values.title.trim() || undefined}
+            maxLength={FIELD_LIMITS.levelDescription}
             onChangeText={(text) => form.set('fullDescription', text)}
           />
 
@@ -251,6 +254,7 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
               label="Minimum version"
               hint="The smallest version that still counts on a hard day."
               value={values.minimumDescription}
+              maxLength={FIELD_LIMITS.levelDescription}
               error={errors.minimumDescription}
               onChangeText={(text) => form.set('minimumDescription', text)}
             />
@@ -272,6 +276,7 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
             label="Just set up"
             hint="The first step, like putting on your shoes."
             value={values.setupDescription}
+            maxLength={FIELD_LIMITS.levelDescription}
             onChangeText={(text) => form.set('setupDescription', text)}
             {...(showMore ? {} : enterSaves)}
           />
@@ -293,11 +298,7 @@ export function HabitFormScreen({ userId, habitId, onClose }: HabitFormScreenPro
               <FieldAnchor field="milestoneAmount" onMeasure={measured}>
                 <TextField
                   label="Milestone amount"
-                  hint={
-                    form.milestoneKept
-                      ? "A saved milestone can't be removed yet, so it stays."
-                      : 'For example, 300 pages = 1 book.'
-                  }
+                  hint="For example, 300 pages = 1 book."
                   value={values.milestoneAmount}
                   keyboardType="decimal-pad"
                   error={errors.milestoneAmount}

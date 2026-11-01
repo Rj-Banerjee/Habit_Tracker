@@ -41,11 +41,7 @@ function Root() {
   if (!session) return <AuthForm auth={supabase.auth} />;
 
   return habitForm ? (
-    <HabitFormScreen
-      userId={session.user.id}
-      habitId={habitForm.habitId}
-      onClose={() => setHabitForm(null)}
-    />
+    <HabitFormScreen habitId={habitForm.habitId} onClose={() => setHabitForm(null)} />
   ) : (
     <TodayScreen
       onAddHabit={() => setHabitForm({})}

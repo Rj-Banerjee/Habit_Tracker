@@ -21,6 +21,16 @@ export const IDENTITY_TOKENS: IdentityToken[] = [
   'identity-8',
 ];
 
+// The longest values the database accepts.
+export const FIELD_LIMITS = {
+  title: 100,
+  unit: 30,
+  levelDescription: 200,
+  milestoneLabel: 40,
+  identityName: 80,
+  whyText: 2000,
+} as const;
+
 // Text fields hold what the user typed, so numbers stay strings until they save.
 export interface HabitFormValues {
   identityId: string | null;
@@ -57,7 +67,7 @@ export const emptyHabitForm = (identityId: string | null = null): HabitFormValue
   milestoneLabel: '',
 });
 
-const needsTarget = (type: HabitType) => type === 'count' || type === 'duration';
+export const usesTarget = (type: HabitType) => type === 'count' || type === 'duration';
 
 const toNumber = (value: string) => {
   const number = Number(value.trim());
@@ -65,14 +75,22 @@ const toNumber = (value: string) => {
 };
 
 // Mirrors the server's checks so people see problems before saving. The server
-// still has the final word.
-export function validateHabitForm(values: HabitFormValues): HabitFormErrors {
+// still has the final word. newIdentityName is set while adding an identity, which
+// stands in for choosing one.
+export function validateHabitForm(
+  values: HabitFormValues,
+  newIdentityName: string | null = null
+): HabitFormErrors {
   const errors: HabitFormErrors = {};
 
-  if (!values.identityId) errors.identityId = 'Choose an identity';
+  if (newIdentityName !== null) {
+    if (!newIdentityName.trim()) errors.identityId = 'Give the identity a name';
+  } else if (!values.identityId) {
+    errors.identityId = 'Choose an identity';
+  }
   if (!values.title.trim()) errors.title = 'Give the habit a name';
   if (values.scheduleDays.length === 0) errors.scheduleDays = 'Choose at least one day';
-  if (needsTarget(values.type) && toNumber(values.target) === null) {
+  if (usesTarget(values.type) && toNumber(values.target) === null) {
     errors.target = 'Enter a number above 0';
   }
   if (!values.minimumDescription.trim()) {
@@ -162,5 +180,5 @@ export function toggleDay(days: number[], day: number): number[] {
 }
 
 export function habitLimitMessage(allowed: number, active: number): string {
-  return `You're using ${active} of ${allowed} habits. 14 consistent days unlock 2 more.`;
+  return `You're using ${active} of ${allowed} habits. 2 consistent weeks unlock 2 more.`;
 }
