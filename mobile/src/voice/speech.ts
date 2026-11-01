@@ -1,14 +1,13 @@
+import { requireOptionalNativeModule } from 'expo';
 import type { SpeechInput } from './speechInput';
 
 // A native module, so it's missing from Expo Go. Null there means the sheet offers
-// the text box, where the keyboard's own mic still works.
+// the text box, where the keyboard's own mic still works. The check comes first
+// because just loading the package reports an error when the module is missing.
 function loadModule() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('expo-speech-recognition').ExpoSpeechRecognitionModule;
-  } catch {
-    return null;
-  }
+  if (!requireOptionalNativeModule('ExpoSpeechRecognition')) return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-speech-recognition').ExpoSpeechRecognitionModule;
 }
 
 export function speechInput(): SpeechInput | null {
