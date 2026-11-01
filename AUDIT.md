@@ -960,7 +960,7 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Checked**
 
-- Typecheck, lint and the static build pass. Tests: core 172, web 26, mobile and UI 373, AI service 77, database 284.
+- Typecheck, lint and the static build pass. Tests: core 172, web 26, mobile and UI 374, AI service 77, database 284.
 - 23 browser checks on Expo web with local Supabase and real Gemini, using made-up data: hold-to-talk with a simulated microphone, the clarifying question, undo by banner and by voice, the coach, limits across a service restart, the service being down, sign out, and an account not on the test list.
 - Live push followed the usual procedure. 19 checks with temporary users passed, and those users were deleted.
 
