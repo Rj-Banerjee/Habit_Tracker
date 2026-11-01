@@ -32,7 +32,12 @@ import { checkOffTick } from '../services/haptics';
 import { ShrinkSheet } from '../today/ShrinkSheet';
 import { SwipeToSkip } from '../today/SwipeToSkip';
 
-export function TodayScreen() {
+interface TodayScreenProps {
+  onAddHabit?: () => void;
+  onEditHabit?: (habitId: string) => void;
+}
+
+export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
   const { colors } = useTheme();
   const { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair } =
     useToday();
@@ -137,6 +142,7 @@ export function TodayScreen() {
             <Text variant="small" muted>
               Habits you add will show up here on the days they&apos;re scheduled.
             </Text>
+            <Button label="Add habit" onPress={() => onAddHabit?.()} />
           </View>
         ) : (
           <>
@@ -151,6 +157,7 @@ export function TodayScreen() {
             ))}
             {showYesterdayFirst(part) ? null : yesterdaySection}
             {repairSection}
+            <Button label="Add habit" quiet onPress={() => onAddHabit?.()} />
           </>
         )}
       </ScrollView>
@@ -169,6 +176,10 @@ export function TodayScreen() {
         onSkip={(row) => {
           setShrinkRow(null);
           setSkipRow(row);
+        }}
+        onEdit={(row) => {
+          setShrinkRow(null);
+          onEditHabit?.(row.habit_id);
         }}
       />
       <SkipSheet
