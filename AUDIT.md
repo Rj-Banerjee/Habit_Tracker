@@ -687,3 +687,14 @@ The tests cover every rule, plus each requested case: a Mon/Thu habit repaired a
 
 Grace Days are earned and spent when a day is settled, which happens whenever a client reads streaks. There is no nightly job yet, because `pg_cron` isn't enabled. A nudge or widget that reads the database without going through these functions could see out-of-date Grace Day state.
 
+**Applied to the live database**
+
+- The local reset and 128 tests passed, and the dry run listed one migration, `20261101000300_tracker_logic.sql`, which was then pushed.
+- All 23 live checks passed, using temporary users that were then deleted:
+  - Logging, streaks, the Grace Day bank and day statuses work through the API.
+  - Future dates, dates past the window and skips without a reason are refused.
+  - Direct writes to `habit_logs` are refused.
+  - A second user can't touch the first user's habit, and the publishable key alone is blocked.
+  - The private `tracker` schema can't be reached, so clients can't fake the clock.
+- The `is_valid_timezone` warning is fixed. The advisor now reports 7 warnings, one for each client API function. These are expected: signed-in users are meant to call them, and each checks ownership itself.
+
