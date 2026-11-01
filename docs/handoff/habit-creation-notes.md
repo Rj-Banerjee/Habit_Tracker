@@ -1,6 +1,29 @@
 # Notes: habit creation and editing
 
-Branch: `feature/habit-creation`, based on `a09a5ce`. Not merged.
+Merged into `step-2/project-health`. The branch and worktree are gone.
+
+## After the merge
+
+Everything under "Needs a change in shared code" is done:
+
+- Identity is editable. A moved habit keeps its logs, streak and history, and the move is recorded in `activity_events`.
+- `update_habit` takes only the changes: a missing field keeps its value and an explicit null clears it. The "can't be removed" notes are gone.
+- The app and the server both say "2 consistent weeks unlock 2 more."
+- A new identity saves in the same transaction as its habit. `createIdentity` is removed.
+- Offline errors read "Can't reach the server. Check your connection and try again."
+- `FIELD_LIMITS`, `usesTarget` and the identity name check live in core.
+- `npm run lint` covers `mobile/`. The one suppressed rule is in `SwipeToSkip.tsx`, where the ref is only read inside gesture handlers.
+
+Gaps closed:
+
+- The form's own save was run on a backdated habit in a real browser against a local database. Past targets, schedules and day statuses didn't change.
+- Today, At the limit, Load failed, Limit on save and the archive sheet were checked at 390px dark, 1200px dark and 390px light.
+- The keyboard: Android had no handling and now has the same padding as iPhone. A test runs React Native's own calculation on both platforms with a 390x844 phone's numbers. A real keyboard still needs a phone, because this Mac has no iOS simulator.
+- `app.json` forced light mode on phones, so the dark theme could never appear there. It now follows the system.
+
+Known: at 390px the seven day buttons wrap, leaving Sunday on its own row. Fitting them would take 2px less than the 48px targets and the spacing tokens allow.
+
+The notes below are the original hand-off, kept for the record.
 
 ## Status
 
@@ -119,8 +142,8 @@ I haven't run the tests against the merged result, so run them after merging.
 
 **This uses your live database.** `mobile/.env` points at the live Supabase project, so anything you create is real. Use a test account, and remember habits can be archived but not deleted from the app.
 
-1. In a terminal: `cd "/Users/rajdeep/Documents/vs code/Habit_Tracker-habit-creation/mobile"`
-2. Run `npx expo start`.
+1. In a terminal: `cd "/Users/rajdeep/Documents/vs code/Habit tracker"`, then `npm install`, then `cd mobile`.
+2. Run `npx expo start -c`.
 3. Scan the QR code with Expo Go (iPhone camera on iOS, the Expo Go app on Android). Keep the phone on the same Wi-Fi.
 4. Sign in with the test account, then try these:
    - **First habit:** tap "Add habit". With no identities yet, you should see the name, colour and "Why this matters" fields. Create a yes-or-no habit and check it's on Today.

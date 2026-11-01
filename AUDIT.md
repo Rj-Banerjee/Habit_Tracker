@@ -911,3 +911,22 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - Added "Earlier days" and "Later days" buttons when days are out of view. A fade was considered, but the design avoids gradients.
 - Keyboard focus now uses a token colour instead of the browser's blue, and clicking leaves no ring.
 - Days past the back-log window are now inactive in the grid, instead of looking clickable and being refused by the server.
+
+### Step 2 item 5: habit creation merged (1 Nov 2026)
+
+**Changed**
+
+- Merged `feature/habit-creation`, resolving `mobile/App.tsx` as its notes describe.
+- New migration `20261102000100_habit_editing.sql`. `update_habit` now takes a jsonb of changes: a missing field keeps its value and an explicit null clears it. A habit can move to an existing or new identity, keeps its logs, streak and dated settings, and the move is written to `activity_events`. `create_habit` can create an identity in the same transaction, so a refused habit leaves nothing behind. The server's wording is now "2 consistent weeks unlock 2 more."
+- Core: `habitLimitMessage` matches the server, offline errors read in plain words, and `FIELD_LIMITS`, `usesTarget` and the identity name check moved in. `createIdentity` is removed.
+- Mobile: the form moves habits, sends null when a field is cleared, and handles the keyboard on Android as well as iPhone. Today's props are required. `app.json` now follows the system theme.
+- Root `npm run lint` covers `mobile/` with the same strict hooks rules as the web app.
+
+**Checked**
+
+- Typecheck and lint pass. Tests: core 139, web 26, mobile and UI 310, database 274.
+- 43 browser checks on Expo web against a local database, including the form's own save on a backdated habit, and the remaining states at 390px dark, 1200px dark and 390px light.
+- Live push followed the usual procedure. 23 checks with temporary users passed, those users were deleted, and both real accounts are untouched.
+
+**Not checked:** a real iPhone keyboard, because this Mac has no iOS simulator. React Native's calculation is tested with real numbers, but the phone test is still needed.
+
