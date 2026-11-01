@@ -1,9 +1,7 @@
 import { prisma } from '../models/prisma';
 import { habitService } from './habit.service';
 import { ToolExecutionRecord, AIChatRole } from '../types';
-import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-import { GoogleGenAI } from '@google/genai';
 
 // Exact dynamic system prompt requested by the user
 export const ATOMIC_HABITS_SYSTEM_PROMPT = `You are an empathetic, world-class behavioral coach built into a habit-tracking app. 
@@ -45,23 +43,15 @@ export interface InputChatMessage {
 }
 
 export class AICoachService {
-  private openai: OpenAI | null = null;
   private anthropic: Anthropic | null = null;
-  private gemini: GoogleGenAI | null = null;
 
   constructor() {
     this.initClients();
   }
 
   private initClients() {
-    if (process.env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    }
     if (process.env.ANTHROPIC_API_KEY) {
       this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    }
-    if (process.env.GEMINI_API_KEY) {
-      this.gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     }
   }
 
@@ -329,7 +319,7 @@ export class AICoachService {
 
   /**
    * Main conversational entry point. Accepts conversation messages array from the frontend,
-   * performs RAG data retrieval, executes LLM generation via OpenAI/Anthropic SDKs (with tool calling),
+   * performs RAG data retrieval, executes LLM generation via the Anthropic SDK (with tool calling),
    * and persists chat memory across sessions.
    */
   async processConversation(
@@ -403,28 +393,11 @@ INSTRUCTION: Respond directly, warmly, and authentically to what the user shares
         await this.persistAssistantResponse(userId, result, toolsExecuted);
         return { response: result, toolsExecuted };
       } catch (err) {
-        console.warn('⚠️ [AICoachService]: Anthropic call failed, falling back to OpenAI or Generative Engine:', err);
+        console.warn('⚠️ [AICoachService]: Anthropic call failed, falling back to Generative Engine:', err);
       }
     }
 
-    // 4. GENERATIVE LLM: Official OpenAI SDK integration
-    if (this.openai) {
-      try {
-        const result = await this.executeWithOpenAI(
-          userId,
-          incomingMessages,
-          dynamicSystemPrompt,
-          todayStr,
-          toolsExecuted
-        );
-        await this.persistAssistantResponse(userId, result, toolsExecuted);
-        return { response: result, toolsExecuted };
-      } catch (err) {
-        console.warn('⚠️ [AICoachService]: OpenAI call failed, falling back to Generative Engine:', err);
-      }
-    }
-
-    // 5. High-fidelity Dynamic Conversational Engine (adheres to Rule 1, 2, 3, 4 without static strings)
+    // 4. High-fidelity Dynamic Conversational Engine (adheres to Rule 1, 2, 3, 4 without static strings)
     const result = await this.executeDynamicConversationalEngine(
       userId,
       latestUserText,
@@ -564,133 +537,7 @@ INSTRUCTION: Respond directly, warmly, and authentically to what the user shares
   }
 
   // =========================================================================
-  // 6. OFFICIAL OPENAI SDK INTEGRATION (Tool Calling & Multi-Turn)
-  // =========================================================================
-
-  private async executeWithOpenAI(
-    userId: string,
-    messages: InputChatMessage[],
-    systemPrompt: string,
-    todayStr: string,
-    toolsExecuted: ToolExecutionRecord[]
-  ): Promise<string> {
-    if (!this.openai) throw new Error('OpenAI client not initialized');
-
-    const tools: OpenAI.ChatCompletionTool[] = [
-      {
-        type: 'function',
-        function: {
-          name: 'getDailyHabits',
-          description: 'Fetches daily logs and completed/incomplete habits for current date from Supabase/Prisma.',
-          parameters: {
-            type: 'object',
-            properties: {
-              targetDate: { type: 'string', description: 'Date in YYYY-MM-DD format (defaults to today)' },
-            },
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'toggleHabitLog',
-          description: 'Creates or updates a DailyLog row completion status for a habit on a specific date.',
-          parameters: {
-            type: 'object',
-            properties: {
-              habitId: { type: 'string', description: 'UUID of the daily habit' },
-              date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
-              status: { type: 'boolean', description: 'True if habit is completed, false otherwise' },
-            },
-            required: ['habitId', 'date', 'status'],
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'scaleHabitTarget',
-          description: 'Dynamically lowers habit goal parameters when user burnout or friction is detected.',
-          parameters: {
-            type: 'object',
-            properties: {
-              habitId: { type: 'string', description: 'UUID of the daily habit' },
-              newGoal: { type: 'number', description: 'New lowered goal target (in days)' },
-            },
-            required: ['habitId', 'newGoal'],
-          },
-        },
-      },
-    ];
-
-    const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: 'system', content: systemPrompt },
-    ];
-
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({
-          role: msg.role,
-          content: msg.content,
-        });
-      }
-    }
-
-    const completion = await this.openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: chatMessages,
-      tools,
-      tool_choice: 'auto',
-      temperature: 0.7,
-    });
-
-    const choice = completion.choices[0];
-    const message = choice.message;
-
-    if (message.tool_calls && message.tool_calls.length > 0) {
-      const toolMessages: OpenAI.ChatCompletionMessageParam[] = [...chatMessages, message];
-
-      for (const toolCall of message.tool_calls) {
-        if (!('function' in toolCall)) continue;
-        const name = toolCall.function.name;
-        const args = JSON.parse(toolCall.function.arguments || '{}');
-        let toolResult: any;
-
-        if (name === 'getDailyHabits') {
-          toolResult = await this.getDailyHabits(userId, args.targetDate || todayStr);
-        } else if (name === 'toggleHabitLog') {
-          toolResult = await this.toggleHabitLog(userId, args.habitId, args.date || todayStr, args.status);
-        } else if (name === 'scaleHabitTarget') {
-          toolResult = await this.scaleHabitTarget(userId, args.habitId, args.newGoal);
-        }
-
-        toolsExecuted.push({
-          tool: name as any,
-          args,
-          result: toolResult,
-        });
-
-        toolMessages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(toolResult),
-        });
-      }
-
-      // Second turn with tool results
-      const finalResponse = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: toolMessages,
-      });
-
-      return finalResponse.choices[0].message.content || 'Action executed successfully.';
-    }
-
-    return message.content || 'I have evaluated your habit rhythm.';
-  }
-
-  // =========================================================================
-  // 7. DYNAMIC CONVERSATIONAL ENGINE (Rules 1, 2, 3, 4 without static strings)
+  // 6. DYNAMIC CONVERSATIONAL ENGINE (Rules 1, 2, 3, 4 without static strings)
   // =========================================================================
 
   private async executeDynamicConversationalEngine(
@@ -880,7 +727,7 @@ Would you like me to trigger an **Emergency Downscale** for you right now, or wo
   }
 
   // =========================================================================
-  // 8. PERSISTENCE HELPERS
+  // 7. PERSISTENCE HELPERS
   // =========================================================================
 
   private async persistAssistantResponse(

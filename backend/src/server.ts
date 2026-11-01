@@ -2,7 +2,7 @@ import app from './app';
 import { CronService } from './services/cron.service';
 import { prisma } from './models/prisma';
 
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = Number(process.env.PORT) || 5001;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 [Habit Tracker Backend]: Server listening on http://localhost:${PORT}`);
