@@ -4,10 +4,11 @@
   "description": "Mobile-first habit tracker (Next.js, Supabase)",
   "scripts": {
     "lint": "cd frontend && npm run lint",
-    "test": "cd frontend && npm test",
-    "typecheck": "cd frontend && npx tsc --noEmit",
+    "test": "cd frontend && npm test && cd ../mobile && npm test -- --watchAll=false",
+    "typecheck": "cd frontend && npx tsc --noEmit && cd ../mobile && npm run typecheck",
     "dev": "cd frontend && npm run dev",
     "test:db": "supabase test db",
-    "build": "cd frontend && npm run build"
+    "build": "cd frontend && npm run build",
+    "mobile": "cd mobile && npx expo start"
   }
 }

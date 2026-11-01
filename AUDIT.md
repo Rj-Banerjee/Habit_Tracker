@@ -723,3 +723,37 @@ Editing a habit's schedule currently applies to its whole history, because sched
 
 - The local tests passed, and the dry run listed one migration, which was then pushed.
 - All 25 live checks passed using temporary users that were then deleted, including a mode change followed by a streak read.
+
+### Step 2 item 5: design system, in progress (1 Nov 2026)
+
+**Changed**
+
+- Added the Expo app in `mobile/` on SDK 58. Expo Doctor passes all 20 checks.
+- Added design tokens, light and dark themes, `Text`, `StatusMark` and `HabitCard`, plus a design review screen.
+- The typeface is Figtree. It was chosen after checking the font file: its tabular feature makes every digit the same width, and DM Sans has no such feature.
+- `HabitCard` has the six states in `PLAN.md`, plus `protected`, which the Streak rules require.
+
+**Enforced by tests**
+
+| Rule | Check |
+| --- | --- |
+| No pure white or black | Every token, both themes |
+| No red | Hue check on accents and neutrals |
+| Readable text | At least 7:1 for text and 4.5:1 for muted text, on every surface |
+| 8 identity accents | At least 4.5:1 on surfaces, in both themes |
+| Colour-blind safe | Every pair stays apart under protanopia, deuteranopia and tritanopia, using the Machado 2009 matrices |
+| 48px touch targets | `HabitCard` minimum height |
+| Check-off under 400 ms | 260 ms, with a haptic tick when a habit becomes logged |
+| Reduced motion | The animation is skipped when the system asks |
+
+**Results**
+
+- 51 mobile tests passing, and typecheck passes.
+- Run in Chrome through Expo web, at desktop and phone widths, with no console errors. Tapping logs a card, and tabular digits measure identical widths.
+- Not yet run on a real phone or simulator. This Mac has no Xcode, so haptics and native rendering are unconfirmed.
+
+**Known and accepted for now**
+
+- 12 moderate `npm audit` advisories in `mobile/`, all one `minimatch` issue in Expo's tooling. The suggested fix would downgrade Expo to SDK 53.
+- No ESLint in `mobile/` yet.
+
