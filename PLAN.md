@@ -40,7 +40,7 @@ Clients                     Backend                         External
 Mobile app (RN + Expo)  ->  Supabase (Postgres, Auth,
 Phone extensions        ->    Realtime; streak rules in SQL)
   (Siri, widgets, tile)         ^  reads logs / writes nudges
-Web app (Next.js)       ->  AI service (FastAPI)        ->  Claude API
+Web app (Next.js)       ->  AI service (FastAPI)        ->  LLM provider
                               coach, voice parser,      ->  Push (APNs, FCM)
                               nightly pattern jobs
 ```
@@ -53,7 +53,7 @@ The apps never call the LLM directly. Every AI request goes through the FastAPI 
 | Web | Next.js | Desktop grid and weekly review; shares types with mobile |
 | Data and auth | Supabase: Postgres, Auth, Realtime, Storage | Realtime keeps phone, widget and web in sync after a voice log |
 | AI service | FastAPI (Python) | Coach, voice intent parsing, nightly pattern jobs |
-| LLM | Claude API | Small model for voice parsing and nudges; larger model for chat and letters |
+| LLM | Provider-agnostic, chosen by config (`AI_PROVIDER`, `AI_MODEL_FAST`, `AI_MODEL_STRONG`): Gemini free tier in development, Ollama for offline tests, Anthropic adapter later | Fast model for voice parsing and nudges; stronger model for chat and letters |
 | Speech | On-device speech-to-text; Picovoice Porcupine for the custom wake word | Fast, works offline, no audio sent to servers |
 | Notifications | Expo Notifications (APNs and FCM) | Actionable notifications on both platforms |
 | Scheduled jobs | Supabase cron + FastAPI workers | Nightly patterns, Sunday letters, preemptive nudges |
@@ -203,6 +203,8 @@ Users will be able to log by voice without opening the app, but not with our own
 4. Offline: the log is queued on the device and synced later. Simple phrases ("done with X") are matched on-device without the LLM.
 
 **Example phrases v1 must handle:** "I've completed my work" · "Read 15 pages" · "Did the minimum version of my run" · "Skip meditation today, I'm sick" · "Undo that."
+
+**AI data:** while the AI service runs on a free tier, only test accounts and test data may reach the provider, because free-tier prompts and responses may be used by the provider and read by human reviewers. The service enforces this with `AI_PROVIDER_TIER=free` and the `AI_TEST_USER_IDS` allow-list. **Production must use a paid tier with no training on user data**, set explicitly with `AI_PROVIDER_TIER=paid`. Google allows only paid services for users in the EEA, Switzerland and the UK.
 
 **Privacy rules:** wake-word detection runs on the device; no recordings are kept; transcripts are deleted after the log is written.
 

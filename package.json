@@ -8,6 +8,7 @@
     "typecheck": "npm run typecheck -w @habit-tracker/core && npm run typecheck -w habit-tracker-frontend && npm run typecheck -w habit-tracker-mobile",
     "dev": "npm run dev -w habit-tracker-frontend",
     "test:db": "supabase test db",
+    "test:ai": "cd backend && .venv/bin/python -m pytest -q",
     "build": "npm run build -w habit-tracker-frontend",
     "mobile": "npm start -w habit-tracker-mobile"
   },

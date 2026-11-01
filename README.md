@@ -42,6 +42,10 @@ npm test
 supabase test db
 ```
 
+## AI service
+
+`backend/` holds the FastAPI service. See `docs/handoff/coach-and-voice.md` to run it, and `backend/.env.example` for the settings. Run its tests with `npm run test:ai`.
+
 ## Secrets
 
 - Only `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `DATABASE_URL` and `ANTHROPIC_API_KEY` are secret, and they stay server-side.

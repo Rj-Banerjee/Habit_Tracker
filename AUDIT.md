@@ -930,3 +930,21 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Phone test:** the owner ran the full test list on their phone against the live database on 1 Nov 2026, including the keyboard, and reported everything working.
 
+### Step 2 item 6: provider-agnostic AI service (1 Nov 2026)
+
+**Changed**
+
+- New FastAPI service in `backend/`, the only caller of an LLM. Everything goes through one interface in `app/llm/base.py`: streaming chat, tool calls and token counting. Gemini and Ollama adapters exist. Adding Anthropic is one adapter file and one registry line, and choosing a provider is `AI_PROVIDER` plus the model names in env.
+- Models come from env: `gemini-3.5-flash-lite` for voice and nudges, `gemini-3.6-flash` for coach chat and letters. `gemini-3.8-flash`, the newer model, stalled past 45 seconds on this key, so it isn't the default.
+- Rate limits: backoff with jitter inside an 8-second limit, per-user hourly limits, an optional service-wide throttle, and friendly messages. Daily quota errors aren't retried.
+- On a free tier only `AI_TEST_USER_IDS` reach the provider, and the setting fails closed. `PLAN.md` records that production must use a paid tier with no training on user data.
+- The service reads with the person's own token, so RLS applies. Voice returns intents and never writes.
+- `packages/core` gains `createAiClient`. `docs/handoff/coach-and-voice.md` covers the screens, which aren't built.
+
+**Checked**
+
+- 64 service tests, core 144.
+- Real Gemini with made-up data on local Supabase: chat streamed its first words in 3.6 seconds, nine voice phrases all parsed correctly in under 2.2 seconds each, and a prompt injection attempt produced no intents. A signed-out request got 401 and a non-test account got 403.
+
+**Not checked:** a real Gemini 429. 30 concurrent calls all succeeded, so backoff is tested only against Google's documented error shapes. The Ollama adapter is tested against a fake server, because Ollama isn't installed here.
+
