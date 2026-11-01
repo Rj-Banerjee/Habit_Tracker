@@ -61,7 +61,7 @@ The apps never call the LLM directly. Every AI request goes through the FastAPI 
 
 ## Data model
 
-Eight core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
+Nine core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
 
 | Table | Key fields | Notes |
 | --- | --- | --- |
@@ -73,6 +73,9 @@ Eight core tables in Postgres cover v1. Streaks are computed from `habit_logs`, 
 | `grace_days` | user\_id, earned\_at, spent\_on\_habit, spent\_for\_date | Earned bank; spending one marks the day protected |
 | `reflections` | user\_id, week\_start, wins\[3\], month\_note, mood\_line | Sunday Review and evening line |
 | `coach_events` | id, user\_id, kind (nudge / miss\_review / letter / chat), payload, sent\_at, outcome | Every coach action and whether it helped; feeds the patterns |
+| `activity_events` | id, user\_id, occurred\_at, kind, subject\_id, payload (jsonb), source, actor (user / ai\_assisted / ai) | Append-only; written in the same transaction as every `habit_logs` change |
+
+Schedules, targets and Shrink level definitions are dated, so a change never rewrites the past. See Streak rules.
 
 A derived `user_patterns` view (best hours, weak weekdays, common skip reasons) is rebuilt nightly and given to the coach as context.
 
@@ -127,6 +130,22 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 | Strict | Off | Off | Allowed |
 
 Changing mode only affects days from then on.
+
+### Changing a habit
+
+- A change to a schedule, target or Shrink level takes effect from the day it's made. Earlier days keep the settings they had.
+- Streak Repair uses the target that applied on the missed day.
+- The Compound Forecaster uses the target that applied on each day it reads.
+
+### What a miss shows
+
+| Stage | Label | Action |
+| --- | --- | --- |
+| Back-log window open | "Not logged yet" | Tap to log it |
+| Window closed, can still be repaired | "Repair on Thu" (the repair day) | Repair on that day |
+| Window closed, can't be repaired | "Not done" | None |
+
+A Grace-covered miss shows as "Protected". That is a card state of its own.
 
 ### How results are computed
 
@@ -186,6 +205,16 @@ Users will be able to log by voice without opening the app, but not with our own
 
 **Privacy rules:** wake-word detection runs on the device; no recordings are kept; transcripts are deleted after the log is written.
 
+## Long-term direction
+
+A desktop app (Mac and Windows, likely wrapping the web app, for example with Tauri) comes later, followed by a Notion-like workspace whose design is not decided. Neither is being built now. Everything from now on must work for mobile and the future desktop app:
+
+- **Shared core:** `packages/core` holds types, streak helpers, Supabase API functions, the AI client and design tokens. Mobile and web both import it, and screens stay thin.
+- **Shared UI:** tokens and components work in React Native and on the web, with layouts that adapt to wide screens, mouse, hover and keyboard shortcuts.
+- **Static web app:** the Next.js app builds as static files (`output: 'export'`), so it can be packaged as a desktop app.
+- **Activity history:** `activity_events` is append-only and records every `habit_logs` change.
+- **Privacy:** personal data (habits, logs, activity events, reflections, coach events) is readable only by its owner under RLS, with a test proving it.
+
 ## Roadmap
 
 Launch lands at about week 24, assuming 2 developers and 1 designer. Each phase starts only when the gate before it is passed.
@@ -210,7 +239,7 @@ Design runs one phase ahead of build: screens for phase N are tested before phas
 - Warm neutral base in light and dark mode, designed together; no pure white or black.
 - One typeface with tabular numerals; three text sizes plus a display size for the Future-Self letter.
 - 8 identity accent colours, each checked for contrast in both modes and for colour-blind users.
-- Habit card states: due, done, done-minimum, skipped, missed (hollow), repaired (welded).
+- Habit card states: due, done, done-minimum, skipped, not logged yet, missed (hollow), repaired (welded), protected.
 - Motion: check-off under 400 ms with a haptic tick; fracture and weld animations for streaks.
 
 **Screens in build order:**

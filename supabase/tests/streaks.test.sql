@@ -693,6 +693,264 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
+-- Dated settings: a change never rewrites the past
+-- ---------------------------------------------------------------------------
+create function t.change(
+  n int, from_day date,
+  days smallint[] default null, goal numeric default null, new_levels jsonb default null
+) returns void language sql as $$
+  insert into tracker.habit_versions (habit_id, effective_from, schedule_days, target, unit, levels)
+  select t.h(n), from_day, coalesce(days, v.schedule_days), coalesce(goal, v.target), v.unit, coalesce(new_levels, v.levels)
+  from tracker.habit_versions v
+  where v.habit_id = t.h(n) and v.effective_from <= from_day
+  order by v.effective_from desc limit 1;
+$$;
+
+-- A daily habit becomes Mon/Thu mid-streak.
+select t.make_user(70);
+select t.make_habit(70, 70, '2026-11-02');
+select t.done(70, '2026-11-02', '2026-11-08');
+select t.change(70, '2026-11-09', '{1,4}');
+select t.done(70, '2026-11-09', '2026-11-12');
+select is(tracker.day_status(t.h(70), '2026-11-03', t.noon(70, '2026-11-20')), 'done', 'a Tuesday before the change stays a done day');
+select is(tracker.day_status(t.h(70), '2026-11-10', t.noon(70, '2026-11-20')), 'unscheduled', 'a Tuesday after the change is unscheduled');
+select is(t.streak(70, '2026-11-12', t.noon(70, '2026-11-13')), 9, 'the streak runs straight through a schedule change');
+
+-- A Mon/Thu habit becomes daily mid-streak.
+select t.make_user(71);
+select t.make_habit(71, 71, '2026-11-02', '{1,4}');
+select t.done(71, '2026-11-02', '2026-11-05');
+select t.change(71, '2026-11-09', '{1,2,3,4,5,6,7}');
+select t.done(71, '2026-11-09', '2026-11-10');
+select is(tracker.day_status(t.h(71), '2026-11-03', t.noon(71, '2026-11-10')), 'unscheduled', 'making a habit daily does not turn past days into misses');
+select is(t.streak(71, '2026-11-10', t.noon(71, '2026-11-10')), 4, 'and the streak survives the change');
+select is(tracker.previous_scheduled_day(t.h(71), '2026-11-09'), '2026-11-05'::date, 'the day before the change follows the old schedule');
+
+-- A long gap across a schedule change is still bridged.
+select t.make_user(72);
+select t.make_habit(72, 72, '2026-11-02', '{1}');
+select t.change(72, '2026-11-03', '{7}');
+select is(tracker.previous_scheduled_day(t.h(72), '2026-11-15'), '2026-11-08'::date, 'the new schedule is used from its first day');
+select is(tracker.previous_scheduled_day(t.h(72), '2026-11-08'), '2026-11-02'::date, 'and a gap across the change is bridged');
+
+-- Grace Days are rebuilt when the schedule history changes.
+select t.make_user(73);
+select t.make_habit(73, 73, '2026-11-02');
+select t.done(73, '2026-11-02', '2026-11-08');
+select tracker.settle(t.u(73), '2026-11-11 00:00+00');
+select is(tracker.grace_bank(t.u(73)), 0, 'a Grace Day was spent on Monday''s miss');
+select t.change(73, '2026-11-09', '{2,3,4,5,6,7}');
+select tracker.settle(t.u(73), '2026-11-11 00:00+00');
+select is(tracker.grace_bank(t.u(73)), 1, 'making Monday unscheduled from that date gives it back');
+
+-- A target change mid-streak.
+select t.make_user(74);
+select t.make_habit(74, 74, '2026-11-02', '{1,2,3,4,5,6,7}', 'count', 10);
+select t.done(74, '2026-11-02', '2026-11-07');
+select t.change(74, '2026-11-09', null, 20);
+select is(tracker.target_on(t.h(74), '2026-11-08'), 10::numeric, 'the old target applies before the change');
+select is(tracker.target_on(t.h(74), '2026-11-09'), 20::numeric, 'the new target applies from the change');
+select throws_like(
+  $$ select tracker.repair_habit(t.u(74), t.h(74), '2026-11-09', 14, false, 'tap', t.noon(74, '2026-11-09')) $$,
+  '%at least 15%', 'a repair uses the target of the missed day, not the new one'
+);
+select lives_ok(
+  $$ select tracker.repair_habit(t.u(74), t.h(74), '2026-11-09', 15, false, 'tap', t.noon(74, '2026-11-09')) $$,
+  'so 1.5x the old target is enough, even after the target rose'
+);
+select is(t.streak(74, '2026-11-09', t.noon(74, '2026-11-09')), 8, 'the streak carries through a target change');
+select is(
+  (select repair_amount from tracker.today_rows(t.u(74), t.noon(74, '2026-11-11')) where is_today),
+  30::numeric,
+  'a miss after the change uses the new target'
+);
+
+-- A Shrink level change.
+select t.make_user(75);
+select t.make_habit(75, 75, '2026-11-02', '{1,2,3,4,5,6,7}', 'count', 10);
+update tracker.habit_versions set levels = '[{"level":"full","description":"Old full","target":10}]' where habit_id = t.h(75);
+select t.change(75, '2026-11-09', null, null, '[{"level":"full","description":"New full","target":40}]');
+select is(tracker.target_on(t.h(75), '2026-11-08'), 10::numeric, 'a level target stays dated too');
+select is(
+  (select levels -> 0 ->> 'description' from tracker.today_rows(t.u(75), t.noon(75, '2026-11-09')) where not is_today),
+  'Old full',
+  'yesterday shows the level as it was'
+);
+select is(
+  (select levels -> 0 ->> 'description' from tracker.today_rows(t.u(75), t.noon(75, '2026-11-09')) where is_today),
+  'New full',
+  'today shows the new one'
+);
+
+-- The real change path.
+select t.make_user(76);
+select t.make_habit(76, 76, '2020-01-06', '{1}');
+update public.habits set schedule_days = '{2}' where id = t.h(76);
+select is(
+  (select array_agg(schedule_days[1]::int order by effective_from) from tracker.habit_versions where habit_id = t.h(76)),
+  array[1, 2],
+  'editing a habit adds a dated version and keeps the old one'
+);
+select is(
+  (select max(effective_from) from tracker.habit_versions where habit_id = t.h(76)),
+  tracker.local_date(t.u(76), now()),
+  'and the change takes effect today'
+);
+update public.habits set title = 'Renamed' where id = t.h(76);
+select is(
+  (select count(*)::int from tracker.habit_versions where habit_id = t.h(76)), 2,
+  'a rename adds no version'
+);
+
+-- ---------------------------------------------------------------------------
+-- What a miss shows
+-- ---------------------------------------------------------------------------
+select t.make_user(77);
+select t.make_habit(77, 77, '2026-10-26', '{1,4}');
+select t.done(77, '2026-10-26', '2026-10-29');
+select is(tracker.repair_on(t.h(77), '2026-11-02', '2026-11-03 12:00+00'), null::date, 'nothing to repair while the window is open');
+select is(tracker.repair_on(t.h(77), '2026-11-02', '2026-11-04 00:00+00'), '2026-11-05'::date, 'after it closes, the repair day is Thursday');
+select is(
+  (select repair_on from tracker.repair_rows(t.u(77), '2026-11-04 12:00+00')), '2026-11-05'::date,
+  'and that is listed for the Today screen'
+);
+select is(
+  (select count(*)::int from tracker.repair_rows(t.u(77), t.noon(77, '2026-11-05'))), 0,
+  'on the repair day itself the normal card offers it'
+);
+select is(tracker.repair_on(t.h(77), '2026-11-02', '2026-11-07 00:00+00'), null::date, 'once the repair day''s window closes it just stays a miss');
+
+select t.make_user(78);
+select t.make_habit(78, 78, '2026-11-02');
+select t.done(78, '2026-11-02', '2026-11-02');
+select is(tracker.repair_on(t.h(78), '2026-11-04', '2026-11-06 00:30+00'), null::date, 'a second miss in a row has no repair day');
+
+select t.make_user(79, 'UTC', 'strict');
+select t.make_habit(79, 79, '2026-10-26', '{1,4}');
+select t.done(79, '2026-10-26', '2026-10-29');
+select is(tracker.repair_on(t.h(79), '2026-11-02', '2026-11-04 00:00+00'), null::date, 'strict mode offers no repair day');
+
+-- ---------------------------------------------------------------------------
+-- Habit limits
+-- ---------------------------------------------------------------------------
+create function t.make_many(n int, owner int, starts date, how_many int) returns void language plpgsql as $$
+begin
+  for i in 0..how_many - 1 loop
+    perform t.make_habit(n + i, owner, starts);
+  end loop;
+end $$;
+
+select t.make_user(80);
+select t.make_habit(80, 80, '2026-11-02');
+select t.done(80, '2026-11-02', '2026-11-14');
+select is(tracker.habit_allowance(t.u(80), '2026-11-17 00:00+00'), 3, 'everyone starts with 3 habits, and 13 good days unlock nothing');
+select t.done(80, '2026-11-15', '2026-11-15');
+select is(tracker.habit_allowance(t.u(80), '2026-11-17 00:00+00'), 5, '14 consecutive days unlock 2 more');
+select t.done(80, '2026-11-16', '2026-11-29');
+select is(tracker.habit_allowance(t.u(80), '2026-12-01 00:00+00'), 7, 'and the same rule repeats');
+
+select t.make_user(81);
+select t.make_many(81, 81, '2026-11-02', 5);
+select t.done(81, '2026-11-02', '2026-11-15');
+select t.done(82, '2026-11-02', '2026-11-15');
+select t.done(83, '2026-11-02', '2026-11-15');
+select t.done(84, '2026-11-02', '2026-11-15');
+select is(tracker.habit_allowance(t.u(81), '2026-11-17 00:00+00'), 5, 'exactly 80% counts');
+
+select t.make_user(82);
+select t.make_many(90, 82, '2026-11-02', 5);
+select t.done(90, '2026-11-02', '2026-11-15');
+select t.done(91, '2026-11-02', '2026-11-15');
+select t.done(92, '2026-11-02', '2026-11-15');
+select is(tracker.habit_allowance(t.u(82), '2026-11-17 00:00+00'), 3, '60% does not count');
+
+select t.make_user(83);
+select t.make_habit(95, 83, '2026-11-02');
+select t.done(95, '2026-11-02', '2026-11-08');
+select t.done(95, '2026-11-10', '2026-11-16');
+insert into public.habit_logs (habit_id, date, status) values (t.h(95), '2026-11-09', 'repaired');
+select is(tracker.habit_allowance(t.u(83), '2026-11-18 00:00+00'), 5, 'a repaired day counts toward 2 consistent weeks');
+
+select t.make_user(84);
+select t.make_habit(96, 84, '2026-11-02');
+select t.done(96, '2026-11-02', '2026-11-08');
+select t.done(96, '2026-11-10', '2026-11-16');
+select tracker.settle(t.u(84), '2026-11-18 00:00+00');
+select is(tracker.day_status(t.h(96), '2026-11-09', '2026-11-18 00:00+00'), 'protected', 'a Grace Day covered the miss');
+select is(tracker.habit_allowance(t.u(84), '2026-11-18 00:00+00'), 3, 'but a protected day does not count');
+
+select t.make_user(85);
+select is(tracker.active_habits(t.u(85)), 0, 'a new account has no habits');
+select lives_ok(
+  $$ select tracker.create_habit(t.u(85), 'bbbbbbbb-0000-4000-8000-000000000085', ' Run ', 'boolean', null, null, '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"Run 5 km"},{"level":"minimum","description":"Run 1 km"}]', '2026-11-02 12:00+00') $$,
+  'a habit can be created with its Shrink ladder'
+);
+select is((select title from public.habits h join public.identities i on i.id = h.identity_id where i.user_id = t.u(85)), 'Run', 'its name is tidied');
+select is(
+  (select count(*)::int from tracker.habit_versions v join public.habits h on h.id = v.habit_id join public.identities i on i.id = h.identity_id where i.user_id = t.u(85)),
+  1, 'settings made on creation are one version, not a change'
+);
+select is(
+  (select jsonb_array_length((tracker.version_on(h.id, '2020-01-01')).levels) from public.habits h join public.identities i on i.id = h.identity_id where i.user_id = t.u(85)),
+  2, 'and that version holds the ladder'
+);
+select tracker.create_habit(t.u(85), 'bbbbbbbb-0000-4000-8000-000000000085', 'Read', 'boolean', null, null, '{1}', null, null, null, null, null,
+  '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00');
+select tracker.create_habit(t.u(85), 'bbbbbbbb-0000-4000-8000-000000000085', 'Stretch', 'boolean', null, null, '{1}', null, null, null, null, null,
+  '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00');
+select throws_like(
+  $$ select tracker.create_habit(t.u(85), 'bbbbbbbb-0000-4000-8000-000000000085', 'Fourth', 'boolean', null, null, '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00') $$,
+  '%habit limit%', 'a 4th habit is refused'
+);
+update public.habits set archived_at = now() where title = 'Stretch';
+select lives_ok(
+  $$ select tracker.create_habit(t.u(85), 'bbbbbbbb-0000-4000-8000-000000000085', 'Fourth', 'boolean', null, null, '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00') $$,
+  'archiving a habit frees a slot'
+);
+
+select t.make_user(86);
+select throws_like(
+  $$ select tracker.create_habit(t.u(86), 'bbbbbbbb-0000-4000-8000-000000000086', ' ', 'boolean', null, null, '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00') $$,
+  '%Give the habit a name%', 'a habit needs a name'
+);
+select throws_like(
+  $$ select tracker.create_habit(t.u(86), 'bbbbbbbb-0000-4000-8000-000000000086', 'Read', 'count', null, 'pages', '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00') $$,
+  '%Set a target%', 'a count habit needs a target'
+);
+select throws_like(
+  $$ select tracker.create_habit(t.u(86), 'bbbbbbbb-0000-4000-8000-000000000086', 'Read', 'boolean', null, null, '{}', null, null, null, null, null,
+    '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00') $$,
+  '%at least one day%', 'a habit needs at least one day'
+);
+select throws_like(
+  $$ select tracker.create_habit(t.u(86), 'bbbbbbbb-0000-4000-8000-000000000086', 'Read', 'boolean', null, null, '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"a"}]', '2026-11-02 12:00+00') $$,
+  '%full version and a minimum%', 'a habit needs a minimum version'
+);
+select throws_like(
+  $$ select tracker.create_habit(t.u(86), 'bbbbbbbb-0000-4000-8000-000000000001', 'Read', 'boolean', null, null, '{1}', null, null, null, null, null,
+    '[{"level":"full","description":"a"},{"level":"minimum","description":"b"}]', '2026-11-02 12:00+00') $$,
+  '%Identity not found%', 'a habit cannot be added to another user''s identity'
+);
+
+select t.make_user(87);
+select t.make_habit(97, 87, '2020-01-06', '{1}', 'count', 10);
+insert into public.habit_levels (habit_id, level, description, target) values (t.h(97), 'full', 'Ten', 10), (t.h(97), 'minimum', 'One', 1);
+select tracker.update_habit(t.u(87), t.h(97), 'New name', 20, null, null, null, null, null, null, null,
+  '[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]', now());
+select is((select title from public.habits where id = t.h(97)), 'New name', 'a habit can be edited');
+select is(tracker.target_on(t.h(97), tracker.local_date(t.u(87), now())), 20::numeric, 'the new target applies today');
+select is(
+  (select (tracker.version_on(t.h(97), '2020-01-06')).schedule_days), '{1}'::smallint[],
+  'and the first version is untouched'
+);
+
+-- ---------------------------------------------------------------------------
 -- Today
 -- ---------------------------------------------------------------------------
 select t.make_user(60, 'Asia/Kolkata');
