@@ -1,0 +1,502 @@
+# Habit Tracker Audit
+
+Audited 1 Nov 2026 against `PLAN.md` (last updated 1 Nov 2026). No application code was changed.
+
+## Summary
+
+The app builds and runs, but it is a different product from the one in `PLAN.md`. It is a monthly dashboard for a single demo user, while the plan describes a mobile-first tracker with identities, Shrink It levels and repairable streaks.
+
+- **The most urgent problem:** the production database password is in a public GitHub repo. Rotate it before anything else.
+- **Why the AI never worked:** no API key was ever set, and a keyword matcher hid that by imitating a coach. The code also calls a retired model.
+- **Good news:** nothing needs preserving. `auth.users` is empty, and all data belongs to the demo user.
+- **Blocked:** Step 2 items 3 and 4 need the product decisions listed in [Decisions needed](#decisions-needed-before-step-2).
+
+## How this audit was done
+
+- **Read in full:** `PLAN.md`, the docs, all backend source, and the main frontend logic (pages, hooks, services, coach, matrix, auth, profile).
+- **Read with styling lines removed, some only in part:** weekly and monthly sections, command palette, footer, legal modal, charts, dashboard cards and the modal.
+- **Searched, not read line by line:** the legacy vanilla app (`js/`, `css/`, `index.html`, apart from `js/streakCalc.js`), `FloatingHeader.tsx`, `DashboardHeader.tsx`, `TopToolbar.tsx`, `DonutRing.tsx`, `WeeklyHabitsRechart.tsx`, the small UI primitives, `globals.css` and the Tailwind config.
+- **Run:** typecheck, Prisma validation, production build, `npm audit`, `npm outdated`, and both servers with placeholder credentials.
+- **Queried read-only:** the live Supabase project (tables, advisors, grants, row counts).
+- **Not done:**
+  - Clicking through the UI in a browser. There is no browser tooling here, so client-side behaviour comes from reading the code.
+  - Running the app against the real database.
+  - Calling the Claude API, because no key exists. Statements about API behaviour come from Anthropic's current docs.
+  - Testing the leaked password.
+
+---
+
+## 1. What exists
+
+### Framework and structure
+
+Three separate apps share this repo, and none of them is the mobile app in `PLAN.md`.
+
+| Path | What it is | Status |
+| --- | --- | --- |
+| `frontend/` | Next.js 14 App Router, Tailwind, Recharts | Active |
+| `backend/` | Express 4, Prisma 5, node-cron | Active |
+| `index.html`, `js/`, `css/` | Original vanilla JS app using `localStorage` | Abandoned, 11 tracked files |
+
+There is no Expo app, FastAPI service, `supabase/` folder, test suite, CI, ESLint setup or deployment config.
+
+### Dependencies (installed)
+
+| Frontend | Version | | Backend | Version |
+| --- | --- | --- | --- | --- |
+| next | 14.2.35 | | express | 4.22.3 |
+| react, react-dom | 18.3.1 | | @prisma/client, prisma | 5.22.0 |
+| tailwindcss | 3.4.19 | | @supabase/supabase-js | 2.118.0 |
+| recharts | 2.15.4 | | @anthropic-ai/sdk | 1.3.0 |
+| lucide-react | 0.446.0 | | openai | 7.45.1 |
+| @supabase/supabase-js | 2.118.0 | | @google/genai | 2.32.0 |
+| tailwind-merge | 2.6.1 | | zod | 3.25.76 |
+| clsx | 2.1.1 | | node-cron | 3.0.3 |
+| typescript | 5.9.3 | | axios | 1.20.0 |
+| | | | dotenv | 16.6.1 |
+| | | | cors | 2.8.6 |
+| | | | tsx | 4.23.15 |
+| | | | typescript | 5.9.3 |
+
+### Screens
+
+- `/`: one long dashboard with a quote card, monthly overview, daily matrix, analytics, weekly habits, monthly milestones and a reflection.
+- `/login`, `/register`: Supabase email and password forms. The login page also has a "Demo Mode" button.
+
+### Database (live)
+
+| Table | Rows | RLS | Policies |
+| --- | --- | --- | --- |
+| `users` | 1 (demo) | On | 0 |
+| `daily_habits` | 19 | On | 0 |
+| `daily_logs` | 528 | On | 0 |
+| `weekly_habits` | 21 | On | 0 |
+| `monthly_habits` | 4 | On | 0 |
+| `monthly_reflections` | 2 | On | 0 |
+| `daily_quote_cache` | 2 | On | 0 |
+| `coach_profiles` | 1 | On | 0 |
+| `chat_messages` | 8 | On | 0 |
+
+- `auth.users` has **0 rows**, so no real account exists. Every row belongs to the demo user.
+- `seed.ts` creates 466 logs. The other 62 are test clicks: every log row was last touched between 27 and 29 Oct.
+- There are **no migrations**. The schema was applied with `prisma db push`.
+- `pg_cron` is not enabled.
+
+### API routes
+
+| Route | Auth | Purpose |
+| --- | --- | --- |
+| `GET /api/health` | No | Health check |
+| `GET /api/content/quote` | No | Daily quote |
+| `POST /api/content/quote/refresh` | **No** | Rewrites the shared quote cache |
+| `GET, POST /api/habits/daily`, `PATCH, DELETE /:id` | Yes | Daily habits |
+| `GET /api/habits/daily/matrix` | Yes | Month grid |
+| `POST /api/habits/daily/log` | Yes | Log or toggle a day |
+| `GET, POST /api/habits/weekly`, `PATCH /:id/toggle`, `DELETE /:id` | Yes | Weekly checklist |
+| `GET, POST /api/habits/monthly`, `PATCH /:id/toggle`, `DELETE /:id` | Yes | Monthly checklist |
+| `GET /api/analytics/month` | Yes | Month stats |
+| `GET, POST /api/reflections`, `POST /generate` | Yes | Reflections |
+| `GET, POST, DELETE /api/ai/chat`, `POST /chat/stream` | Yes | Coach chat |
+| `GET, PATCH /api/ai/profile` | Yes | Coach settings |
+| `POST /api/ai/proactive-check` | Yes, any user | Writes messages for **all** users |
+
+### Environment variables
+
+| Variable | Used by | In `backend/.env` or `.env.local` | In example file |
+| --- | --- | --- | --- |
+| `PORT`, `NODE_ENV`, `FRONTEND_URL` | Backend | Set | Yes |
+| `DATABASE_URL` | Prisma | Set | Yes |
+| `DIRECT_URL` | Prisma | Set | **No**, and the schema requires it |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Backend | Set | Yes |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Backend | **Empty** | **No** |
+| `GEMINI_API_KEY` | Backend | **Absent** | **No** |
+| `UNSPLASH_ACCESS_KEY` | Backend | Absent (optional) | Yes |
+| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Frontend | Set | Yes |
+
+---
+
+## 2. Does it build and run?
+
+**Yes.** There are no build errors and no compiler warnings.
+
+| Check | Result |
+| --- | --- |
+| Backend `tsc --noEmit` | Pass (exit 0) |
+| `prisma validate` | Pass |
+| Backend boot (placeholder env) | Pass. `/api/health` returns 200 and unauthenticated habit requests return 401 |
+| Frontend `next build` | Pass, on a scratchpad copy |
+| Frontend `next start` | `/`, `/login` and `/register` return 200; an unknown route returns 404 |
+
+### Problems that don't stop the build
+
+- **No lint or tests:** `npm run lint` calls `next lint`, but ESLint is not installed. There are no tests at all.
+- **Stale date:** the dashboard always opens on June 2026 (`frontend/src/app/page.tsx:35-36`).
+- **Port docs disagree:** `package.json` uses 3000, `PROJECT_MEMORY.md` says 3001, and the backend falls back to 5000, which macOS AirPlay occupies.
+- **Backend failure looks like an empty account:** load errors become empty lists (`frontend/src/hooks/useHabits.ts:20-23`).
+- **Noisy logs:** an ordinary 401 prints a full stack trace. In development, API error responses also include the stack (`backend/src/middlewares/error.middleware.ts:40-47`).
+- **Dead code:** `DashboardHeader.tsx` and `TopToolbar.tsx` are never imported. `backend/src/services/aiCoach.service.ts` only re-exports another file. `analyticsService.ts` contains a duplicate `contentService`.
+
+---
+
+## 3. Outdated, deprecated or insecure dependencies
+
+Checked against the npm and PyPI registries and `npm audit` on 1 Nov 2026.
+
+### Vulnerabilities
+
+| Package | Severity | Issue | Fix |
+| --- | --- | --- | --- |
+| next 14.2.35 | **Critical** | Many advisories, including unauthenticated remote code execution in image optimization, SSRF and cache poisoning | next 16.4.3 (breaking) |
+| postcss (inside next) | High | XSS and file disclosure | Comes with the next upgrade |
+| zod 3.25.76 | High | Memory exhaustion on oversized input | zod 4.6.7 (breaking) |
+| node-cron 3.0.3 and uuid | Moderate | Buffer bounds check | node-cron 4.6.0 (breaking), or remove it |
+
+Totals: frontend 2 (1 critical, 1 high), backend 3 (1 high, 2 moderate).
+
+### Version gap
+
+| Package | Installed | Latest | Action |
+| --- | --- | --- | --- |
+| next | 14.2.35 | 16.4.3 | Upgrade |
+| react | 18.3.1 | 19.3.1 | Upgrade with next |
+| tailwindcss | 3.4.19 | 4.3.3 | Upgrade with the UI rebuild |
+| recharts | 2.15.4 | 3.10.1 | Replace or upgrade in the UI rebuild |
+| lucide-react | 0.446.0 | 1.66.0 | Upgrade |
+| typescript | 5.9.3 | 7.0.2 | Hold until tooling supports it |
+| prisma | 5.22.0 | 7.10.1 stable | **Don't upgrade.** Remove with Express |
+| express | 4.22.3 | 5.3.0 | **Don't upgrade.** Remove |
+| openai | 7.45.1 | 7.47.0 | **Remove.** The plan uses Claude only |
+| @google/genai | 2.32.0 | 2.32.0 | **Remove.** Imported but never called |
+
+`npm outdated` lists prisma 8.0.0-rc.29 as latest, which is a release candidate, so 7.10.1 is shown above.
+
+### Target stack (current versions)
+
+expo 58.0.22, react-native 0.88.1, fastapi 0.162.0, uvicorn 0.54.0, anthropic (Python) 2.3.0.
+
+### Deprecated APIs
+
+- Model `claude-3-5-sonnet-20241022` was retired on 28 Oct 2025.
+- `next lint` was removed in newer Next.js versions, so linting needs its own ESLint setup. Confirm this during the upgrade.
+
+---
+
+## 4. Security problems
+
+| # | Severity | Problem | Where |
+| --- | --- | --- | --- |
+| 1 | **Critical** | Production database password in plaintext in a **public** repo | `PROJECT_MEMORY.md:69-74`, commit `acd22d7` |
+| 2 | **Critical** | Next.js remote code execution advisories | `frontend/package.json` |
+| 3 | **Critical** | Dev auth bypass: a fixed token signs anyone in as the demo user when `NODE_ENV=development`, and clients send it automatically | `auth.middleware.ts:17`, `frontend/src/services/api.ts:22`, `aiCoachService.ts:47` |
+| 4 | **High** | Partial service role key committed | `PROJECT_MEMORY.md:68` |
+| 5 | **High** | Hardcoded demo user fallback: any signed-in user can edit or delete demo records, and new users see demo data | 25 places in 6 files, e.g. `habit.service.ts:88-132` |
+| 6 | **High** | CORS accepts every origin with credentials. Confirmed with `Origin: https://evil.example` | `backend/src/app.ts:25` |
+| 7 | **High** | Any user can trigger coach messages for every user | `aiCoach.routes.ts:71` |
+| 8 | **High** | Unauthenticated write to the shared quote cache | `content.routes.ts:8` |
+| 9 | **High** | No policies on any table, and the backend bypasses RLS | See below |
+| 10 | **Medium** | `anon` and `authenticated` hold full table grants, including `TRUNCATE`, which RLS doesn't cover | Live `daily_logs`; other tables to confirm |
+| 11 | **Medium** | No rate limits. `limit` on chat history is uncapped, and `currentDate` is not validated | `aiCoach.controller.ts:13`, `aiCoach.routes.ts:28` |
+| 12 | **Medium** | Log dates accept any date, including far past or future | `habit.routes.ts:51` |
+| 13 | **Medium** | The model could write logs for any date through tool calls, with only an ownership check | `aiCoachService.ts:525-531` |
+| 14 | **Low** | Six-character minimum password | `RegisterForm.tsx` |
+| 15 | **Low** | Stack traces in API errors in development | `error.middleware.ts:40-47` |
+| 16 | **Low** | Supabase flags `rls_auto_enable()` as callable by `anon`. It is an event-trigger function that can't be called directly, so the risk is low, but revoke it | Live database |
+
+### What these mean together
+
+- **The password defeats RLS.** Anyone holding it connects as a privileged role. Rotation is the only fix, and removing it from the repo doesn't undo the exposure. I can't tell whether it has been used.
+- **RLS is on but protects nothing on the real path.** With zero policies, direct client access is blocked, which is safe but useless. All real traffic goes through Prisma, which bypasses RLS. So `PLAN.md`'s design, with clients talking to Supabase directly, needs policies on every table first.
+- **Sign-in behaviour is unreliable.** `useAuth.tsx:28,32` substitutes a demo user when there is no session, then `:41` clears the user on auth events. The result depends on timing, and I didn't test it in a browser. Either way, the API client still sends the dev token when signed out.
+- **Exposure today is limited.** There are no real users and no deployment config in the repo, so items 3 and 5-8 aren't known to be reachable on the internet. They must be fixed before any real user or deployment.
+
+### Not problems
+
+- `.env` and `.env.local` are gitignored and were never committed.
+- The publishable Supabase key in the docs is safe to expose.
+- AI keys were never in client code.
+- The service key is used server-side only.
+- The demo password text in `LoginForm.tsx:38-44` is not a real credential, because no such account exists.
+
+---
+
+## 5. Why the AI features failed
+
+There was no single cause. Fixing one would only have exposed the next.
+
+1. **No keys were ever set.** `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are empty, and `GEMINI_API_KEY` is absent, so no client is created (`backend/src/services/aiCoachService.ts:56-66`). **No real AI call has ever been made.**
+2. **A fake engine hid that.** With no client, `processConversation` falls through to `executeDynamicConversationalEngine` (`:428`, `:696-880`). This is a keyword matcher that fills in canned replies and shows them as coach responses. So it looked like a bad AI, not a missing key.
+3. **The model name is retired.** With a key, `claude-3-5-sonnet-20241022` (`:509`, `:548`) would fail.
+4. **Errors are swallowed.** The `catch` at `:405` logs a warning and falls through to the fake engine, so a failure would also look like a bland reply.
+5. **The first message has the wrong role.** The drawer's welcome message (`AICoachDrawer.tsx:108`) is sent as `messages[0]` with role `assistant`, but the first message must be from the user. It's also filtered and resent on each turn (`aiCoachService.ts:495-502`).
+6. **The streaming is fake.** The whole reply is generated first, then split into words with a 20 ms delay (`aiCoach.controller.ts:91-108`).
+7. **History is backwards.** `getChatHistory` returns the **oldest** messages (`aiCoachService.ts:250-254`), so long chats lose recent context. The unread check at `page.tsx:49` has the same problem.
+8. **The context is thin.** The prompt only sees today's completion list, with no recent logs or patterns.
+9. **There's no real degraded mode.** Provider fallback (Anthropic, OpenAI, keyword matcher) means the app imitates AI instead of saying it's unavailable. The frontend also retries with the full history on stream failure, which can repeat tool actions (`AICoachDrawer.tsx:208-232`).
+
+### Ruled out
+
+- **Wrong SDK:** `@anthropic-ai/sdk` 1.3.0 is the latest.
+- **Client-side calls:** all calls were server-side.
+- **Missing backend:** it exists, but `PLAN.md` wants it in FastAPI.
+
+### Live data risk
+
+The fake engine changes data on keyword matches:
+
+- Any message containing "downscale" cuts every habit's goal by 30% (`:771-786`).
+- A message containing "done" or "did" plus any 4+ letter word from a habit title marks that habit complete (`:818-833`). So an ordinary sentence can log a habit by accident.
+
+---
+
+## 6. Gap analysis against PLAN.md
+
+**Legend:** Done = meets the plan. Partial = usable base. Missing = absent. Wrong = exists but conflicts with the plan.
+
+**Result:** of the 69 items below, 0 are Done, 8 are Partial, 42 are Missing and 19 are Wrong.
+
+### Tracking
+
+| v1 feature | Status | Notes and references |
+| --- | --- | --- |
+| Today screen | Wrong | Dashboard comes first. Mobile day view is below the charts (`page.tsx`, `DailyMobileTodayView.tsx`) |
+| Identities | Missing | Only a single `target_identity` string (`schema.prisma:115`) |
+| Yes/no habits | Partial | `daily_logs.is_completed` (`schema.prisma:43`) |
+| Count, duration and quit habits | Missing | Boolean only |
+| Tap logging | Partial | `useOptimisticDailyLog.ts`; works, with rollback |
+| Long-press and swipe logging | Missing | No gesture handling anywhere |
+| Shrink It ladder | Missing | Closest is "Emergency Downscale", which is a different idea |
+| Evening back-log | Missing | No evening state |
+| 3-habit onboarding cap | Missing | No onboarding, no cap (`habit.service.ts:78`) |
+
+### Streaks
+
+| v1 feature | Status | Notes and references |
+| --- | --- | --- |
+| Computed from logs | Partial | Computed, not stored, but with the bugs below (`analytics.service.ts:106-138`) |
+| Streaks across months | Wrong | Resets on the 1st, because only one month's logs are read |
+| In-progress today | Wrong | Current streak shows 0 until today is logged (`analytics.service.ts:131-138`) |
+| Fractured chain view | Missing | |
+| Grace Day bank | Wrong | Toggle saved in `localStorage`, and nothing reads it (`ProfileSettingsDrawer.tsx:42-84`) |
+| 24-hour back-log | Wrong | The UI promises it, but any date is accepted (`habit.routes.ts:51`) |
+| 1.5x Streak Repair | Missing | |
+
+### Progress
+
+| v1 feature | Status | Notes and references |
+| --- | --- | --- |
+| Identity score | Missing | |
+| Yearly heatmap | Missing | |
+| Streak history | Missing | |
+| Compound Forecaster | Missing | |
+| Top habits | Partial | Month only, styled as a leaderboard with a trophy (`Top10Leaderboard.tsx`) |
+| Desktop 31-day grid | Partial | Good base (`DailyMatrix.tsx`, `HabitRow.tsx`), but boolean only, coloured by week, with 20px cells |
+
+### AI coach
+
+| v1 feature | Status | Notes and references |
+| --- | --- | --- |
+| Coach chat | Wrong | Section 5 |
+| Coach cards on Today | Missing | |
+| Miss review | Missing | |
+| Preemptive nudges | Wrong | Fixed-time canned messages at 12:00 and 21:00 server time, stored but never pushed (`aiCoachService.ts:268-324`) |
+| Peak hours | Missing | Logs have no completion time, only `updated_at` |
+| Sunday Review | Wrong | Monthly template that overwrites the saved reflection (`reflection.service.ts:53-88`) |
+| Future-Self letter | Missing | |
+| "Why" card | Missing | |
+| `user_patterns` view | Missing | |
+| Per-user AI cost limits | Missing | |
+
+### Voice, reminders and focus
+
+| v1 feature | Status | Notes and references |
+| --- | --- | --- |
+| Siri via App Intents | Missing | Needs the mobile app |
+| In-app voice and wake word | Missing | |
+| Android voice tile and widget | Missing | |
+| Intent parser | Missing | |
+| 10-second undo | Missing | |
+| Offline queue | Missing | |
+| Smart reminders, max 2 per day | Missing | `NotificationDropdown.tsx` shows **made-up hardcoded notifications** |
+| Home and lock-screen widgets | Missing | |
+| Tunnel Vision and focus timer | Missing | |
+
+### Data model
+
+| PLAN.md table | Status | Current equivalent |
+| --- | --- | --- |
+| `users` | Partial | Has id and email. Lacks timezone, wake_time, tone, mode, assistant_name |
+| `identities` | Missing | |
+| `habits` | Wrong | `daily_habits` has `goal_days`, a monthly target that doesn't exist in the plan. No identity, type, target, unit, schedule or aliases |
+| `habit_levels` | Missing | |
+| `habit_logs` | Wrong | `daily_logs` has one boolean, and `date` is stored as text. No level, amount, status, reason, source or `logged_at` |
+| `grace_days` | Missing | |
+| `reflections` | Wrong | `monthly_reflections` is monthly free text. The plan needs weekly wins and a mood line |
+| `coach_events` | Wrong | `chat_messages` and `coach_profiles` cover chat only |
+
+### Design principles
+
+| Rule | Status | Notes |
+| --- | --- | --- |
+| Warm neutrals, no pure white or black | Wrong | Slate and blue, with `bg-white` used 60 times |
+| Light and dark designed together | Partial | Both exist, built with `dark:` overrides rather than tokens |
+| Tabular numerals | Missing | 0 uses |
+| Three text sizes | Wrong | Many ad hoc sizes, down to 9px |
+| 8 identity colours | Wrong | Colours mean the **week of the month** (`CheckboxCell.tsx:23-43`, `colors.ts`) |
+| Six card states | Missing | Only done and not done |
+| No shame states, hollow dots | Missing | Missed days are just blank. Red is **not** used for misses, only for delete buttons, errors and accents, in 13 files |
+| No glassmorphism | Wrong | `backdrop-blur` in 11 files, plus 11 gradients and glowing, pulsing elements |
+| 48px touch targets | Wrong | 20px checkbox (`CheckboxCell.tsx:64`), 36px mobile checkbox |
+| Check-off under 400 ms | Partial | 200 ms transition, but no haptics |
+| Calm by default | Wrong | Seven dashboard sections, loud language ("conquered") and spinning or bouncing icons (`AICoachTrigger.tsx`) |
+
+### Infrastructure
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Expo mobile app | Missing | |
+| FastAPI AI service | Missing | |
+| Realtime sync | Missing | No subscriptions |
+| Supabase cron | Missing | node-cron on the Express server; `pg_cron` off |
+| Push (Expo Notifications) | Missing | |
+| PostHog with log `source` | Missing | |
+| Streak unit tests | Missing | |
+| 200-phrase voice test set | Missing | |
+| Privacy policy | Wrong | Placeholder claiming "99.9% uptime backed by PostgreSQL clustering", which isn't true (`LegalModal.tsx:53`), and it doesn't cover voice or AI |
+
+### Built, but outside v1
+
+| Feature | Plan says | Action |
+| --- | --- | --- |
+| Weekly habits, monthly milestones | v2 | Remove from v1 screens |
+| Daily quote and photo card, Unsplash | Not in plan | Remove |
+| Calendar `.ics` export | Not in plan | Remove |
+| CSV export | v2, and the privacy policy needs data export | Keep the idea, rebuild later |
+| Cmd+K palette | Not in plan | Possibly keep on desktop |
+
+### Other bugs found
+
+- Deleting a habit has no confirmation and removes all its logs (`HabitRow.tsx:71`).
+- The reflection box saves on every keystroke, with a success toast each time (`MonthlyReflectionCard.tsx`).
+- "Total Days Conquered" is a monthly count labelled as lifetime (`page.tsx:123`).
+- Charts raise low values to 8-10%, so a 0% day looks non-zero (`AreaProgressChart.tsx`, `WeeklyBarsChart.tsx`).
+- **Timezones:** 9 uses of `toISOString().split('T')[0]` use the UTC date. For someone in India, the server thinks it's "yesterday" until 05:30 local time. Cron jobs use server time.
+- Weeks are month chunks (days 1-7, 8-14 and so on), not calendar weeks (`dateUtils.ts:52-57`).
+
+---
+
+## 7. Stack mismatch
+
+`PLAN.md` wants: React Native + Expo mobile, Next.js web, Supabase with streak rules in SQL, a FastAPI AI service, and the Claude API.
+
+Effort is a rough estimate for one developer and covers the scope in Step 2, not all of v1.
+
+| Layer | Current | Recommendation | Effort | Why |
+| --- | --- | --- | --- | --- |
+| Mobile | None | **Restart:** new Expo app | 2-3 weeks for Today and logging | Nothing to adapt. The plan needs native Siri, widget and tile code, so use development builds, not Expo Go |
+| Web | Next 14 dashboard | **Keep and adapt:** upgrade to 16, then shrink to the desktop grid and weekly review | 1 week | The scaffold and auth wiring are sound. The product role changes |
+| Data and auth | Supabase with no migrations | **Keep and adapt:** adopt `supabase/migrations`, add RLS policies | 2-3 days | Right platform. With no real data, this is simple |
+| API layer | Express + Prisma | **Migrate gradually, then remove** | 1 week | The plan has clients talking to Supabase directly. No Express in the architecture. Don't spend time on Express 5 or Prisma 7 |
+| Streak logic | Spread across `analytics.service.ts`, `HabitRow.tsx`, `DailyMobileTodayView.tsx` | **Restart** as SQL functions, per the plan | 1-1.5 weeks | One source of truth. Needs a SQL test setup |
+| AI | Express with a keyword matcher | **Restart:** FastAPI | 1-1.5 weeks | Nothing reusable except the idea of tool calling |
+| Scheduled jobs | node-cron | **Restart:** Supabase cron and FastAPI workers | Part of AI work | Per the plan |
+| Legacy vanilla app | Root `js/`, `css/`, `index.html` | **Delete** | Under 1 day | `streakCalc.js` has the same month-bound bug, so nothing is worth keeping |
+
+### Worth keeping
+
+- The Supabase project and email auth wiring
+- `@@unique([habit_id, date])`, which matches "one row per habit per day"
+- The idea of storing the user's local date, not a timestamp (but as `date` type, not text)
+- `useOptimisticDailyLog.ts`'s optimistic update and rollback pattern
+- `DailyMatrix.tsx` as the base for the desktop grid
+- Zod request validation, as a pattern for the new boundaries
+
+### AI model choice
+
+`PLAN.md` asks for a small model for voice and nudges, and a larger one for chat and letters.
+
+| Use | Model | Notes |
+| --- | --- | --- |
+| Coach chat, letters | `claude-opus-5-5` | Set effort explicitly (default is `medium`). Enable refusal fallbacks |
+| Voice parsing, nudges | `claude-haiku-5-5` | Use `auto` tool choice with `strict: true`, or structured outputs. Server-side refusal fallback isn't available on Haiku |
+
+---
+
+## 8. Prioritized fix list
+
+### Blocking
+
+1. **You:** rotate the database password and service role key. Update `backend/.env`.
+2. Remove secrets from `PROJECT_MEMORY.md`. Rewriting git history is optional once rotated.
+3. **You:** answer the [decisions below](#decisions-needed-before-step-2).
+4. Add ESLint and test runners.
+5. Fix `.env.example` files and the port docs.
+6. Add a real Anthropic API key in the AI service only.
+
+### Security
+
+1. Upgrade to Next 16 and React 19.
+2. Remove the dev token and every demo fallback.
+3. Lock CORS to an allowlist.
+4. Add auth to `/content/quote/refresh`, and remove `/ai/proactive-check` as a user route.
+5. Write RLS policies for every table, before any client connects directly.
+6. Revoke unnecessary `anon` and `authenticated` grants, and `rls_auto_enable()` execution.
+7. Update or remove zod and node-cron. Prefer removal with Express.
+8. Add per-user rate limits and input size limits.
+9. Remove the keyword engine **first**, since it can change data.
+
+### Data model
+
+1. Baseline the schema into `supabase/migrations`.
+2. Create the eight `PLAN.md` tables and the `user_patterns` view.
+3. Link `users` to `auth.users`. The demo row has no auth account and can't be linked.
+4. Use real `date` columns and enums.
+5. Remove or archive `weekly_habits`, `monthly_habits`, `daily_quote_cache`, `coach_profiles` and `chat_messages`.
+
+### Core tracker logic
+
+1. User-local "today", from `users.timezone`.
+2. Logging with level, amount, status, source and skip reason.
+3. Streaks across months, with today counted as in progress.
+4. Shrink levels, Grace Days, 24-hour back-log and 1.5x Repair, once decided.
+5. Tests for back-log, Grace Days, repairs, timezone changes and daylight saving.
+
+### UI/UX
+
+1. Design tokens and base components first.
+2. Today screen, habit card with all six states, Shrink sheet, swipe to skip.
+3. Identity grouping, one accent per identity, hollow dots.
+4. Tabular numerals, 48px targets, check-off under 400 ms with a haptic tick.
+5. Rebuild the desktop grid on tokens. Remove glass, gradients, fake notifications and v2 sections.
+
+### AI
+
+1. FastAPI service as the only holder of the Anthropic key, verifying Supabase JWTs.
+2. Coach chat with real streaming and context from habits and recent logs.
+3. Voice intent parser with the six tools and `voice_aliases`.
+4. Per-user rate limits.
+5. Clear "coach unavailable" states, so the tracker works without AI.
+
+---
+
+## Decisions needed before Step 2
+
+`PLAN.md` names these rules but doesn't define them. Items 1-5 block Step 2 items 3 and 4. I've given a recommendation for each, but they're product decisions.
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| 1 | **Grace Days:** how are they earned, what is the cap, and are they spent automatically or by the user? | 1 earned per 7 consistent days, cap 3, spent automatically for the protected habit |
+| 2 | **1.5x Streak Repair:** 1.5x of what, and within what window? Can a yes/no habit be repaired? | Within 24-48 hours of a miss, do 1.5x the target. For yes/no habits, do it plus the minimum version. Once per missed day |
+| 3 | **Mode:** what do `strict` and `grace` change? Does strict turn off Grace Days and repair? | Strict: no Grace Days, back-log only. Grace: everything on |
+| 4 | **What counts for a streak?** Do `minimum` and `setup` levels count? Does `skipped`? Do unscheduled days break it? | All three levels count. Skipped pauses without breaking. Unscheduled days are ignored |
+| 5 | **Day boundary:** does a day end at local midnight? Does 24-hour back-log mean 24 hours after the day ends? Is `missed` stored, or derived from no row? | Local midnight, plus 24 hours after that. Derive `missed`, and store only real events |
+| 6 | **Which client gets the Step 5 UI first?** The brief says rebuild the UI. The plan is mobile-first. | Build Today in Expo first, and limit Next.js to the desktop grid and weekly review |
+| 7 | **Demo data:** delete it? | Yes. It's seed data and test clicks |
+| 8 | **Weekly and monthly habits:** remove now or keep hidden? | Remove the tables and UI. Rebuild properly in v2 |
+
+### Also worth knowing
+
+- **Step 2 doesn't cover all of v1.** Onboarding, habit creation, Progress, reminders, widgets, Siri, in-app voice capture, offline queue and most coach features aren't in the Step 2 list. These need a later plan.
+- **The eight tables have small gaps.** There's nowhere for push tokens, a habit archive flag or offline idempotency keys. `undo_last` also needs a way to find the last action. I'd add these during the migration and record them in `PLAN.md`.
+- **Streak rules in SQL vs offline logging.** The app can't compute a confirmed streak while offline. The reply "12-day streak" would need a local estimate or to wait for sync.
+- **"Consistent" is undefined** for unlocking more than 3 habits after 2 weeks.
+- **Open in `PLAN.md`, not blocking Step 2:** app and assistant name, team size, pricing, and Hindi voice support.
