@@ -11,21 +11,21 @@ export function useToday() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    try {
-      const [today, repairable] = await Promise.all([tracker.getToday(), tracker.getRepairs()]);
-      setRows(today);
-      setRepairs(repairable);
-      setLoadFailed(false);
-    } catch {
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const refresh = useCallback(
+    () =>
+      Promise.all([tracker.getToday(), tracker.getRepairs()])
+        .then(([today, repairable]) => {
+          setRows(today);
+          setRepairs(repairable);
+          setLoadFailed(false);
+        })
+        .catch(() => setLoadFailed(true))
+        .finally(() => setLoading(false)),
+    []
+  );
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   // Shows the change at once, then lets the server have the final word.

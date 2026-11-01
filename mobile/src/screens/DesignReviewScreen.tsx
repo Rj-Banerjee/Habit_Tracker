@@ -12,7 +12,7 @@ import {
 } from '@habit-tracker/core';
 import { HabitCard, StatusMark, Text, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
-const SWATCHES: Array<keyof ThemeColors> = [
+const SWATCHES: (keyof ThemeColors)[] = [
   'canvas',
   'surface',
   'surfaceSunken',
@@ -22,13 +22,13 @@ const SWATCHES: Array<keyof ThemeColors> = [
   'hollow',
 ];
 
-const SAMPLE_CARDS: Array<{
+const SAMPLE_CARDS: {
   title: string;
   status: HabitCardStatus;
   identity: IdentityToken;
   streak?: number;
   detail?: string;
-}> = [
+}[] = [
   { title: 'Deep work', status: 'due', identity: 'identity-3', streak: 11, detail: '2 hours' },
   { title: 'Morning run', status: 'done', identity: 'identity-1', streak: 24, detail: '5 km' },
   { title: 'Read', status: 'doneMinimum', identity: 'identity-5', streak: 8, detail: '1 page' },

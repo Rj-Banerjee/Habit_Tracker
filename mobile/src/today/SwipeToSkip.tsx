@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, StyleSheet, View } from 'react-native';
 import { radius, space } from '@habit-tracker/core';
 import { Text, useTheme } from '@habit-tracker/ui';
@@ -15,11 +15,16 @@ interface SwipeToSkipProps {
 // is a screen-reader action on the card, so swiping is never the only way.
 export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
   const { colors } = useTheme();
-  const offset = useRef(new Animated.Value(0)).current;
+  const [offset] = useState(() => new Animated.Value(0));
   const latest = useRef({ enabled, onSkip });
-  latest.current = { enabled, onSkip };
 
-  const responder = useMemo(() => {
+  useEffect(() => {
+    latest.current = { enabled, onSkip };
+  });
+
+  // The rule can't see that latest is only read inside gesture handlers, after render.
+  // eslint-disable-next-line react-hooks/refs
+  const [responder] = useState(() => {
     const settle = () =>
       Animated.timing(offset, {
         toValue: 0,
@@ -37,7 +42,7 @@ export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
       },
       onPanResponderTerminate: settle,
     });
-  }, [offset]);
+  });
 
   return (
     <View>

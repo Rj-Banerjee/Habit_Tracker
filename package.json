@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Mobile-first habit tracker (Next.js, Supabase)",
   "scripts": {
-    "lint": "npm run lint -w habit-tracker-frontend",
+    "lint": "npm run lint -w habit-tracker-frontend && npm run lint -w habit-tracker-mobile",
     "test": "npm test -w @habit-tracker/core && npm test -w habit-tracker-frontend && npm test -w habit-tracker-mobile -- --watchAll=false",
     "typecheck": "npm run typecheck -w @habit-tracker/core && npm run typecheck -w habit-tracker-frontend && npm run typecheck -w habit-tracker-mobile",
     "dev": "npm run dev -w habit-tracker-frontend",
