@@ -6,6 +6,17 @@ import { supabase } from '../services/supabase';
 import { useTheme } from '../theme/ThemeProvider';
 import { layout, radius, space, textStyles } from '../theme/tokens';
 
+const AUTH_MESSAGES: Record<string, string> = {
+  over_email_send_rate_limit:
+    "Too many emails were sent to set up accounts. Please wait an hour and try again, or use the link in the email you already have.",
+  email_not_confirmed: 'Please confirm your email first, using the link we sent you.',
+  invalid_credentials: "That email and password don't match.",
+};
+
+function authErrorMessage(error: { code?: string; message: string }): string {
+  return (error.code && AUTH_MESSAGES[error.code]) || error.message;
+}
+
 export function SignInScreen() {
   const { colors } = useTheme();
   const [email, setEmail] = useState('');
@@ -23,11 +34,18 @@ export function SignInScreen() {
     setBusy(true);
     setMessage(null);
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const { error } = isSignUp
+    const { data, error } = isSignUp
       ? await supabase.auth.signUp({ email, password, options: { data: { timezone } } })
       : await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) setMessage(error.message);
+
+    if (error) {
+      setMessage(authErrorMessage(error));
+    } else if (isSignUp && !data.session) {
+      // Email confirmation is on, so there is nothing to sign in to yet.
+      setIsSignUp(false);
+      setMessage(`Check ${email} for a confirmation link, then sign in here.`);
+    }
   };
 
   const inputStyle = [

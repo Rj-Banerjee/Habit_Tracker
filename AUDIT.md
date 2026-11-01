@@ -799,3 +799,7 @@ Editing a habit's schedule currently applies to its whole history, because sched
 - The local tests passed, and the dry run listed one migration, `20261101000500_today.sql`, which was then pushed.
 - All live checks passed, using temporary users that were then deleted. `get_today` follows the profile timezone, shows nothing of other users, and is blocked for the publishable key alone.
 
+**Sign-up bug fixed**
+
+With `Confirm email` on, sign-up succeeds without a session, and the sign-in screen showed nothing, so repeat presses sent more emails until Supabase's email limit was reached. The screen now says to check email and moves to sign in, and common auth errors are explained in plain words. Local Supabase has confirmation off, which is why local testing never showed this.
+
