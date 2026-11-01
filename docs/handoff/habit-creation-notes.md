@@ -18,7 +18,7 @@ Gaps closed:
 
 - The form's own save was run on a backdated habit in a real browser against a local database. Past targets, schedules and day statuses didn't change.
 - Today, At the limit, Load failed, Limit on save and the archive sheet were checked at 390px dark, 1200px dark and 390px light.
-- The keyboard: Android had no handling and now has the same padding as iPhone. A test runs React Native's own calculation on both platforms with a 390x844 phone's numbers. A real keyboard still needs a phone, because this Mac has no iOS simulator.
+- The keyboard: Android had no handling and now has the same padding as iPhone. A test runs React Native's own calculation on both platforms with a 390x844 phone's numbers. The owner's phone test on 1 Nov 2026 confirmed it.
 - `app.json` forced light mode on phones, so the dark theme could never appear there. It now follows the system.
 
 Known: at 390px the seven day buttons wrap, leaving Sunday on its own row. Fitting them would take 2px less than the 48px targets and the spacing tokens allow.

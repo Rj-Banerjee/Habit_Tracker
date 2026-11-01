@@ -928,5 +928,5 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - 43 browser checks on Expo web against a local database, including the form's own save on a backdated habit, and the remaining states at 390px dark, 1200px dark and 390px light.
 - Live push followed the usual procedure. 23 checks with temporary users passed, those users were deleted, and both real accounts are untouched.
 
-**Not checked:** a real iPhone keyboard, because this Mac has no iOS simulator. React Native's calculation is tested with real numbers, but the phone test is still needed.
+**Phone test:** the owner ran the full test list on their phone against the live database on 1 Nov 2026, including the keyboard, and reported everything working.
 
