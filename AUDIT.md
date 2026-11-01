@@ -18,9 +18,8 @@ The app builds and runs, but it is a different product from the one in `PLAN.md`
 - **Searched, not read line by line:** the legacy vanilla app (`js/`, `css/`, `index.html`, apart from `js/streakCalc.js`), `FloatingHeader.tsx`, `DashboardHeader.tsx`, `TopToolbar.tsx`, `DonutRing.tsx`, `WeeklyHabitsRechart.tsx`, the small UI primitives, `globals.css` and the Tailwind config.
 - **Run:** typecheck, Prisma validation, production build, `npm audit`, `npm outdated`, and both servers with placeholder credentials.
 - **Queried read-only:** the live Supabase project (tables, advisors, grants, row counts).
-- **Not done:**
-  - Clicking through the UI in a browser. There is no browser tooling here, so client-side behaviour comes from reading the code.
-  - Running the app against the real database.
+- **Not done at the time of the audit:** browser testing and running against the real database. Both were done in Step 2 item 1, recorded in the [change log](#change-log).
+- **Still not done:**
   - Calling the Claude API, because no key exists. Statements about API behaviour come from Anthropic's current docs.
   - Testing the leaked password.
 
@@ -206,7 +205,7 @@ expo 58.0.22, react-native 0.88.1, fastapi 0.162.0, uvicorn 0.54.0, anthropic (P
 
 - **The password defeats RLS.** Anyone holding it connects as a privileged role. Rotation is the only fix, and removing it from the repo doesn't undo the exposure. I can't tell whether it has been used.
 - **RLS is on but protects nothing on the real path.** With zero policies, direct client access is blocked, which is safe but useless. All real traffic goes through Prisma, which bypasses RLS. So `PLAN.md`'s design, with clients talking to Supabase directly, needs policies on every table first.
-- **Sign-in behaviour is unreliable.** `useAuth.tsx:28,32` substitutes a demo user when there is no session, then `:41` clears the user on auth events. The result depends on timing, and I didn't test it in a browser. Either way, the API client still sends the dev token when signed out.
+- **The login wall doesn't work.** `useAuth.tsx:28,32` substitutes a demo user when there is no session. Confirmed in a browser: a fresh session with no login opens the dashboard, and every API call succeeds with the dev token.
 - **Exposure today is limited.** There are no real users and no deployment config in the repo, so items 3 and 5-8 aren't known to be reachable on the internet. They must be fixed before any real user or deployment.
 
 ### Not problems
@@ -243,7 +242,7 @@ There was no single cause. Fixing one would only have exposed the next.
 
 The fake engine changes data on keyword matches:
 
-- Any message containing "downscale" cuts every habit's goal by 30% (`:771-786`).
+- Any message containing "downscale" cuts every habit's goal by 30% (`:771-786`). This has already happened: the first demo habit's goal is 7, and the seed set it to 30.
 - A message containing "done" or "did" plus any 4+ letter word from a habit title marks that habit complete (`:818-833`). So an ordinary sentence can log a habit by accident.
 
 ---
@@ -500,3 +499,49 @@ Effort is a rough estimate for one developer and covers the scope in Step 2, not
 - **Streak rules in SQL vs offline logging.** The app can't compute a confirmed streak while offline. The reply "12-day streak" would need a local estimate or to wait for sync.
 - **"Consistent" is undefined** for unlocking more than 3 habits after 2 weeks.
 - **Open in `PLAN.md`, not blocking Step 2:** app and assistant name, team size, pricing, and Hindi voice support.
+
+---
+
+## Change log
+
+### Step 2 item 1: build and dependencies (1 Nov 2026)
+
+**Changed**
+
+- Frontend: upgraded to Next 16.4.3, React 19.3.1 and lucide-react 1.66.0. Added ESLint with a flat config, because `next lint` no longer exists, and Vitest.
+- Backend: removed `openai` and `@google/genai` and their code. Upgraded zod to 4, node-cron to 4 and axios to 1.21. Added Vitest and Supertest. Express and Prisma stay on their current versions because they are being removed.
+- Fixed the 15 `any` lint errors and 21 unused-variable warnings.
+- Deleted the legacy vanilla app and the empty `assets/` folder.
+- Standardised on port 5001 for the API and 3000 for the web app. Updated the docs and example env files.
+- Added root `lint`, `test` and `typecheck` scripts.
+
+**Results**
+
+| Check | Before | After |
+| --- | --- | --- |
+| Backend `npm audit` | 1 high, 2 moderate | 0 |
+| Frontend `npm audit`, production | 1 critical, 1 high | 0 |
+| Frontend `npm audit`, including dev tools | 1 critical, 1 high | 16 moderate |
+| Typecheck, both apps | Pass | Pass |
+| Frontend lint | Not runnable | 0 errors, 11 warnings |
+| Tests | None | 11 passing (7 backend, 4 frontend) |
+| Production builds, both apps | Pass | Pass |
+
+**Run in a real browser, against the real database**
+
+- Dashboard, habit grid, charts and quote card all render at desktop and phone widths, and every API call returned 200.
+- Checkbox toggling works: 4 clicks produced 4 saved changes and ended on the original state. An earlier run showed one out-of-step result that did not reproduce. It happened during the first dev compile, but the cause wasn't confirmed.
+- One 404 appeared in the browser console on the first desktop load only. The source wasn't identified, and it did not repeat.
+
+**Known and accepted for now**
+
+- The 16 moderate advisories are one `minimatch` denial-of-service issue inside ESLint's dev dependencies. They don't ship to users, and `npm audit fix --force` would downgrade ESLint to version 4.
+- `react-hooks/set-state-in-effect` and `react-hooks/purity` are warnings until Step 5 replaces those screens.
+- Tailwind 3, recharts 2 and tailwind-merge 2 stay until the UI rebuild.
+- The backend has no ESLint, because Express is being removed.
+- Saving a log took over 1.5 seconds in dev. The instant checkbox update hides this. Recheck it when clients talk to Supabase directly.
+- The first browser run left one demo log unchecked (1 June, "Review class notes"). It goes away with the demo data in item 3.
+
+**Decided in `PLAN.md`**
+
+- Decisions 1-8 from this audit are final and recorded in the Streak rules section of `PLAN.md`. "Missed" was also removed from the stored `habit_logs` statuses.
