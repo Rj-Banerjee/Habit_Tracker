@@ -864,3 +864,9 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - The web dev server still logs a hydration warning, to be checked in the Next.js rebuild.
 - With a repair offered while yesterday is still open, logging yesterday normally is usually the better choice, but both are allowed.
 
+**Applied to the live database**
+
+- The local tests passed, and the dry run listed one migration, `20261102000000_dated_settings_and_activity.sql`, which was then pushed.
+- All 37 live checks passed, using temporary users that were then deleted. They covered the habit API, the 3-habit cap, activity events and strangers being blocked.
+- The advisor reports 13 expected warnings, one for each client API function, plus one setting to turn on: leaked password protection in Supabase Auth.
+
