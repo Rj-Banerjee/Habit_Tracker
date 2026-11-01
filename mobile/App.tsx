@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/figtree';
 import type { Session } from '@supabase/supabase-js';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
+import { HabitFormScreen } from './src/screens/HabitFormScreen';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { supabase } from './src/services/supabase';
@@ -18,6 +19,8 @@ import { ThemeProvider, useTheme } from '@habit-tracker/ui';
 function Root() {
   const { colors } = useTheme();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  // No router yet. Null shows Today; otherwise the form, for a new habit or habitId.
+  const [habitForm, setHabitForm] = useState<{ habitId?: string } | null>(null);
 
   useEffect(() => {
     supabase.auth
@@ -36,7 +39,20 @@ function Root() {
     );
   }
 
-  return session ? <TodayScreen /> : <SignInScreen />;
+  if (!session) return <SignInScreen />;
+
+  return habitForm ? (
+    <HabitFormScreen
+      userId={session.user.id}
+      habitId={habitForm.habitId}
+      onClose={() => setHabitForm(null)}
+    />
+  ) : (
+    <TodayScreen
+      onAddHabit={() => setHabitForm({})}
+      onEditHabit={(habitId) => setHabitForm({ habitId })}
+    />
+  );
 }
 
 export default function App() {
