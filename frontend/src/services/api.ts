@@ -7,19 +7,13 @@ interface RequestOptions extends RequestInit {
 }
 
 export class ApiClient {
-  private static async getAuthHeader(): Promise<Record<string, string>> {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (token) {
-        return { Authorization: `Bearer ${token}` };
-      }
-    } catch {
-      // Supabase unconfigured or offline
+  static async getAuthHeader(): Promise<Record<string, string>> {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      throw new Error('You are signed out. Please sign in again.');
     }
-
-    // Dev fallback token for testing
-    return { Authorization: 'Bearer dev-mock-token' };
+    return { Authorization: `Bearer ${token}` };
   }
 
   static async request<T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<T> {

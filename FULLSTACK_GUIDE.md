@@ -108,7 +108,7 @@ Habit tracker/
 │   ├── package.json
 │   ├── tailwind.config.js
 │   ├── tsconfig.json
-│   └── .env.local.example
+│   └── .env.example
 │
 └── package.json                    # Monorepo scripts
 ```
@@ -145,8 +145,7 @@ DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supaba
 
 # Supabase Auth
 SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
-SUPABASE_ANON_KEY="your-supabase-anon-key"
-SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
+SUPABASE_SECRET_KEY="your-supabase-secret-key"
 
 # Unsplash API (Optional for custom photo fetching)
 UNSPLASH_ACCESS_KEY="your-unsplash-access-key"
@@ -156,7 +155,7 @@ UNSPLASH_ACCESS_KEY="your-unsplash-access-key"
 ```env
 NEXT_PUBLIC_API_URL="http://localhost:5001/api"
 NEXT_PUBLIC_SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="your-supabase-publishable-key"
 ```
 
 ---

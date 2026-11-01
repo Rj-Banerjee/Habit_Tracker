@@ -162,7 +162,7 @@ export const ProfileSettingsDrawer: React.FC<ProfileSettingsDrawerProps> = ({
   const displayName = user?.email
     ? user.email.split('@')[0].replace(/[._]/g, ' ')
     : 'Habit Achiever';
-  const displayEmail = user?.email || 'demo@habittracker.com';
+  const displayEmail = user?.email || '';
   const initialLetter = displayName.charAt(0).toUpperCase();
 
   return (

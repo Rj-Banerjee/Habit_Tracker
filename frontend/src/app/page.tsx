@@ -28,12 +28,20 @@ import { useOptimisticDailyLog } from '../hooks/useOptimisticDailyLog';
 import { useToast } from '../hooks/useToast';
 
 export default function DashboardPage() {
+  return (
+    <ProtectedRoute>
+      <Dashboard />
+    </ProtectedRoute>
+  );
+}
+
+function Dashboard() {
   const today = getTodayInfo();
   const { success } = useToast();
 
   // Selected calendar month/year
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<number>(6); // June
+  const [selectedYear, setSelectedYear] = useState<number>(today.year);
+  const [selectedMonth, setSelectedMonth] = useState<number>(today.month);
 
   // Navigation & Modals state
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
@@ -158,7 +166,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <ProtectedRoute>
+    <>
       {/* 1. Floating Glassmorphism Header (Fixed top-4 centered pill) */}
       <FloatingHeader
         todayFormatted={today.formatted}
@@ -327,6 +335,6 @@ export default function DashboardPage() {
           onRefreshAnalytics={refreshAnalytics}
         />
       </main>
-    </ProtectedRoute>
+    </>
   );
 }

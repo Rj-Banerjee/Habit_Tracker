@@ -1,6 +1,7 @@
 import { prisma } from '../models/prisma';
 import { habitService } from './habit.service';
-import { ToolExecutionRecord, AIChatRole } from '../types';
+import { ToolExecutionRecord } from '../types';
+import { AppError } from '../middlewares/error.middleware';
 import Anthropic from '@anthropic-ai/sdk';
 
 // Exact dynamic system prompt requested by the user
@@ -66,14 +67,8 @@ export class AICoachService {
   async getDailyHabits(userId: string, targetDate?: string): Promise<DailyHabitsStatusResult> {
     const dateKey = targetDate || new Date().toISOString().split('T')[0];
 
-    // Find all habits belonging to user or demo user fallback
-    let habits = await prisma.dailyHabits.findMany({
-      where: {
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
-      },
+    const habits = await prisma.dailyHabits.findMany({
+      where: { user_id: userId },
       include: {
         logs: {
           where: { date: dateKey },
@@ -81,12 +76,6 @@ export class AICoachService {
       },
       orderBy: { created_at: 'asc' },
     });
-
-    // Deduplicate if user has their own habits
-    const userOwnedHabits = habits.filter((h) => h.user_id === userId);
-    if (userOwnedHabits.length > 0) {
-      habits = userOwnedHabits;
-    }
 
     const completedHabits: Array<{ id: string; title: string; goalDays: number }> = [];
     const incompleteHabits: Array<{ id: string; title: string; goalDays: number }> = [];
@@ -122,13 +111,7 @@ export class AICoachService {
     status: boolean
   ): Promise<ToggleHabitResult> {
     const habit = await prisma.dailyHabits.findFirst({
-      where: {
-        id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
-      },
+      where: { id: habitId, user_id: userId },
     });
 
     if (!habit) {
@@ -161,13 +144,7 @@ export class AICoachService {
     newGoal: number
   ): Promise<ScaleHabitResult> {
     const habit = await prisma.dailyHabits.findFirst({
-      where: {
-        id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
-      },
+      where: { id: habitId, user_id: userId },
     });
 
     if (!habit) {
@@ -237,11 +214,12 @@ export class AICoachService {
   }
 
   async getChatHistory(userId: string, limit: number = 40) {
-    return prisma.chatMessage.findMany({
+    const newestFirst = await prisma.chatMessage.findMany({
       where: { userId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
     });
+    return newestFirst.reverse();
   }
 
   async clearChatHistory(userId: string) {
@@ -339,16 +317,6 @@ export class AICoachService {
     const lastUserMsg = incomingMessages.filter((m) => m.role === 'user').pop();
     const latestUserText = lastUserMsg?.content || 'Hello';
 
-    // Persist latest user input to database
-    await prisma.chatMessage.create({
-      data: {
-        userId,
-        role: 'user',
-        content: latestUserText,
-        metadata: { clientDate: todayStr },
-      },
-    });
-
     // 2. Dynamic System Prompt with injected RAG context
     const dynamicSystemPrompt = `${ATOMIC_HABITS_SYSTEM_PROMPT}
 
@@ -380,34 +348,33 @@ INSTRUCTION: Respond directly, warmly, and authentically to what the user shares
     // Re-check client initializations if env variables were updated dynamically
     this.initClients();
 
-    // 3. GENERATIVE LLM: Official Anthropic SDK integration
-    if (this.anthropic) {
-      try {
-        const result = await this.executeWithAnthropic(
-          userId,
-          incomingMessages,
-          dynamicSystemPrompt,
-          todayStr,
-          toolsExecuted
-        );
-        await this.persistAssistantResponse(userId, result, toolsExecuted);
-        return { response: result, toolsExecuted };
-      } catch (err) {
-        console.warn('⚠️ [AICoachService]: Anthropic call failed, falling back to Generative Engine:', err);
-      }
+    // No keyword or canned fallback: if the coach can't answer, the caller is told so.
+    if (!this.anthropic) {
+      throw new AppError('The coach is unavailable right now. Your habits still work.', 503);
     }
 
-    // 4. High-fidelity Dynamic Conversational Engine (adheres to Rule 1, 2, 3, 4 without static strings)
-    const result = await this.executeDynamicConversationalEngine(
-      userId,
-      latestUserText,
-      incomingMessages,
-      todayStr,
-      profile,
-      habitsStatus,
-      toolsExecuted
-    );
+    let result: string;
+    try {
+      result = await this.executeWithAnthropic(
+        userId,
+        incomingMessages,
+        dynamicSystemPrompt,
+        todayStr,
+        toolsExecuted
+      );
+    } catch (err) {
+      console.error('[AICoachService]: Anthropic call failed:', err);
+      throw new AppError('The coach is unavailable right now. Your habits still work.', 503);
+    }
 
+    await prisma.chatMessage.create({
+      data: {
+        userId,
+        role: 'user',
+        content: latestUserText,
+        metadata: { clientDate: todayStr },
+      },
+    });
     await this.persistAssistantResponse(userId, result, toolsExecuted);
     return { response: result, toolsExecuted };
   }
@@ -537,197 +504,7 @@ INSTRUCTION: Respond directly, warmly, and authentically to what the user shares
   }
 
   // =========================================================================
-  // 6. DYNAMIC CONVERSATIONAL ENGINE (Rules 1, 2, 3, 4 without static strings)
-  // =========================================================================
-
-  private async executeDynamicConversationalEngine(
-    userId: string,
-    userText: string,
-    conversationHistory: InputChatMessage[],
-    todayStr: string,
-    profile: any,
-    habitsStatus: DailyHabitsStatusResult,
-    toolsExecuted: ToolExecutionRecord[]
-  ): Promise<string> {
-    const text = userText.trim();
-    const lower = text.toLowerCase();
-
-    // RULE 2: Extract Name Introductions (e.g., "Hi, my name is Alex", "Call me Sarah")
-    const nonNameWords = new Set([
-      'feeling', 'tired', 'exhausted', 'sad', 'lonely', 'burned', 'ready', 'happy',
-      'down', 'sorry', 'here', 'fine', 'good', 'bad', 'struggling', 'doing', 'trying',
-      'going', 'not', 'just', 'so', 'very', 'a', 'an', 'the'
-    ]);
-    let identifiedName: string | null = null;
-    const nameMatch = text.match(/(?:my name is|call me)\s+([a-zA-Z]+)|(?:i am|i'm)\s+([A-Z][a-zA-Z]+)/i);
-    const candidate = (nameMatch ? nameMatch[1] || nameMatch[2] : null)?.trim();
-    if (candidate && !nonNameWords.has(candidate.toLowerCase())) {
-      identifiedName = candidate.charAt(0).toUpperCase() + candidate.slice(1);
-    }
-
-    // RULE 4: Fatigue / Burnout -> Offer 'Emergency Downscale'
-    const isFatigued =
-      lower.includes('burned out') ||
-      lower.includes('burnout') ||
-      lower.includes('exhausted') ||
-      lower.includes('tired') ||
-      lower.includes('overwhelmed') ||
-      lower.includes('cannot keep up') ||
-      lower.includes("can't keep up") ||
-      lower.includes('no energy') ||
-      lower.includes('drained');
-
-    // Intent: Emergency Downscale trigger
-    const isDownscaleRequested =
-      lower.includes('emergency downscale') ||
-      lower.includes('downscale') ||
-      lower.includes('lower goal') ||
-      lower.includes('reduce target');
-
-    // Intent: Quick Log
-    const isQuickLog =
-      lower.includes('quick log') ||
-      lower.includes('log my day') ||
-      lower.includes('check all') ||
-      lower.includes('mark all complete');
-
-    // Emotional states
-    const isSadOrLonely =
-      lower.includes('sad') ||
-      lower.includes('lonely') ||
-      lower.includes('depressed') ||
-      lower.includes('down') ||
-      lower.includes('crying') ||
-      lower.includes('hurting');
-
-    const isAnxiousOrStressed =
-      lower.includes('anxious') ||
-      lower.includes('stressed') ||
-      lower.includes('pressure') ||
-      lower.includes('nervous') ||
-      lower.includes('panic');
-
-    const isExcitedOrHappy =
-      lower.includes('happy') ||
-      lower.includes('excited') ||
-      lower.includes('great') ||
-      lower.includes('proud') ||
-      lower.includes('crushed it');
-
-    // Handle Downscale execution
-    if (isDownscaleRequested) {
-      const allHabits = [...habitsStatus.incompleteHabits, ...habitsStatus.completedHabits];
-      const scaledList: string[] = [];
-
-      for (const h of allHabits) {
-        const targetGoal = Math.max(7, Math.floor(h.goalDays * 0.7));
-        if (targetGoal < h.goalDays) {
-          const res = await this.scaleHabitTarget(userId, h.id, targetGoal);
-          toolsExecuted.push({
-            tool: 'scaleHabitTarget',
-            args: { habitId: h.id, newGoal: targetGoal },
-            result: res,
-          });
-          scaledList.push(`• **${h.title}**: Goal lowered from ${res.previousGoal} to **${res.newGoal} days**`);
-        }
-      }
-
-      return `I hear you loud and clear. When energy is at a minimum, holding unrealistic standards only breeds frustration. 
-
-I've executed an **Emergency Downscale** on your active habits:
-${scaledList.length > 0 ? scaledList.join('\n') : '• All habits are currently calibrated to minimum baseline friction.'}
-
-Your dashboard has been updated. Give yourself full permission to do only what feels manageable today. Even a 2-minute version preserves your momentum without draining you.`;
-    }
-
-    // Handle Quick Log execution
-    if (isQuickLog) {
-      if (habitsStatus.incompleteHabits.length === 0) {
-        return `You've already conquered all **${habitsStatus.totalHabits}** of your daily habits for today (${todayStr})! Every single system held up, which is a powerful vote for your identity as a **${profile.targetIdentity}**. Take time to unwind—you've earned it.`;
-      }
-
-      const logged: string[] = [];
-      for (const h of habitsStatus.incompleteHabits) {
-        const res = await this.toggleHabitLog(userId, h.id, todayStr, true);
-        logged.push(res.habitTitle);
-        toolsExecuted.push({
-          tool: 'toggleHabitLog',
-          args: { habitId: h.id, date: todayStr, status: true },
-          result: res,
-        });
-      }
-
-      return `Done! I've logged **${logged.length}** habit(s) for today:\n${logged.map((t) => `• ${t}`).join('\n')}\n\nYour daily progress bar and matrix updated instantly. That was frictionless execution in action!`;
-    }
-
-    // Handle Individual Habit Completion
-    const allHabits = [...habitsStatus.incompleteHabits, ...habitsStatus.completedHabits];
-    const isLogIntent =
-      lower.includes('done') ||
-      lower.includes('finished') ||
-      lower.includes('did') ||
-      lower.includes('completed') ||
-      lower.includes('logged');
-
-    const matchedHabit = allHabits.find((h) => {
-      const titleLower = h.title.toLowerCase();
-      if (lower.includes(titleLower)) return true;
-      const keywords = titleLower.split(/[\s,()/-]+/).filter((w) => w.length >= 4);
-      return keywords.some((k) => lower.includes(k));
-    });
-
-    if (matchedHabit && isLogIntent) {
-      const res = await this.toggleHabitLog(userId, matchedHabit.id, todayStr, true);
-      toolsExecuted.push({
-        tool: 'toggleHabitLog',
-        args: { habitId: matchedHabit.id, date: todayStr, status: true },
-        result: res,
-      });
-
-      return `Excellent work! I've marked **${matchedHabit.title}** as completed for today on your matrix. That's another consistent vote cast for your identity. You now have **${habitsStatus.completedCount + 1}/${habitsStatus.totalHabits}** habits checked off!`;
-    }
-
-    // Dynamic response construction following RULE 1, 2, 3, 4
-    let validationPart = '';
-    let habitSteeringPart = '';
-
-    // RULE 2: Direct, authentic validation of emotional state / introduction
-    if (identifiedName) {
-      validationPart = `It is truly great to connect with you, ${identifiedName}. Thank you for introducing yourself!`;
-    } else if (isSadOrLonely) {
-      validationPart = `I'm genuinely sorry you're feeling this way right now. Loneliness and sadness can feel remarkably heavy, and it is completely human to experience days where everything feels muted or isolating. Please know that your feelings are entirely valid, and you don't have to carry it all on your own.`;
-    } else if (isAnxiousOrStressed) {
-      validationPart = `I hear how much pressure you're under right now. Anxiety and stress make even the simplest routines feel daunting. Take a slow, intentional breath—you are not behind, and you don't have to fix everything in this exact hour.`;
-    } else if (isFatigued) {
-      validationPart = `I hear you completely. When exhaustion takes over, forcing willpower only backfires. In behavioral science, honoring your limits is just as essential as pushing through.`;
-    } else if (isExcitedOrHappy) {
-      validationPart = `That energy is contagious! It's fantastic to celebrate moments of genuine momentum and joy. Soak that feeling in—it reinforces all the effort you've been pouring into yourself.`;
-    } else {
-      validationPart = `I hear what you're sharing. Every day brings a different set of challenges and mental bandwidth, and meeting yourself where you're at is step one.`;
-    }
-
-    // RULE 4: If fatigued, explicitly offer Emergency Downscale
-    if (isFatigued) {
-      habitSteeringPart = `\n\nGiven your energy levels today, let's practice **Frictionless Downshifting**:
-- You have **${habitsStatus.incompleteCount}** pending habits right now.
-- Instead of forcing the full routine, I can immediately trigger an **Emergency Downscale** to lower your habit targets and keep your streak safe without burnout.
-
-Would you like me to trigger an **Emergency Downscale** for you right now, or would you prefer a 2-minute micro-action?`;
-    } else {
-      // RULE 3: Gently steer back to daily systems
-      const pendingText =
-        habitsStatus.incompleteCount > 0
-          ? `Looking at your dashboard today (${todayStr}), you have **${habitsStatus.completedCount}/${habitsStatus.totalHabits}** habits completed, with **${habitsStatus.incompleteCount}** remaining.`
-          : `All **${habitsStatus.totalHabits}** habits for today are already conquered!`;
-
-      habitSteeringPart = `\n\n${pendingText} Whatever your headspace is right now, how would you like to approach your systems today? You can ask me to log an item, downscale if needed, or simply take things one micro-step at a time.`;
-    }
-
-    return `${validationPart}${habitSteeringPart}`;
-  }
-
-  // =========================================================================
-  // 7. PERSISTENCE HELPERS
+  // 6. PERSISTENCE HELPERS
   // =========================================================================
 
   private async persistAssistantResponse(

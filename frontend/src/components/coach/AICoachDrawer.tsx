@@ -203,29 +203,10 @@ export const AICoachDrawer: React.FC<AICoachDrawerProps> = ({
           }
         },
         (streamErr) => {
-          console.warn('Streaming encountered an issue, falling back to standard JSON call:', streamErr);
-          // Fallback to standard request
-          aiCoachService
-            .sendMessage(updatedHistory, todayDateKey)
-            .then((res) => {
-              const assistantMsg: ChatMessage = {
-                id: `assistant-${Date.now()}`,
-                userId: 'assistant',
-                role: 'assistant',
-                content: res.response,
-                metadata: { toolsExecuted: res.toolsExecuted },
-                createdAt: new Date().toISOString(),
-              };
-              setMessages([...updatedHistory, assistantMsg]);
-              setStreamingText(null);
-              setIsLoading(false);
-              if (res.toolsExecuted) handleToolExecutions(res.toolsExecuted);
-            })
-            .catch((err) => {
-              setStreamingText(null);
-              setIsLoading(false);
-              showError(`AI Coach error: ${(err as Error).message}`);
-            });
+          // Don't retry: a repeat could run the same tool actions twice.
+          setStreamingText(null);
+          setIsLoading(false);
+          showError(streamErr.message);
         }
       );
     } catch (err) {

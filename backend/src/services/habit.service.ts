@@ -14,24 +14,13 @@ export class HabitService {
   // ==========================================
 
   async getDailyHabits(userId: string) {
-    let habits = await prisma.dailyHabits.findMany({
+    const habits = await prisma.dailyHabits.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'asc' },
       include: {
         logs: true,
       },
     });
-
-    // Fallback to demo user habits if user hasn't created their own yet
-    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
-      habits = await prisma.dailyHabits.findMany({
-        where: { user_id: '00000000-0000-0000-0000-000000000001' },
-        orderBy: { created_at: 'asc' },
-        include: {
-          logs: true,
-        },
-      });
-    }
 
     return habits;
   }
@@ -49,7 +38,7 @@ export class HabitService {
       ],
     };
 
-    let habits = await prisma.dailyHabits.findMany({
+    const habits = await prisma.dailyHabits.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'asc' },
       include: {
@@ -58,19 +47,6 @@ export class HabitService {
         },
       },
     });
-
-    // Fallback to demo user habits if user hasn't created their own yet
-    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
-      habits = await prisma.dailyHabits.findMany({
-        where: { user_id: '00000000-0000-0000-0000-000000000001' },
-        orderBy: { created_at: 'asc' },
-        include: {
-          logs: {
-            where: logsWhere,
-          },
-        },
-      });
-    }
 
     return habits;
   }
@@ -89,10 +65,7 @@ export class HabitService {
     const habit = await prisma.dailyHabits.findFirst({
       where: {
         id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 
@@ -113,10 +86,7 @@ export class HabitService {
     const habit = await prisma.dailyHabits.findFirst({
       where: {
         id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 
@@ -136,14 +106,11 @@ export class HabitService {
    * Leverages Prisma upsert with unique composite index [habit_id, date].
    */
   async toggleDailyLog(userId: string, dto: ToggleDailyLogDto) {
-    // Verify ownership or allow interacting with demo habits
+    // Verify ownership
     const habit = await prisma.dailyHabits.findFirst({
       where: {
         id: dto.habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 
@@ -188,7 +155,7 @@ export class HabitService {
   // ==========================================
 
   async getWeeklyHabits(userId: string, year: number, month: number) {
-    let habits = await prisma.weeklyHabits.findMany({
+    const habits = await prisma.weeklyHabits.findMany({
       where: {
         user_id: userId,
         year,
@@ -196,17 +163,6 @@ export class HabitService {
       },
       orderBy: [{ week_number: 'asc' }, { created_at: 'asc' }],
     });
-
-    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
-      habits = await prisma.weeklyHabits.findMany({
-        where: {
-          user_id: '00000000-0000-0000-0000-000000000001',
-          year,
-          month,
-        },
-        orderBy: [{ week_number: 'asc' }, { created_at: 'asc' }],
-      });
-    }
 
     return habits;
   }
@@ -228,10 +184,7 @@ export class HabitService {
     const habit = await prisma.weeklyHabits.findFirst({
       where: {
         id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 
@@ -251,10 +204,7 @@ export class HabitService {
     const habit = await prisma.weeklyHabits.findFirst({
       where: {
         id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 
@@ -271,7 +221,7 @@ export class HabitService {
   // ==========================================
 
   async getMonthlyHabits(userId: string, year: number, month: number) {
-    let habits = await prisma.monthlyHabits.findMany({
+    const habits = await prisma.monthlyHabits.findMany({
       where: {
         user_id: userId,
         year,
@@ -279,17 +229,6 @@ export class HabitService {
       },
       orderBy: { created_at: 'asc' },
     });
-
-    if (habits.length === 0 && userId !== '00000000-0000-0000-0000-000000000001') {
-      habits = await prisma.monthlyHabits.findMany({
-        where: {
-          user_id: '00000000-0000-0000-0000-000000000001',
-          year,
-          month,
-        },
-        orderBy: { created_at: 'asc' },
-      });
-    }
 
     return habits;
   }
@@ -310,10 +249,7 @@ export class HabitService {
     const habit = await prisma.monthlyHabits.findFirst({
       where: {
         id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 
@@ -333,10 +269,7 @@ export class HabitService {
     const habit = await prisma.monthlyHabits.findFirst({
       where: {
         id: habitId,
-        OR: [
-          { user_id: userId },
-          { user_id: '00000000-0000-0000-0000-000000000001' },
-        ],
+        user_id: userId,
       },
     });
 

@@ -16,7 +16,7 @@ router.post(
     body: z.object({
       month: z.number().int().min(1).max(12),
       year: z.number().int().min(2020).max(2100),
-      content: z.string(),
+      content: z.string().max(10000),
     }),
   }),
   reflectionController.saveReflection

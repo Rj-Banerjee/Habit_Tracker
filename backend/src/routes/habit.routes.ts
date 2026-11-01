@@ -48,7 +48,7 @@ router.post(
   validateRequest({
     body: z.object({
       habitId: z.string().uuid(),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted YYYY-MM-DD'),
+      date: z.iso.date(),
       isCompleted: z.boolean().optional(),
     }),
   }),

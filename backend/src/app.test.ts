@@ -23,6 +23,56 @@ describe('api app', () => {
     expect(res.status).toBe(401);
   });
 
+  it('rejects the old development token', async () => {
+    const res = await request(app)
+      .get('/api/habits/daily')
+      .set('Authorization', 'Bearer dev-mock-token');
+    expect(res.status).toBe(401);
+  });
+
+  it('requires a token to refresh the shared quote', async () => {
+    const res = await request(app).post('/api/content/quote/refresh');
+    expect(res.status).toBe(401);
+  });
+
+  it('has removed the route that wrote messages for every user', async () => {
+    const res = await request(app)
+      .post('/api/ai/proactive-check')
+      .set('Authorization', 'Bearer anything');
+    expect([401, 404]).toContain(res.status);
+  });
+
+  it('allows the configured web origin', async () => {
+    const res = await request(app).get('/api/health').set('Origin', 'http://localhost:3000');
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+  });
+
+  it('gives other origins no CORS access', async () => {
+    const res = await request(app).get('/api/health').set('Origin', 'https://evil.example');
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('does not expose stack traces', async () => {
+    const res = await request(app).get('/api/habits/daily');
+    expect(res.body.stack).toBeUndefined();
+  });
+
+  it('rejects oversized request bodies', async () => {
+    const res = await request(app)
+      .post('/api/content/quote/refresh')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ padding: 'x'.repeat(200 * 1024) }));
+    expect(res.status).toBe(413);
+  });
+
+  it('rejects malformed JSON as a client error', async () => {
+    const res = await request(app)
+      .post('/api/content/quote/refresh')
+      .set('Content-Type', 'application/json')
+      .send('{not json');
+    expect(res.status).toBe(400);
+  });
+
   it('returns 404 for unknown routes', async () => {
     const res = await request(app).get('/api/nope');
     expect(res.status).toBe(404);

@@ -545,3 +545,65 @@ Effort is a rough estimate for one developer and covers the scope in Step 2, not
 **Decided in `PLAN.md`**
 
 - Decisions 1-8 from this audit are final and recorded in the Streak rules section of `PLAN.md`. "Missed" was also removed from the stored `habit_logs` statuses.
+
+### Step 2 item 2: security (1 Nov 2026)
+
+**Changed**
+
+- **Env vars:** the backend reads `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and `DATABASE_URL`. The web app reads `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Both refuse to start without them. A test fails if client source mentions a server-only secret.
+- **Env files:** `.gitignore` now covers every `.env` variant except `.env.example`. `backend/.env.example` and `frontend/.env.example` hold placeholders only.
+- **Secrets in docs:** removed from `PROJECT_MEMORY.md`, which is now marked as historical.
+- **Auth:** removed the development token, every demo user fallback and the Demo Mode button. Signed-out visitors go to `/login`.
+- **Keyword coach:** deleted. The coach now says it's unavailable and changes no data. It no longer retries, which could have repeated tool actions.
+- **API:** CORS allowlist, 300 requests per minute per IP, 100 KB body limit, no stack traces in responses, capped chat input and history, real date validation, auth on the quote refresh route. The route that wrote messages for all users is gone.
+- **Accounts:** 8-character password minimum in the form and local Supabase config. The hosted project's own setting still needs checking.
+- **Database:** added `supabase/` with a baseline migration and an access migration containing RLS policies for all 9 tables, and removal of default `anon` grants.
+
+**Bugs found while testing, and fixed**
+
+- New users got a 409 on first load, because parallel requests raced to create the same `users` row.
+- Oversized or malformed JSON was reported as a 500 instead of a 4xx.
+- Chat history returned the oldest messages instead of the newest.
+- The dashboard opened on June 2026 instead of the current month.
+
+**Results**
+
+| Check | Result |
+| --- | --- |
+| RLS tests, local Postgres | 13 of 13 passing |
+| Tests | 21 passing (15 backend, 6 frontend) |
+| Typecheck, builds, production `npm audit` | Pass, 0 vulnerabilities |
+| Lint | 0 errors, 11 warnings |
+
+**Run in a real browser against local Supabase, with real signups**
+
+- A signed-out visit ends at `/login`, with no API calls.
+- The old dev token gets a 401. A foreign origin gets no CORS access.
+- Sign-up works, a new account starts empty, and the app opens on the current month.
+- A saved log survives a reload.
+- A second user can't see the first user's habit.
+- Sign-out survives a reload.
+- The coach shows "unavailable", stores nothing and changes nothing.
+
+**Git history**
+
+Only commit `acd22d7`, in `PROJECT_MEMORY.md`, ever held credentials:
+
+| Value | Exposed | Status |
+| --- | --- | --- |
+| Database password | In full | Reset by the owner |
+| Service role key | Partly (26 characters) | Replaced by the owner |
+| Publishable key | In full | Public by design |
+
+No Anthropic, OpenAI or Google keys, JWTs, or `.env` files appear anywhere in history. History has not been rewritten, and the commit is public.
+
+**Not done**
+
+- **The access migration is not on the live database.** Applying it needs the owner's approval. Live tables still have no policies and `anon` keeps its grants.
+- Unverified on the live project: the new keys with a real sign-in.
+
+**Known and accepted for now**
+
+- React reports a hydration attribute mismatch in dev. The source wasn't identified.
+- `/login` logs one 404 for a resource when loaded. The source wasn't identified.
+- The rate limit is per IP. Per-user AI limits come with the FastAPI service.

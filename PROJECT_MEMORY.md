@@ -1,5 +1,7 @@
 # 🧠 Habit Tracker Enterprise — Project Memory & Technical Log
 
+> **Historical document.** It describes the original scaffold. `PLAN.md` and `AUDIT.md` are now the source of truth.
+
 This document serves as the permanent system memory and technical blueprint for the **Habit Tracker Enterprise** application. It captures all architectural decisions, database schemas, credentials configurations, resolved issues, and UI/UX systems implemented across development sessions.
 
 ---
@@ -44,7 +46,6 @@ This document serves as the permanent system memory and technical blueprint for 
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │ DATABASE & AUTH LAYER (Supabase + PostgreSQL)                                          │
 │                                                                                        │
-│  - Hosted Database: db.cxscegvtawxdvibllczl.supabase.co:5432                           │
 │  - Tables: users, daily_habits, daily_logs, weekly_habits, monthly_habits,             │
 │            monthly_reflections, daily_quote_cache                                      │
 │  - Authentication: Supabase Auth (JWT session management)                              │
@@ -60,25 +61,8 @@ This document serves as the permanent system memory and technical blueprint for 
   - *Note*: Port 5000 is occupied by macOS Monterey/Ventura/Sonoma AirPlay Receiver (`AirTunes`). The backend was deliberately assigned port 5001.
 - **Frontend Next.js Server**: Runs on `http://localhost:3000`
 
-### 2. Backend Environment (`backend/.env`)
-```env
-PORT=5001
-NODE_ENV=development
-SUPABASE_URL=https://cxscegvtawxdvibllczl.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_mXkPj0zH9e3V2wT5...
-DATABASE_URL="postgresql://postgres:Habit%40Tracker%4026@db.cxscegvtawxdvibllczl.supabase.co:5432/postgres?sslmode=require"
-DIRECT_URL="postgresql://postgres:Habit%40Tracker%4026@db.cxscegvtawxdvibllczl.supabase.co:5432/postgres?sslmode=require"
-```
-> [!IMPORTANT]
-> **Database Password Encoding**:
-> The Supabase database password is `Habit@Tracker@26`. Because it contains `@` characters, they must be URL-encoded as `%40` (`Habit%40Tracker%4026`) in the Prisma connection URI to prevent URI parsing errors. Direct connection host is port `5432` at `db.cxscegvtawxdvibllczl.supabase.co`.
-
-### 3. Frontend Environment (`frontend/.env.local`)
-```env
-NEXT_PUBLIC_API_URL="http://localhost:5001/api"
-NEXT_PUBLIC_SUPABASE_URL="https://cxscegvtawxdvibllczl.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="sb_publishable_oQCmzhlt8VQsFZ3Q2e5Ydg_PcnWrWah"
-```
+### 2. Environment Variables
+Values live only in local env files, which git ignores. See `backend/.env.example` and `frontend/.env.example` for the names.
 
 ---
 

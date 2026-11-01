@@ -4,7 +4,7 @@ import { analyticsService } from './analytics.service';
 
 export class ReflectionService {
   async getReflection(userId: string, year: number, month: number) {
-    let reflection = await prisma.monthlyReflections.findUnique({
+    const reflection = await prisma.monthlyReflections.findUnique({
       where: {
         user_id_month_year: {
           user_id: userId,
@@ -13,18 +13,6 @@ export class ReflectionService {
         },
       },
     });
-
-    if (!reflection && userId !== '00000000-0000-0000-0000-000000000001') {
-      reflection = await prisma.monthlyReflections.findUnique({
-        where: {
-          user_id_month_year: {
-            user_id: '00000000-0000-0000-0000-000000000001',
-            month,
-            year,
-          },
-        },
-      });
-    }
 
     return reflection;
   }

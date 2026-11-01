@@ -13,21 +13,6 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     const token = authHeader.split(' ')[1];
 
-    // Development bypass option for local testing if configured
-    if (process.env.NODE_ENV === 'development' && token === 'dev-mock-token') {
-      const demoEmail = 'demo@habittracker.com';
-      const demoUser = await prisma.users.upsert({
-        where: { email: demoEmail },
-        update: {},
-        create: {
-          id: '00000000-0000-0000-0000-000000000001',
-          email: demoEmail,
-        },
-      });
-      req.user = { id: demoUser.id, email: demoUser.email };
-      return next();
-    }
-
     // Verify token using Supabase Auth
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
@@ -35,20 +20,15 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       throw new AppError('Unauthorized: Invalid or expired session token', 401);
     }
 
-    // Ensure user exists in our local PostgreSQL Users table
-    const dbUser = await prisma.users.upsert({
-      where: { id: user.id },
-      update: { email: user.email ?? '' },
-      create: {
-        id: user.id,
-        email: user.email ?? '',
-      },
+    // Ensure user exists in our local PostgreSQL Users table. A dashboard load sends
+    // parallel requests, so this has to tolerate another request creating the row first.
+    const email = user.email ?? '';
+    await prisma.users.createMany({
+      data: [{ id: user.id, email }],
+      skipDuplicates: true,
     });
 
-    req.user = {
-      id: dbUser.id,
-      email: dbUser.email,
-    };
+    req.user = { id: user.id, email };
 
     next();
   } catch (error) {

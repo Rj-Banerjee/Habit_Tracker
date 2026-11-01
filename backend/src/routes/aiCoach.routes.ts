@@ -6,6 +6,20 @@ import { validateRequest } from '../middlewares/validation.middleware';
 
 const router = Router();
 
+const chatBody = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().max(4000),
+      })
+    )
+    .max(50)
+    .optional(),
+  message: z.string().max(4000).optional(),
+  currentDate: z.iso.date().optional(),
+});
+
 // Secure all AI Coach endpoints with Supabase Auth
 router.use(requireAuth);
 
@@ -14,39 +28,13 @@ router.get('/chat', aiCoachController.getChatHistory);
 
 router.post(
   '/chat',
-  validateRequest({
-    body: z.object({
-      messages: z
-        .array(
-          z.object({
-            role: z.enum(['user', 'assistant', 'system']),
-            content: z.string(),
-          })
-        )
-        .optional(),
-      message: z.string().optional(),
-      currentDate: z.string().optional(),
-    }),
-  }),
+  validateRequest({ body: chatBody }),
   aiCoachController.sendMessage
 );
 
 router.post(
   '/chat/stream',
-  validateRequest({
-    body: z.object({
-      messages: z
-        .array(
-          z.object({
-            role: z.enum(['user', 'assistant', 'system']),
-            content: z.string(),
-          })
-        )
-        .optional(),
-      message: z.string().optional(),
-      currentDate: z.string().optional(),
-    }),
-  }),
+  validateRequest({ body: chatBody }),
   aiCoachController.streamMessage
 );
 
@@ -59,15 +47,12 @@ router.patch(
   '/profile',
   validateRequest({
     body: z.object({
-      coachingStyle: z.string().optional(),
-      targetIdentity: z.string().optional(),
-      behavioralTags: z.array(z.string()).optional(),
+      coachingStyle: z.string().max(50).optional(),
+      targetIdentity: z.string().max(200).optional(),
+      behavioralTags: z.array(z.string().max(50)).max(20).optional(),
     }),
   }),
   aiCoachController.updateProfile
 );
-
-// Proactive worker manual dispatch/test endpoint
-router.post('/proactive-check', aiCoachController.triggerProactiveCheck);
 
 export default router;

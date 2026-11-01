@@ -25,6 +25,10 @@ export const errorHandler = (
   if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+  } else if ((err as any).status >= 400 && (err as any).status < 500) {
+    // Client errors from Express middleware, such as malformed or oversized JSON
+    statusCode = (err as any).status;
+    message = err.message;
   } else if ('code' in err && typeof (err as any).code === 'string') {
     // Prisma known error codes
     const prismaErr = err as any;
@@ -37,14 +41,8 @@ export const errorHandler = (
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.error('💥 [Error]:', err);
-    return res.status(statusCode).json({
-      status: 'error',
-      statusCode,
-      message,
-      stack: err.stack,
-    });
+  if (statusCode >= 500) {
+    console.error('[Error]:', err);
   }
 
   return res.status(statusCode).json({

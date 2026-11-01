@@ -21,15 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check initial active session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email ?? '' });
-      } else {
-        // Fallback demo user for immediate development/exploration
-        setUser({ id: '00000000-0000-0000-0000-000000000001', email: 'demo@habittracker.com' });
-      }
+      setUser(session?.user ? { id: session.user.id, email: session.user.email ?? '' } : null);
       setLoading(false);
     }).catch(() => {
-      setUser({ id: '00000000-0000-0000-0000-000000000001', email: 'demo@habittracker.com' });
+      setUser(null);
       setLoading(false);
     });
 

@@ -96,21 +96,25 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 - A skip needs a reason, and it pauses the streak rather than breaking it.
 - Each habit gets a maximum of 2 skips in any rolling 7 days.
-- A 3rd skip counts as a miss.
+- A 3rd skip within 7 days is treated exactly like a miss: a Grace Day can cover it, and Repair can fix it.
 
 ### Grace Days
 
 - Earn 1 for every 7 consecutive scheduled days where every due habit was completed, at any Shrink level.
+- A skip pauses the 7-day count: it doesn't reset it and doesn't add to it.
 - The bank holds a maximum of 3.
 - A Grace Day is spent automatically on the first miss that would break a streak.
 - A spent Grace Day shows as "protected", not "done".
+- A protected day keeps the streak alive but does not add to the count.
 
 ### Streak Repair
 
-- After a miss, do 1.5x the target (rounded up) on the next scheduled day for that habit, within 48 hours of the miss.
+- After a miss, do 1.5x the target (rounded up) on the habit's next scheduled day after the missed day, with the normal 24-hour back-log for that day.
+- A sparse schedule never makes a miss unrepairable: on a Mon/Thu habit, a miss on Monday is repaired on Thursday.
 - For yes/no habits, do the full version plus the minimum version again.
 - One repair fixes one miss only, and only the most recent miss.
 - Two misses in a row can't be repaired.
+- A repaired day counts toward the streak, because it was earned by extra work.
 
 ### Modes
 

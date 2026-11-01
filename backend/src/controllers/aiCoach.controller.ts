@@ -10,7 +10,7 @@ export class AICoachController {
   async getChatHistory(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user!.id;
-      const limit = Number(req.query.limit) || 40;
+      const limit = Math.min(Number(req.query.limit) || 40, 100);
       const messages = await aiCoachService.getChatHistory(userId, limit);
 
       res.json({
@@ -182,24 +182,6 @@ export class AICoachController {
       res.json({
         status: 'success',
         message: 'Chat history cleared successfully',
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * POST /api/ai/proactive-check
-   * Manually dispatches proactive check-in (useful for testing and instant sync)
-   */
-  async triggerProactiveCheck(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { slot } = req.body;
-      const result = await aiCoachService.checkAndDispatchProactiveMessages(slot);
-
-      res.json({
-        status: 'success',
-        data: result,
       });
     } catch (error) {
       next(error);

@@ -1,6 +1,5 @@
 import { ApiClient } from './api';
 import { ChatMessage, CoachProfile, AIChatResponse, ToolExecutionRecord } from '../types';
-import { supabase } from './supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
@@ -44,15 +43,7 @@ export const aiCoachService = {
     onError: (error: Error) => void
   ): Promise<void> {
     try {
-      let authHeader = 'Bearer dev-mock-token';
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.access_token) {
-          authHeader = `Bearer ${data.session.access_token}`;
-        }
-      } catch {
-        // Fallback to dev token
-      }
+      const authHeaders = await ApiClient.getAuthHeader();
 
       const formattedMessages = Array.isArray(messageOrHistory)
         ? messageOrHistory.map((m) => ({ role: m.role, content: m.content }))
@@ -65,7 +56,7 @@ export const aiCoachService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: authHeader,
+          ...authHeaders,
         },
         body: JSON.stringify({
           messages: formattedMessages,
@@ -87,6 +78,7 @@ export const aiCoachService = {
       let fullText = '';
       let toolsExecuted: ToolExecutionRecord[] = [];
       let buffer = '';
+      let streamError: Error | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -107,6 +99,8 @@ export const aiCoachService = {
               if (payload.type === 'delta' && payload.text) {
                 fullText += payload.text;
                 onDelta(payload.text);
+              } else if (payload.type === 'error') {
+                streamError = new Error(payload.message);
               } else if (payload.type === 'done') {
                 if (payload.fullText) fullText = payload.fullText;
                 if (payload.toolsExecuted) toolsExecuted = payload.toolsExecuted;
@@ -118,6 +112,10 @@ export const aiCoachService = {
             }
           }
         }
+      }
+
+      if (streamError) {
+        throw streamError;
       }
 
       // Final fallback if done event didn't trigger
@@ -150,12 +148,5 @@ export const aiCoachService = {
    */
   async clearChat(): Promise<{ success: boolean }> {
     return ApiClient.delete<{ success: boolean }>('/ai/chat');
-  },
-
-  /**
-   * Trigger proactive activity check
-   */
-  async triggerProactiveCheck(slot?: '12pm' | '9pm'): Promise<unknown> {
-    return ApiClient.post('/ai/proactive-check', { slot });
   },
 };
