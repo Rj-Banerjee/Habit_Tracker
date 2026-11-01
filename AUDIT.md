@@ -597,10 +597,16 @@ Only commit `acd22d7`, in `PROJECT_MEMORY.md`, ever held credentials:
 
 No Anthropic, OpenAI or Google keys, JWTs, or `.env` files appear anywhere in history. History has not been rewritten, and the commit is public.
 
-**Not done**
+**Applied to the live database**
 
-- **The access migration is not on the live database.** Applying it needs the owner's approval. Live tables still have no policies and `anon` keeps its grants.
-- Unverified on the live project: the new keys with a real sign-in.
+- Compared the baseline with a live schema dump. All tables, columns, constraints, indexes and foreign keys match. The live-only items (RLS enabled, `rls_auto_enable()`, `ensure_rls` and its grants) were accepted by the owner and are listed at the top of the baseline migration.
+- The dry run listed one migration, `20261101000100_lock_down_access.sql`, which was then pushed.
+- The Supabase security advisor now reports no issues.
+- All 26 live checks passed, using two temporary users that were then deleted:
+  - Sign-in works with the new keys, and the backend reads and writes.
+  - The publishable key alone is blocked from all 9 tables.
+  - A signed-in user sees no other user's rows and can't create rows for them.
+- The owner set the hosted password minimum to 8.
 
 **Known and accepted for now**
 

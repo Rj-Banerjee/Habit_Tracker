@@ -38,6 +38,9 @@ lerna-debug.log*
 ehthumbs.db
 Thumbs.db
 
+# Local Claude Code permissions
+.claude/settings.local.json
+
 # IDE & Editor Files
 .vscode/*
 !.vscode/extensions.json

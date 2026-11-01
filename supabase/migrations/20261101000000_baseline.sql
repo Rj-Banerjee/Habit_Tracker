@@ -1,3 +1,14 @@
+-- Baseline of the schema first applied with prisma db push.
+--
+-- The live database also has these items, which come from Supabase's own setup
+-- and are not created here. A schema comparison will show them, and that is expected:
+--   - Row-level security enabled on all nine tables
+--   - public.rls_auto_enable() function
+--   - ensure_rls event trigger, which runs that function
+--   - Grants on rls_auto_enable() to anon, authenticated and service_role
+-- Keep the function and trigger on live. The access migration only removes the
+-- anon and authenticated grants.
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
