@@ -154,6 +154,7 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 ### Habit unlocks
 
 - "2 consistent weeks" means 14 consecutive days where at least 80% of due habits were completed, at any Shrink level. Repaired days count; protected days don't.
+- Days with nothing due are neutral: they neither count toward the 14 days nor break the run.
 - It unlocks 2 more habits, and the same rule then repeats.
 
 ### Progress definitions
@@ -269,6 +270,9 @@ We launch only after a closed beta proves people keep logging in week two. The t
 - Store listing, screenshots and a 30-second video of voice logging
 - Privacy policy covering voice, AI coach and data export
 - Analytics events on every log, with its `source`
+- Supabase Auth: turn Confirm email back on
+- Supabase Auth: leaked password protection on
+- Supabase Auth: custom email provider set up, so the built-in email limit can't block sign-ups
 
 | Metric | What it tells us | Starting target |
 | --- | --- | --- |

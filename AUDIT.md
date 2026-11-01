@@ -870,3 +870,8 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - All 37 live checks passed, using temporary users that were then deleted. They covered the habit API, the 3-habit cap, activity events and strangers being blocked.
 - The advisor reports 13 expected warnings, one for each client API function, plus one setting to turn on: leaked password protection in Supabase Auth.
 
+**Decisions recorded**
+
+- Days with nothing due are neutral in 2 consistent weeks, as built.
+- The beta launch checklist in `PLAN.md` now covers Confirm email, leaked password protection and a custom email provider. On 1 Nov 2026 the Supabase advisor still reported leaked password protection as off.
+
