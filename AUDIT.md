@@ -794,3 +794,8 @@ Editing a habit's schedule currently applies to its whole history, because sched
 - Rebuilding the Next.js grid and weekly review on the design tokens.
 - Tapping a repair requires no count entry: it logs the required amount.
 
+**Applied to the live database**
+
+- The local tests passed, and the dry run listed one migration, `20261101000500_today.sql`, which was then pushed.
+- All live checks passed, using temporary users that were then deleted. `get_today` follows the profile timezone, shows nothing of other users, and is blocked for the publishable key alone.
+
