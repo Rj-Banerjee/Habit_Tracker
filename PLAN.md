@@ -67,7 +67,7 @@ Eight core tables in Postgres cover v1. Streaks are computed from `habit_logs`, 
 | --- | --- | --- |
 | `users` | id, timezone, wake\_time, tone (gentle / direct / drill), mode (strict / grace, default grace), assistant\_name | Timezone decides where "today" ends |
 | `identities` | id, user\_id, name, colour\_token, why\_text, why\_image\_url | "The Athlete"; the Why card lives here |
-| `habits` | id, identity\_id, title, type (boolean / count / duration / quit), target, unit, schedule (days, time window), voice\_aliases\[\] | `voice_aliases` lets "work" match "Deep work" |
+| `habits` | id, identity\_id, title, type (boolean / count / duration / quit), target, unit, schedule (days, time window), voice\_aliases\[\], milestone (optional) | `voice_aliases` lets "work" match "Deep work" |
 | `habit_levels` | habit\_id, level (full / minimum / setup), description, target | The Shrink It ladder, defined at creation |
 | `habit_logs` | id, habit\_id, date, level\_done, amount, status (done / skipped / repaired), skip\_reason, source (tap / widget / notification / siri / voice / coach), logged\_at | One row per habit per day; `source` tells us which surfaces get used. "Missed" is never stored (see Streak rules) |
 | `grace_days` | user\_id, earned\_at, spent\_on\_habit, spent\_for\_date | Earned bank; spending one marks the day protected |
@@ -102,7 +102,9 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 - Earn 1 for every 7 consecutive scheduled days where every due habit was completed, at any Shrink level.
 - A skip pauses the 7-day count: it doesn't reset it and doesn't add to it.
-- The bank holds a maximum of 3.
+- A repaired day counts toward the 7 days, because it was earned.
+- A Grace-protected day resets the 7-day count.
+- The bank holds a maximum of 3. When it's full, a new Grace Day is discarded.
 - A Grace Day is spent automatically on the first miss that would break a streak.
 - A spent Grace Day shows as "protected", not "done".
 - A protected day keeps the streak alive but does not add to the count.
@@ -115,6 +117,7 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 - One repair fixes one miss only, and only the most recent miss.
 - Two misses in a row can't be repaired.
 - A repaired day counts toward the streak, because it was earned by extra work.
+- A repair made before the missed day's back-log window closes saves the Grace Day that would otherwise be spent.
 
 ### Modes
 
@@ -122,6 +125,28 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 | --- | --- | --- | --- |
 | Grace (default) | On | On | Allowed |
 | Strict | Off | Off | Allowed |
+
+Changing mode only affects days from then on.
+
+### How results are computed
+
+Streaks and Grace Days are computed purely from `habit_logs` and settings, so the result is identical whenever it's read. They can update lazily on read rather than in a nightly job. `pg_cron` is enabled when reminders are built.
+
+### Habit unlocks
+
+- "2 consistent weeks" means 14 consecutive days where at least 80% of due habits were completed, at any Shrink level. Repaired days count; protected days don't.
+- It unlocks 2 more habits, and the same rule then repeats.
+
+### Progress definitions
+
+**Identity score:** out of the last 30 days, the number of days where every due habit in that identity was done at any Shrink level. Repaired counts; protected doesn't. It's shown as "23 of 30 days". Days with no due habits in that identity are left out of the total.
+
+**Compound Forecaster:**
+
+- Count and duration habits use the average amount per scheduled day over the last 30 scheduled days, multiplied by the scheduled days in the next 365.
+- Yes/no habits project the number of completions.
+- An optional milestone on a habit (for example, 300 pages = 1 book) lets the forecast say "about 24 books".
+- A slider lets the user try other consistency rates, from 50% to 100%.
 
 ### Scope decisions
 

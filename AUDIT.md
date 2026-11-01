@@ -685,7 +685,7 @@ The tests cover every rule, plus each requested case: a Mon/Thu habit repaired a
 
 **How Grace Days get applied**
 
-Grace Days are earned and spent when a day is settled, which happens whenever a client reads streaks. There is no nightly job yet, because `pg_cron` isn't enabled. A nudge or widget that reads the database without going through these functions could see out-of-date Grace Day state.
+Superseded by the pure rebuild below. There is no nightly job yet, because `pg_cron` isn't enabled until reminders are built. A nudge or widget that reads `grace_days` without going through these functions could see out-of-date state.
 
 **Applied to the live database**
 
@@ -697,4 +697,25 @@ Grace Days are earned and spent when a day is settled, which happens whenever a 
   - A second user can't touch the first user's habit, and the publishable key alone is blocked.
   - The private `tracker` schema can't be reached, so clients can't fake the clock.
 - The `is_valid_timezone` warning is fixed. The advisor now reports 7 warnings, one for each client API function. These are expected: signed-in users are meant to call them, and each checks ownership itself.
+
+### Item 4 addendum: pure Grace Days (1 Nov 2026)
+
+**Why this changed:** the first version recorded Grace Day outcomes the first time a day was settled, so results could depend on when a read happened. A read before a mode change, or before a repair, could give a different outcome from the same history.
+
+**Changed**
+
+- New migration `20261101000400_pure_grace_days.sql` rebuilds Grace Days from the first day whenever logs or settings change. `grace_days` is now a stored copy of that result.
+- Mode changes are stored with dates in `tracker.mode_history`, so each day is judged by the mode in force on it.
+- A repair brings Grace Days up to date before deciding, so its answer doesn't depend on whether anything read first.
+- A habit's first scheduled days are still compared with its `starts_on`, and changing timezone can reopen a day if its window is open again in the new timezone.
+- `PLAN.md` now has the final rules on repaired and protected days, plus the definitions for habit unlocks, identity score and the Compound Forecaster.
+
+**Results**
+
+- 149 database tests passing. New tests prove the same history gives the same result when read once, daily or out of order, and that stored Grace Days can be deleted and rebuilt exactly.
+- With a year of logs across 5 habits, a rebuild takes about 0.85 seconds and an unchanged read about 2 ms. Rebuilds happen about once a day or after a repair, not on every log.
+
+**Known gap**
+
+Editing a habit's schedule currently applies to its whole history, because schedules aren't dated. Changing Mon/Thu to daily would turn past unscheduled days into misses. This needs fixing before the habit editing screen ships.
 

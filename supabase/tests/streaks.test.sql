@@ -13,7 +13,11 @@ create function t.make_user(n int, tz text default 'UTC', m public.streak_mode d
 returns void language plpgsql as $$
 begin
   insert into auth.users (id, email) values (t.u(n), 'u' || n || '@example.test');
-  update public.users set timezone = tz, mode = m where id = t.u(n);
+  update public.users set timezone = tz where id = t.u(n);
+  update tracker.mode_history set mode = m where user_id = t.u(n);
+  alter table public.users disable trigger users_record_mode_change;
+  update public.users set mode = m where id = t.u(n);
+  alter table public.users enable trigger users_record_mode_change;
   insert into public.identities (id, user_id, name)
   values (('bbbbbbbb-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, t.u(n), 'Identity');
 end $$;
@@ -182,8 +186,12 @@ select is(
 update public.users set timezone = 'Pacific/Honolulu' where id = t.u(8);
 select tracker.settle(t.u(8), '2026-11-08 00:00+00');
 select is(
-  (select settled_through from public.users where id = t.u(8)), '2026-11-06'::date,
-  'moving west never rolls the settled date back'
+  (select settled_through from public.users where id = t.u(8)), '2026-11-05'::date,
+  'moving west reopens a day whose window is open again in the new timezone'
+);
+select is(
+  tracker.day_status(t.h(8), '2026-11-06', '2026-11-08 00:00+00'), 'pending',
+  'and that day really can be back-logged'
 );
 
 -- ---------------------------------------------------------------------------
@@ -313,23 +321,23 @@ select is(t.streak(23, '2026-11-11', '2026-11-20 00:00+00'), 1, 'so the streak b
 
 select t.make_user(23);
 select t.make_habit(24, 23, '2026-11-02');
-insert into public.grace_days (user_id) values (t.u(23));
-select tracker.settle(t.u(23), '2026-11-04 00:00+00');
+select t.done(24, '2026-11-02', '2026-11-09');
+select t.make_habit(43, 23, '2026-11-09');
+select tracker.settle(t.u(23), '2026-11-11 00:00+00');
 select is(tracker.grace_bank(t.u(23)), 1, 'a Grace Day is not spent when there is no streak to protect');
 
 select t.make_user(24);
 select t.make_habit(25, 24, '2026-11-02');
 select t.make_habit(26, 24, '2026-11-02');
-select t.done(25, '2026-11-02', '2026-11-02');
-select t.done(26, '2026-11-02', '2026-11-02');
-insert into public.grace_days (user_id) values (t.u(24));
-select tracker.settle(t.u(24), '2026-11-05 00:00+00');
+select t.done(25, '2026-11-02', '2026-11-08');
+select t.done(26, '2026-11-02', '2026-11-08');
+select tracker.settle(t.u(24), '2026-11-11 00:00+00');
 select is(
   (select count(*)::int from public.grace_days where user_id = t.u(24) and spent_for_date is not null), 1,
   'two misses on one day with one Grace Day spend only that one'
 );
 select is(
-  tracker.day_status(t.h(25), '2026-11-03', '2026-11-05 00:00+00') || '/' || tracker.day_status(t.h(26), '2026-11-03', '2026-11-05 00:00+00'),
+  tracker.day_status(t.h(25), '2026-11-09', '2026-11-11 00:00+00') || '/' || tracker.day_status(t.h(26), '2026-11-09', '2026-11-11 00:00+00'),
   'protected/missed', 'and it covers the older habit first'
 );
 
@@ -490,13 +498,13 @@ select t.done(40, '2026-11-02', '2026-11-08');
 select tracker.settle(t.u(38), '2026-11-20 00:00+00');
 select is(tracker.grace_bank(t.u(38)), 0, 'strict mode earns no Grace Days');
 
-select t.make_user(39, 'UTC', 'strict');
+select t.make_user(39);
 select t.make_habit(41, 39, '2026-11-02');
-select t.done(41, '2026-11-02', '2026-11-02');
-insert into public.grace_days (user_id) values (t.u(39));
+select t.done(41, '2026-11-02', '2026-11-08');
+insert into tracker.mode_history (user_id, effective_from, mode) values (t.u(39), '2026-11-09', 'strict');
 select tracker.settle(t.u(39), '2026-11-20 00:00+00');
 select is(tracker.grace_bank(t.u(39)), 1, 'strict mode spends no Grace Days');
-select is(tracker.day_status(t.h(41), '2026-11-03', '2026-11-20 00:00+00'), 'missed', 'so the miss stands');
+select is(tracker.day_status(t.h(41), '2026-11-09', '2026-11-20 00:00+00'), 'missed', 'so the miss stands');
 
 select t.make_user(40, 'UTC', 'strict');
 select t.make_habit(42, 40, '2026-11-02');
@@ -508,6 +516,180 @@ select throws_like(
 select lives_ok(
   $$ select tracker.log_habit(t.u(40), t.h(42), '2026-11-03', 'full', null, 'tap', t.noon(40, '2026-11-04')) $$,
   'strict mode still allows the 24-hour back-log'
+);
+
+-- Changing mode only affects days from then on.
+select t.make_user(41);
+select t.make_habit(44, 41, '2026-11-02');
+select t.done(44, '2026-11-02', '2026-11-08');
+select tracker.settle(t.u(41), '2026-11-10 00:00+00');
+select is(tracker.grace_bank(t.u(41)), 1, 'grace mode earned a Grace Day');
+insert into tracker.mode_history (user_id, effective_from, mode) values (t.u(41), '2026-11-12', 'strict');
+select tracker.settle(t.u(41), '2026-11-11 00:00+00');
+select is(
+  tracker.day_status(t.h(44), '2026-11-09', '2026-11-11 00:00+00'), 'protected',
+  'a later change to strict leaves earlier days under grace rules'
+);
+
+select t.make_user(42, 'UTC', 'strict');
+select t.make_habit(45, 42, '2026-11-02');
+select t.done(45, '2026-11-02', '2026-11-08');
+insert into tracker.mode_history (user_id, effective_from, mode) values (t.u(42), '2026-11-09', 'grace');
+select t.done(45, '2026-11-09', '2026-11-15');
+select tracker.settle(t.u(42), '2026-11-17 00:00+00');
+select is(tracker.grace_bank(t.u(42)), 1, 'days completed under strict earn nothing after moving to grace');
+
+update public.users set mode = 'strict' where id = t.u(41);
+select is(
+  (select mode::text from tracker.mode_history where user_id = t.u(41) order by effective_from desc limit 1), 'strict',
+  'changing the mode setting records a dated change'
+);
+
+-- ---------------------------------------------------------------------------
+-- Repaired and protected days in the 7-day count
+-- ---------------------------------------------------------------------------
+select t.make_user(43);
+select t.make_habit(46, 43, '2026-11-02');
+select t.done(46, '2026-11-02', '2026-11-04');
+select tracker.repair_habit(t.u(43), t.h(46), '2026-11-06', null, true, 'tap', t.noon(43, '2026-11-06'));
+select t.done(46, '2026-11-07', '2026-11-08');
+select tracker.settle(t.u(43), '2026-11-10 00:00+00');
+select is(tracker.grace_bank(t.u(43)), 1, 'a repaired day counts toward the 7 days');
+
+select t.make_user(44);
+select t.make_habit(47, 44, '2026-11-02');
+select t.done(47, '2026-11-02', '2026-11-08');
+select t.done(47, '2026-11-10', '2026-11-15');
+select tracker.settle(t.u(44), '2026-11-17 00:00+00');
+select is(tracker.day_status(t.h(47), '2026-11-09', '2026-11-17 00:00+00'), 'protected', 'the miss was protected');
+select is(tracker.grace_bank(t.u(44)), 0, 'a protected day resets the 7-day count: six more days earn nothing');
+select t.done(47, '2026-11-16', '2026-11-16');
+select tracker.settle(t.u(44), '2026-11-18 00:00+00');
+select is(tracker.grace_bank(t.u(44)), 1, 'the seventh day after it earns one');
+
+select t.make_user(45);
+select t.make_habit(48, 45, '2026-10-01');
+select t.done(48, '2026-10-01', '2026-10-28');
+select tracker.settle(t.u(45), '2026-10-30 00:00+00');
+select is(tracker.grace_bank(t.u(45)), 3, 'four weeks would earn four, but the bank is full at 3');
+select is(
+  (select count(*)::int from public.grace_days where user_id = t.u(45)), 3,
+  'the extra one is discarded, not stored'
+);
+
+-- ---------------------------------------------------------------------------
+-- Results are identical whenever they are read
+-- ---------------------------------------------------------------------------
+create function t.history(n int, habit int) returns void language plpgsql as $$
+begin
+  perform t.make_user(n);
+  perform t.make_habit(habit, n, '2026-11-02');
+  perform t.done(habit, '2026-11-02', '2026-11-08');
+  perform t.done(habit, '2026-11-10', '2026-11-16');
+  perform t.done(habit, '2026-11-19', '2026-11-30');
+end $$;
+
+create function t.result(n int, habit int, at timestamptz) returns text language sql stable as $$
+  select concat_ws(' | ',
+    (select coalesce(string_agg(tracker.day_status(t.h(habit), d::date, at), ',' order by d), '')
+     from generate_series('2026-11-02'::date, '2026-11-30'::date, interval '1 day') d),
+    t.streak(habit, '2026-11-30', at),
+    t.longest(habit, '2026-11-30', at),
+    tracker.grace_bank(t.u(n)),
+    (select coalesce(string_agg(spent_for_date::text, ',' order by spent_for_date), '')
+     from public.grace_days where user_id = t.u(n)),
+    (select coalesce(string_agg(earned_at::text, ',' order by earned_at), '')
+     from public.grace_days where user_id = t.u(n))
+  );
+$$;
+
+-- The same history, read only at the end, read every day, and read out of order.
+select t.history(46, 49);
+select t.history(47, 50);
+select t.history(48, 51);
+
+select tracker.settle(t.u(46), '2026-12-03 00:00+00');
+
+select tracker.settle(t.u(47), d)
+from generate_series('2026-11-03 00:00+00'::timestamptz, '2026-12-03 00:00+00', interval '1 day') d;
+
+select tracker.settle(t.u(48), '2026-12-03 00:00+00');
+select tracker.settle(t.u(48), '2026-11-12 00:00+00');
+select tracker.settle(t.u(48), '2026-12-03 00:00+00');
+
+select is(
+  t.result(47, 50, '2026-12-03 00:00+00'),
+  t.result(46, 49, '2026-12-03 00:00+00'),
+  'reading every day gives the same result as reading once at the end'
+);
+select is(
+  t.result(48, 51, '2026-12-03 00:00+00'),
+  t.result(46, 49, '2026-12-03 00:00+00'),
+  'reading out of order gives the same result'
+);
+
+delete from public.grace_days where user_id = t.u(46);
+update public.users set settled_fingerprint = null, settled_through = null where id = t.u(46);
+select tracker.settle(t.u(46), '2026-12-03 00:00+00');
+select is(
+  t.result(46, 49, '2026-12-03 00:00+00'),
+  t.result(48, 51, '2026-12-03 00:00+00'),
+  'stored Grace Days can be deleted and rebuilt exactly from logs and settings'
+);
+
+-- A read before a mode change must not change the outcome of days before it.
+select t.make_user(49);
+select t.make_user(50);
+select t.make_habit(52, 49, '2026-11-02');
+select t.make_habit(53, 50, '2026-11-02');
+select t.done(52, '2026-11-02', '2026-11-08');
+select t.done(53, '2026-11-02', '2026-11-08');
+select tracker.settle(t.u(49), '2026-11-11 00:00+00');
+insert into tracker.mode_history (user_id, effective_from, mode) values
+  (t.u(49), '2026-11-12', 'strict'),
+  (t.u(50), '2026-11-12', 'strict');
+select tracker.settle(t.u(49), '2026-11-15 00:00+00');
+select tracker.settle(t.u(50), '2026-11-15 00:00+00');
+select is(
+  tracker.day_status(t.h(53), '2026-11-09', '2026-11-15 00:00+00'),
+  tracker.day_status(t.h(52), '2026-11-09', '2026-11-15 00:00+00'),
+  'a read before a mode change makes no difference to earlier days'
+);
+
+-- A repair attempt gets the same answer whether or not anything read first.
+select t.make_user(51);
+select t.make_user(52);
+select t.make_habit(54, 51, '2026-10-26', '{1,4}');
+select t.make_habit(55, 52, '2026-10-26', '{1,4}');
+select t.done(54, '2026-10-26', '2026-11-29');
+select t.done(55, '2026-10-26', '2026-11-29');
+delete from public.habit_logs where habit_id in (t.h(54), t.h(55)) and date = '2026-11-30';
+select tracker.settle(t.u(51), '2026-12-02 12:00+00');
+select throws_like(
+  $$ select tracker.repair_habit(t.u(51), t.h(54), '2026-12-03', null, true, 'tap', t.noon(51, '2026-12-03')) $$,
+  '%no miss to repair%', 'a Grace Day covers the miss when something read first'
+);
+select throws_like(
+  $$ select tracker.repair_habit(t.u(52), t.h(55), '2026-12-03', null, true, 'tap', t.noon(52, '2026-12-03')) $$,
+  '%no miss to repair%', 'and it still does when nothing read first'
+);
+
+-- Unchanged data is not rebuilt.
+select t.make_user(53);
+select t.make_habit(56, 53, '2026-11-02');
+select t.done(56, '2026-11-02', '2026-11-08');
+select tracker.settle(t.u(53), '2026-11-10 00:00+00');
+create temp table grace_ids on commit drop as select id from public.grace_days where user_id = t.u(53);
+select tracker.settle(t.u(53), '2026-11-10 00:00+00');
+select is(
+  (select count(*)::int from public.grace_days g join grace_ids i using (id)), 1,
+  'reading again with nothing changed does not rewrite Grace Days'
+);
+select t.done(56, '2026-11-09', '2026-11-09');
+select tracker.settle(t.u(53), '2026-11-10 00:00+00');
+select is(
+  (select count(*)::int from public.grace_days g join grace_ids i using (id)), 1,
+  'logging a day that is still open does not force a rebuild'
 );
 
 -- ---------------------------------------------------------------------------
