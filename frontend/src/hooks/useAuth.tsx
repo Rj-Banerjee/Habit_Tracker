@@ -58,7 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } },
+      });
       if (error) return { error };
       if (data.user) {
         setUser({ id: data.user.id, email: data.user.email ?? '' });

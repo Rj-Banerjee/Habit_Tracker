@@ -6,16 +6,16 @@ import { HabitRow } from './HabitRow';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { DailyHabit, MonthCalendar } from '../../types';
+import { Habit, MonthCalendar } from '../../types';
 
 interface DailyMatrixProps {
-  habits: DailyHabit[];
+  habits: Habit[];
   calendar: MonthCalendar;
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
   onToggle: (habitId: string, dateKey: string) => void;
-  onAddHabit: (title: string, goalDays: number) => Promise<unknown>;
-  onUpdateHabit: (id: string, title?: string, goalDays?: number) => Promise<unknown>;
+  onAddHabit: (title: string) => Promise<unknown>;
+  onRenameHabit: (id: string, title: string) => Promise<unknown>;
   onDeleteHabit: (id: string) => Promise<unknown>;
 }
 
@@ -26,17 +26,16 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
   isCompleted,
   onToggle,
   onAddHabit,
-  onUpdateHabit,
+  onRenameHabit,
   onDeleteHabit,
 }) => {
   const todayThRef = useRef<HTMLTableHeaderCellElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedHabit, setSelectedHabit] = useState<DailyHabit | null>(null);
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
 
   const [formTitle, setFormTitle] = useState('');
-  const [formGoal, setFormGoal] = useState('30');
 
   // Auto-focus current date on load
   useEffect(() => {
@@ -53,26 +52,24 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
 
   const handleOpenAdd = () => {
     setFormTitle('');
-    setFormGoal('30');
     setIsAddModalOpen(true);
   };
 
   const handleSaveAdd = async () => {
     if (!formTitle.trim()) return;
-    await onAddHabit(formTitle.trim(), Number(formGoal) || 30);
+    await onAddHabit(formTitle.trim());
     setIsAddModalOpen(false);
   };
 
-  const handleOpenEdit = (habit: DailyHabit) => {
+  const handleOpenEdit = (habit: Habit) => {
     setSelectedHabit(habit);
     setFormTitle(habit.title);
-    setFormGoal(String(habit.goal_days));
     setIsEditModalOpen(true);
   };
 
   const handleSaveEdit = async () => {
     if (!selectedHabit || !formTitle.trim()) return;
-    await onUpdateHabit(selectedHabit.id, formTitle.trim(), Number(formGoal) || 30);
+    await onRenameHabit(selectedHabit.id, formTitle.trim());
     setIsEditModalOpen(false);
   };
 
@@ -143,14 +140,8 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
                 );
               })}
 
-              <th rowSpan={2} className="w-12 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2">
-                Goal
-              </th>
-              <th rowSpan={2} className="w-[100px] text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2">
-                Progress
-              </th>
               <th rowSpan={2} className="w-16 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2">
-                Count
+                Done
               </th>
               <th rowSpan={2} className="w-20 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2" title="Longest active streak in days">
                 Streak
@@ -193,7 +184,7 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
             {habits.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6 + calendar.days.length}
+                  colSpan={4 + calendar.days.length}
                   className="py-12 text-center text-slate-400 dark:text-slate-500 text-sm"
                 >
                   No daily habits configured for this month. Click &quot;+ Add Habit&quot; above to start!
@@ -234,24 +225,13 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          <Input
-            label="Habit Title"
-            placeholder="e.g. Meditate for 10 minutes"
-            value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
-            autoFocus
-          />
-          <Input
-            label="Monthly Target Days"
-            type="number"
-            min={1}
-            max={31}
-            value={formGoal}
-            onChange={(e) => setFormGoal(e.target.value)}
-            helperText="Number of days in the month you aim to complete this habit."
-          />
-        </div>
+        <Input
+          label="Habit Title"
+          placeholder="e.g. Meditate for 10 minutes"
+          value={formTitle}
+          onChange={(e) => setFormTitle(e.target.value)}
+          autoFocus
+        />
       </Modal>
 
       {/* Edit Habit Modal */}
@@ -270,21 +250,11 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          <Input
-            label="Habit Title"
-            value={formTitle}
-            onChange={(e) => setFormTitle(e.target.value)}
-          />
-          <Input
-            label="Monthly Target Days"
-            type="number"
-            min={1}
-            max={31}
-            value={formGoal}
-            onChange={(e) => setFormGoal(e.target.value)}
-          />
-        </div>
+        <Input
+          label="Habit Title"
+          value={formTitle}
+          onChange={(e) => setFormTitle(e.target.value)}
+        />
       </Modal>
     </div>
   );

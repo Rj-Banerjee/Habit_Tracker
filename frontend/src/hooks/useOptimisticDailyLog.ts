@@ -1,89 +1,58 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { habitService } from '../services/habitService';
+import { useCallback, useEffect, useState } from 'react';
+import { trackerService } from '../services/trackerService';
 import { useToast } from './useToast';
-import { DailyHabit } from '../types';
+import { Habit } from '../types';
 
-export function useOptimisticDailyLog(
-  initialHabits: DailyHabit[],
-  onSyncSuccess?: () => void,
-  onLocalToggle?: (habitId: string, dateKey: string, isCompleted: boolean) => void
-) {
+export function useOptimisticDailyLog(habits: Habit[]) {
   const [logMap, setLogMap] = useState<Record<string, boolean>>({});
   const { error } = useToast();
 
-  // Populate log map whenever initialHabits updates (e.g., month change or initial load)
   useEffect(() => {
     const map: Record<string, boolean> = {};
-    initialHabits.forEach((habit) => {
-      habit.logs?.forEach((log) => {
-        if (log.is_completed) {
+    habits.forEach((habit) => {
+      habit.habit_logs.forEach((log) => {
+        if (log.status !== 'skipped') {
           map[`${habit.id}_${log.date}`] = true;
         }
       });
     });
     setLogMap(map);
-  }, [initialHabits]);
+  }, [habits]);
 
   const isCompleted = useCallback(
-    (habitId: string, dateKey: string): boolean => {
-      return !!logMap[`${habitId}_${dateKey}`];
-    },
+    (habitId: string, dateKey: string) => !!logMap[`${habitId}_${dateKey}`],
     [logMap]
   );
+
+  const setKey = (key: string, value: boolean) => {
+    setLogMap((prev) => {
+      const copy = { ...prev };
+      if (value) {
+        copy[key] = true;
+      } else {
+        delete copy[key];
+      }
+      return copy;
+    });
+  };
 
   const toggleLog = useCallback(
     async (habitId: string, dateKey: string) => {
       const key = `${habitId}_${dateKey}`;
-      const previousValue = !!logMap[key];
-      const nextValue = !previousValue;
+      const previous = !!logMap[key];
+      setKey(key, !previous);
 
-      // 1. Optimistic UI update: Immediate local state toggle with zero latency
-      setLogMap((prev) => {
-        const copy = { ...prev };
-        if (nextValue) {
-          copy[key] = true;
-        } else {
-          delete copy[key];
-        }
-        return copy;
-      });
-
-      // Update parent habits data model immediately
-      if (onLocalToggle) {
-        onLocalToggle(habitId, dateKey, nextValue);
-      }
-
-      // 2. Background sync to Supabase backend API
       try {
-        await habitService.toggleDailyLog(habitId, dateKey, nextValue);
-        if (onSyncSuccess) {
-          onSyncSuccess();
-        }
+        await trackerService.setLog(habitId, dateKey, !previous);
       } catch (err) {
-        // Rollback state on network failure
-        setLogMap((prev) => {
-          const copy = { ...prev };
-          if (previousValue) {
-            copy[key] = true;
-          } else {
-            delete copy[key];
-          }
-          return copy;
-        });
-        if (onLocalToggle) {
-          onLocalToggle(habitId, dateKey, previousValue);
-        }
-        error(`Sync failed for ${dateKey}: ${(err as Error).message}. Rolled back.`);
+        setKey(key, previous);
+        error(`Couldn't save ${dateKey}: ${(err as Error).message}`);
       }
     },
-    [logMap, onSyncSuccess, onLocalToggle, error]
+    [logMap, error]
   );
 
-  return {
-    logMap,
-    isCompleted,
-    toggleLog,
-  };
+  return { isCompleted, toggleLog };
 }

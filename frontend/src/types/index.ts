@@ -1,100 +1,24 @@
 export interface User {
   id: string;
   email: string;
-  createdAt?: string;
 }
 
-export interface DailyLog {
+export type LogStatus = 'done' | 'skipped' | 'repaired';
+export type StreakMode = 'strict' | 'grace';
+
+export interface HabitLog {
   id: string;
   habit_id: string;
-  date: string; // YYYY-MM-DD
-  is_completed: boolean;
-  updated_at?: string;
+  date: string; // YYYY-MM-DD, the user's local date
+  status: LogStatus;
 }
 
-export interface DailyHabit {
+export interface Habit {
   id: string;
-  user_id: string;
+  identity_id: string;
   title: string;
-  goal_days: number;
-  created_at: string;
-  logs?: DailyLog[];
-}
-
-export interface WeeklyHabit {
-  id: string;
-  user_id: string;
-  title: string;
-  week_number: number; // 1 to 5
-  month: number;
-  year: number;
-  is_completed: boolean;
-  created_at?: string;
-}
-
-export interface MonthlyHabit {
-  id: string;
-  user_id: string;
-  title: string;
-  month: number;
-  year: number;
-  is_completed: boolean;
-  created_at?: string;
-}
-
-export interface MonthlyReflection {
-  id?: string;
-  user_id?: string;
-  month: number;
-  year: number;
-  content: string;
-}
-
-export interface DayProgressPoint {
-  date: string;
-  day: number;
-  completedCount: number;
-  totalHabits: number;
-  percentage: number;
-}
-
-export interface HabitStreakStat {
-  id: string;
-  title: string;
-  goalDays: number;
-  completedDays: number;
-  percentage: number;
-  percentageFormatted: string;
-  longestStreak: number;
-  currentStreak: number;
-}
-
-export interface WeekProgressStat {
-  weekNumber: number;
-  completedCount: number;
-  possibleCount: number;
-  percentage: number;
-}
-
-export interface MonthAnalytics {
-  month: number;
-  year: number;
-  totalHabits: number;
-  totalMonthCompletions: number;
-  totalPossibleCompletions: number;
-  totalIncomplete: number;
-  overallPercentage: number;
-  dailyProgress: DayProgressPoint[];
-  weeklyProgress: WeekProgressStat[];
-  top10Habits: HabitStreakStat[];
-  habitStats: HabitStreakStat[];
-}
-
-export interface DailyQuoteData {
-  date: string;
-  quote: string;
-  author: string;
-  imageUrl: string;
+  schedule_days: number[]; // ISO weekdays: 1 is Monday, 7 is Sunday
+  habit_logs: HabitLog[];
 }
 
 export interface DayCalendarInfo {
@@ -112,39 +36,3 @@ export interface MonthCalendar {
   days: DayCalendarInfo[];
   weeks: Record<number, DayCalendarInfo[]>;
 }
-
-// AI Coach Types
-export interface ChatMessageMetadata {
-  type?: string;
-  slot?: string;
-  toolsExecuted?: ToolExecutionRecord[];
-}
-
-export interface ChatMessage {
-  id: string;
-  userId: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  metadata?: ChatMessageMetadata | null;
-  createdAt: string;
-}
-
-export interface CoachProfile {
-  id: string;
-  userId: string;
-  coachingStyle: string;
-  targetIdentity: string;
-  behavioralTags: string[];
-}
-
-export interface ToolExecutionRecord {
-  tool: 'getDailyHabits' | 'toggleHabitLog' | 'scaleHabitTarget';
-  args: { habitId: string; date: string; status: boolean; newGoal: number };
-  result: Record<string, unknown>;
-}
-
-export interface AIChatResponse {
-  response: string;
-  toolsExecuted: ToolExecutionRecord[];
-}
-

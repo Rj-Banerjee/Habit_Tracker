@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { Plus, Check, Flame } from 'lucide-react';
-import { DailyHabit, MonthCalendar } from '../../types';
+import { Habit, MonthCalendar } from '../../types';
 import { WEEK_CHECKBOX_THEMES } from './CheckboxCell';
 
 interface DailyMobileTodayViewProps {
-  habits: DailyHabit[];
+  habits: Habit[];
   calendar: MonthCalendar;
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
@@ -162,7 +162,6 @@ export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
                     {habit.title}
                   </span>
                   <div className="flex items-center gap-2.5 text-[11px] text-slate-400 dark:text-slate-500">
-                    <span>Goal: {habit.goal_days}d</span>
                     {streak > 0 && (
                       <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
                         <Flame className="w-3 h-3 fill-current" />

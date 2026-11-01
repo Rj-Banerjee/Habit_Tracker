@@ -613,3 +613,32 @@ No Anthropic, OpenAI or Google keys, JWTs, or `.env` files appear anywhere in hi
 - React reports a hydration attribute mismatch in dev. The source wasn't identified.
 - `/login` logs one 404 for a resource when loaded. The source wasn't identified.
 - The rate limit is per IP. Per-user AI limits come with the FastAPI service.
+
+### Step 2 item 3: data model (1 Nov 2026)
+
+**Changed**
+
+- New migration `20261101000200_core_schema.sql` replaces the scaffold tables with `PLAN.md`'s eight tables and the `user_patterns` view, and deletes the demo data.
+- Every table has row-level security from the start. Clients can't write `grace_days`, `coach_events` or `settled_through`.
+- A database trigger creates a profile for each new account. Invalid timezones fall back to UTC.
+- "Missed" can't be stored: it isn't in the `habit_logs` status type.
+- Removed Express, Prisma and `FULLSTACK_GUIDE.md`. The web app now talks to Supabase directly, as in `PLAN.md`. `backend/` holds only local env files until the AI service arrives.
+- Reduced the web app to the 31-day grid, the temporary phone day view and settings. Removed weekly and monthly habits, the quote card, charts, fake notifications, the coach drawer, the placeholder legal text and the Cmd+K palette. The coach returns in item 6.
+- Streak mode now saves to the profile instead of `localStorage`.
+- Deleting a habit now asks for confirmation.
+
+**Additions to `PLAN.md`'s model**
+
+| Column | Why |
+| --- | --- |
+| `habits.starts_on` | Days before a habit existed must not count as misses |
+| `habits.archived_at` | Removing a habit from Today shouldn't delete its history |
+| `habits.window_start`, `window_end` | `PLAN.md`'s schedule time window, as columns |
+| `users.settled_through` | Records which days have had their Grace Day outcome applied |
+
+**Still missing from the model, for later items**
+
+- Push tokens, needed for reminders.
+- Offline idempotency keys, needed for the offline queue.
+- Rate-limit and AI cost tracking, for item 6.
+
