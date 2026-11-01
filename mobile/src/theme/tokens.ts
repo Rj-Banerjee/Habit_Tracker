@@ -13,6 +13,7 @@ export interface ThemeColors {
   text: string;
   textMuted: string;
   hollow: string;
+  scrim: string;
 }
 
 export const colors: Record<ThemeName, ThemeColors> = {
@@ -24,6 +25,7 @@ export const colors: Record<ThemeName, ThemeColors> = {
     text: '#2B2620',
     textMuted: '#655C50',
     hollow: '#857A6B',
+    scrim: '#2B262066',
   },
   dark: {
     canvas: '#1D1A16',
@@ -33,6 +35,7 @@ export const colors: Record<ThemeName, ThemeColors> = {
     text: '#F1EBE1',
     textMuted: '#B5AB9C',
     hollow: '#958A7B',
+    scrim: '#0F0D0B99',
   },
 };
 

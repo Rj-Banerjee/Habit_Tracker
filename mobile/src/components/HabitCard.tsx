@@ -13,8 +13,10 @@ interface HabitCardProps {
   identity: IdentityToken;
   streak?: number;
   detail?: string;
+  statusLabel?: string;
   onPress?: () => void;
   onLongPress?: () => void;
+  onSkip?: () => void;
 }
 
 const LOGGED: HabitCardStatus[] = ['done', 'doneMinimum', 'repaired'];
@@ -25,8 +27,10 @@ export function HabitCard({
   identity,
   streak,
   detail,
+  statusLabel,
   onPress,
   onLongPress,
+  onSkip,
 }: HabitCardProps) {
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
@@ -50,7 +54,7 @@ export function HabitCard({
     wasLogged.current = isLogged;
   }, [status, scale]);
 
-  const label = statusLabels[status];
+  const label = statusLabel ?? statusLabels[status];
   // A zero is left out, so a gap never shows as a score.
   const hasStreak = streak !== undefined && streak > 0;
   const accessibilityLabel = useMemo(
@@ -65,7 +69,11 @@ export function HabitCard({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
+      delayLongPress={350}
       accessibilityRole="button"
+      accessibilityHint="Tap to log. Long press for smaller versions."
+      accessibilityActions={onSkip ? [{ name: 'skip', label: 'Skip today' }] : undefined}
+      onAccessibilityAction={onSkip ? () => onSkip() : undefined}
       accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [
         styles.card,

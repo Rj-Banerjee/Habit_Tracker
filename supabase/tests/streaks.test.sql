@@ -693,6 +693,89 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
+-- Today
+-- ---------------------------------------------------------------------------
+select t.make_user(60, 'Asia/Kolkata');
+select t.make_habit(60, 60, '2026-11-02');
+select t.make_habit(61, 60, '2026-11-02', '{1,3}');
+select t.make_habit(62, 60, '2026-11-02', '{2}');
+insert into public.habit_levels (habit_id, level, description) values
+  (t.h(60), 'full', 'Run 5 km'),
+  (t.h(60), 'minimum', 'Run 1 km'),
+  (t.h(60), 'setup', 'Put on shoes');
+select t.done(60, '2026-11-02', '2026-11-02', 'minimum');
+select t.done(62, '2026-11-03', '2026-11-03');
+
+-- 19:00 UTC on 3 Nov is already Wednesday 4 Nov in Kolkata.
+select is(
+  (select day from tracker.today_rows(t.u(60), '2026-11-03 19:00+00') where is_today limit 1),
+  '2026-11-04'::date,
+  'today follows the profile timezone'
+);
+select is(
+  (select array_agg(habit_id::text order by title) from tracker.today_rows(t.u(60), '2026-11-03 19:00+00') where is_today),
+  array[t.h(60)::text, t.h(61)::text],
+  'only habits due today are listed'
+);
+select is(
+  (select array_agg(habit_id::text order by title) from tracker.today_rows(t.u(60), '2026-11-03 19:00+00') where not is_today),
+  array[t.h(60)::text],
+  'yesterday lists only days that can still be back-logged'
+);
+select is(
+  (select jsonb_array_length(levels) from tracker.today_rows(t.u(60), '2026-11-03 19:00+00') where is_today and habit_id = t.h(60)),
+  3,
+  'the Shrink ladder comes with the habit'
+);
+select is(
+  (select levels -> 0 ->> 'level' from tracker.today_rows(t.u(60), '2026-11-03 19:00+00') where is_today and habit_id = t.h(60)),
+  'full',
+  'and is ordered from full to setup'
+);
+select is(
+  (select level_done::text from tracker.today_rows(t.u(60), '2026-11-02 12:00+00') where is_today and habit_id = t.h(60)),
+  'minimum',
+  'the level already logged is returned'
+);
+
+select t.skip(61, '2026-11-04', 'Sick');
+select is(
+  (select skip_reason from tracker.today_rows(t.u(60), '2026-11-03 19:00+00') where is_today and habit_id = t.h(61)),
+  'Sick',
+  'the skip reason is returned'
+);
+
+select t.make_user(61);
+select t.make_habit(63, 61, '2026-10-26', '{1,4}', 'count', 5);
+select t.done(63, '2026-10-26', '2026-10-29');
+select is(
+  (select can_repair from tracker.today_rows(t.u(61), t.noon(61, '2026-11-05')) where is_today),
+  true,
+  'today offers a repair when the previous scheduled day was a miss'
+);
+select is(
+  (select repair_amount from tracker.today_rows(t.u(61), t.noon(61, '2026-11-05')) where is_today),
+  8::numeric,
+  'and gives the amount it needs'
+);
+select t.make_user(62);
+select t.make_habit(64, 62, '2026-11-02');
+select t.done(64, '2026-11-02', '2026-11-02');
+select is(
+  (select can_repair from tracker.today_rows(t.u(62), t.noon(62, '2026-11-05')) where is_today),
+  false,
+  'no repair is offered after two misses in a row'
+);
+select t.make_user(63, 'UTC', 'strict');
+select t.make_habit(65, 63, '2026-10-26', '{1,4}');
+select t.done(65, '2026-10-26', '2026-10-29');
+select is(
+  (select can_repair from tracker.today_rows(t.u(63), t.noon(63, '2026-11-05')) where is_today),
+  false,
+  'no repair is offered in strict mode'
+);
+
+-- ---------------------------------------------------------------------------
 -- Client access
 -- ---------------------------------------------------------------------------
 insert into auth.users (id, email) values
@@ -721,6 +804,7 @@ select lives_ok(
 select is((select current_streak from public.get_streaks()), 1, 'and sees the streak');
 select is((select count(*)::int from public.get_day_statuses(current_date, current_date)), 1, 'and day statuses');
 select is(public.get_grace_bank(), 0, 'and their Grace Day bank');
+select is((select count(*)::int from public.get_today()), 1, 'and their Today list');
 select throws_ok(
   $$ insert into public.habit_logs (habit_id, date, level_done, status) values ('c0000000-0000-4000-8000-000000000002', '2020-01-01', 'full', 'done') $$,
   '42501', null, 'clients cannot write logs directly and skip the rules'
@@ -759,6 +843,10 @@ select throws_ok(
 select throws_ok(
   $$ select * from public.get_streaks() $$,
   '42501', null, 'signed-out visitors cannot read streaks'
+);
+select throws_ok(
+  $$ select * from public.get_today() $$,
+  '42501', null, 'signed-out visitors cannot read Today'
 );
 reset role;
 

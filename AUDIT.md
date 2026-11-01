@@ -765,3 +765,32 @@ Editing a habit's schedule currently applies to its whole history, because sched
 - **Tests:** added a web test project with a real DOM. It draws every state in both themes and fails on any `console.error`. The tests for both issues failed before the fix and pass after it.
 - **Result:** 149 tests pass across the iOS, Android and web presets. The dev server logs 0 errors and 0 warnings. Native screens are not yet confirmed on a device.
 
+### Step 2 item 5: Today screen (1 Nov 2026)
+
+**Changed**
+
+- New migration `20261101000500_today.sql` adds `get_today()`, which returns due habits, levels, streaks, yesterday's open days and repair availability. "Today" always follows the profile timezone.
+- Added the Today screen, grouped by identity, plus sign-in, the Shrink sheet and the skip sheet.
+- One tap logs the full version, and another undoes it. A long press opens the Shrink sheet, which also offers Repair when the server allows it. A left swipe opens the skip reasons.
+- Skip is also in the Shrink sheet and is a screen-reader action, so swiping is never the only way.
+- Mornings lead with yesterday's open days. Evenings add a gentle note about what's left.
+- A failed log rolls back and shows the reason. A failed load offers a retry instead of an empty list.
+- Streak rules stay in SQL. The app holds no streak logic.
+
+**Results**
+
+- 160 database tests and 243 app tests passing, across the iOS, Android and web presets. Typecheck passes.
+- Run through the Expo dev server in Chrome at phone width, against local Supabase, with real sign-up: 0 console errors and 0 server warnings across tap, undo, long press, swipe, skip and back-log.
+- Viewing the real screens found three issues that tests had missed, all fixed: open days from yesterday said "Due today", skipped cards hid the reason, and there was no real evening state.
+
+**Not yet confirmed**
+
+- A real phone. Haptics, native swipe feel and Modal behaviour are untested.
+- The evening note and morning order were tested with a fake clock, not at those real times.
+
+**Not built yet**
+
+- Habit creation and onboarding, so a new account only sees the empty state. These are the planned hand-off screens.
+- Rebuilding the Next.js grid and weekly review on the design tokens.
+- Tapping a repair requires no count entry: it logs the required amount.
+
