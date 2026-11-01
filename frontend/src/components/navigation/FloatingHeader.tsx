@@ -6,8 +6,6 @@ import {
   Search,
   Sparkles,
   Command,
-  Flame,
-  Calendar
 } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { NotificationDropdown } from './NotificationDropdown';

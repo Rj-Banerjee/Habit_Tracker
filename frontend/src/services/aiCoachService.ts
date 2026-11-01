@@ -155,7 +155,7 @@ export const aiCoachService = {
   /**
    * Trigger proactive activity check
    */
-  async triggerProactiveCheck(slot?: '12pm' | '9pm'): Promise<any> {
+  async triggerProactiveCheck(slot?: '12pm' | '9pm'): Promise<unknown> {
     return ApiClient.post('/ai/proactive-check', { slot });
   },
 };

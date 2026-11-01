@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Check, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Check, Flame } from 'lucide-react';
 import { DailyHabit, MonthCalendar } from '../../types';
 import { WEEK_CHECKBOX_THEMES } from './CheckboxCell';
 

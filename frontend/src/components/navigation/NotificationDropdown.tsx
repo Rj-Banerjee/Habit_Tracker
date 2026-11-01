@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Flame, CheckCircle, Sparkles, X } from 'lucide-react';
+import { Bell, Flame, CheckCircle, Sparkles } from 'lucide-react';
 
 interface NotificationItem {
   id: string;

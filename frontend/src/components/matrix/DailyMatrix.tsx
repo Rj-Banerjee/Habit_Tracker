@@ -14,9 +14,9 @@ interface DailyMatrixProps {
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
   onToggle: (habitId: string, dateKey: string) => void;
-  onAddHabit: (title: string, goalDays: number) => Promise<any>;
-  onUpdateHabit: (id: string, title?: string, goalDays?: number) => Promise<any>;
-  onDeleteHabit: (id: string) => Promise<any>;
+  onAddHabit: (title: string, goalDays: number) => Promise<unknown>;
+  onUpdateHabit: (id: string, title?: string, goalDays?: number) => Promise<unknown>;
+  onDeleteHabit: (id: string) => Promise<unknown>;
 }
 
 export const DailyMatrix: React.FC<DailyMatrixProps> = ({

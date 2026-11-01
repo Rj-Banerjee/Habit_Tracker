@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 interface RequestOptions extends RequestInit {
-  data?: any;
+  data?: unknown;
 }
 
 export class ApiClient {
@@ -14,7 +14,7 @@ export class ApiClient {
       if (token) {
         return { Authorization: `Bearer ${token}` };
       }
-    } catch (e) {
+    } catch {
       // Supabase unconfigured or offline
     }
 
@@ -22,7 +22,7 @@ export class ApiClient {
     return { Authorization: 'Bearer dev-mock-token' };
   }
 
-  static async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  static async request<T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const authHeaders = await this.getAuthHeader();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -58,19 +58,19 @@ export class ApiClient {
     return json.data !== undefined ? json.data : json;
   }
 
-  static get<T = any>(endpoint: string, options?: RequestOptions) {
+  static get<T = unknown>(endpoint: string, options?: RequestOptions) {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  static post<T = any>(endpoint: string, data?: any, options?: RequestOptions) {
+  static post<T = unknown>(endpoint: string, data?: unknown, options?: RequestOptions) {
     return this.request<T>(endpoint, { ...options, method: 'POST', data });
   }
 
-  static patch<T = any>(endpoint: string, data?: any, options?: RequestOptions) {
+  static patch<T = unknown>(endpoint: string, data?: unknown, options?: RequestOptions) {
     return this.request<T>(endpoint, { ...options, method: 'PATCH', data });
   }
 
-  static delete<T = any>(endpoint: string, options?: RequestOptions) {
+  static delete<T = unknown>(endpoint: string, options?: RequestOptions) {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
 }

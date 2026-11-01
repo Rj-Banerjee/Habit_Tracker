@@ -27,7 +27,7 @@ export function useHabits(year: number, month: number) {
       setWeeklyHabits(weeklyData);
       setMonthlyHabits(monthlyData);
       setReflection(reflectionData);
-    } catch (err) {
+    } catch {
       error('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -115,7 +115,7 @@ export function useHabits(year: number, month: number) {
 
     try {
       await habitService.toggleWeeklyHabit(id);
-    } catch (err) {
+    } catch {
       // rollback
       setWeeklyHabits((prev) =>
         prev.map((w) => (w.id === id ? { ...w, is_completed: !w.is_completed } : w))
@@ -153,7 +153,7 @@ export function useHabits(year: number, month: number) {
 
     try {
       await habitService.toggleMonthlyHabit(id);
-    } catch (err) {
+    } catch {
       setMonthlyHabits((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_completed: !m.is_completed } : m))
       );
@@ -177,7 +177,7 @@ export function useHabits(year: number, month: number) {
       const saved = await habitService.saveReflection(month, year, content);
       setReflection(saved);
       success('Reflection saved');
-    } catch (err) {
+    } catch {
       error('Failed to save reflection');
     }
   };
@@ -187,7 +187,7 @@ export function useHabits(year: number, month: number) {
       const result = await habitService.autoGenerateReflection(month, year);
       setReflection({ month, year, content: result.content });
       success('Generated reflection review ✨');
-    } catch (err) {
+    } catch {
       error('Could not auto-generate reflection');
     }
   };

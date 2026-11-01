@@ -13,9 +13,6 @@ import {
   BarChart2,
   BatteryCharging,
   Bot,
-  User,
-  ShieldAlert,
-  ArrowRight
 } from 'lucide-react';
 import { aiCoachService } from '../../services/aiCoachService';
 import { ChatMessage, ToolExecutionRecord } from '../../types';

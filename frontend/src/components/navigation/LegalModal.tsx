@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, ShieldCheck, FileText, HelpCircle, ExternalLink } from 'lucide-react';
+import { X, ShieldCheck, FileText, HelpCircle } from 'lucide-react';
 
 interface LegalModalProps {
   isOpen: boolean;

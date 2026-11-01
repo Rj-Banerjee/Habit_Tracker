@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Bot, Flame } from 'lucide-react';
+import { Sparkles, Flame } from 'lucide-react';
 
 interface AICoachTriggerProps {
   onClick: () => void;

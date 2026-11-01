@@ -114,12 +114,18 @@ export interface MonthCalendar {
 }
 
 // AI Coach Types
+export interface ChatMessageMetadata {
+  type?: string;
+  slot?: string;
+  toolsExecuted?: ToolExecutionRecord[];
+}
+
 export interface ChatMessage {
   id: string;
   userId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  metadata?: Record<string, any> | null;
+  metadata?: ChatMessageMetadata | null;
   createdAt: string;
 }
 
@@ -133,8 +139,8 @@ export interface CoachProfile {
 
 export interface ToolExecutionRecord {
   tool: 'getDailyHabits' | 'toggleHabitLog' | 'scaleHabitTarget';
-  args: Record<string, any>;
-  result: Record<string, any>;
+  args: { habitId: string; date: string; status: boolean; newGoal: number };
+  result: Record<string, unknown>;
 }
 
 export interface AIChatResponse {

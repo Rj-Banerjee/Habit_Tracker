@@ -11,7 +11,6 @@ import {
   CalendarCheck,
   LogOut,
   Check,
-  Sparkles,
   Zap
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -111,7 +110,7 @@ export const ProfileSettingsDrawer: React.FC<ProfileSettingsDrawerProps> = ({
       URL.revokeObjectURL(url);
 
       success('Habit data exported to CSV successfully!');
-    } catch (err) {
+    } catch {
       // fallback
     }
   };
@@ -127,7 +126,7 @@ export const ProfileSettingsDrawer: React.FC<ProfileSettingsDrawerProps> = ({
         'METHOD:PUBLISH',
       ];
 
-      habits.forEach((h, idx) => {
+      habits.forEach((h) => {
         const now = new Date();
         const startStr = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
         icsLines.push('BEGIN:VEVENT');
