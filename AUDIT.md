@@ -707,15 +707,19 @@ Superseded by the pure rebuild below. There is no nightly job yet, because `pg_c
 - New migration `20261101000400_pure_grace_days.sql` rebuilds Grace Days from the first day whenever logs or settings change. `grace_days` is now a stored copy of that result.
 - Mode changes are stored with dates in `tracker.mode_history`, so each day is judged by the mode in force on it.
 - A repair brings Grace Days up to date before deciding, so its answer doesn't depend on whether anything read first.
-- A habit's first scheduled days are still compared with its `starts_on`, and changing timezone can reopen a day if its window is open again in the new timezone.
+- Changing timezone can reopen a day if its window is open again in the new timezone. Its Grace Day outcome then waits until that window closes.
 - `PLAN.md` now has the final rules on repaired and protected days, plus the definitions for habit unlocks, identity score and the Compound Forecaster.
 
 **Results**
 
-- 149 database tests passing. New tests prove the same history gives the same result when read once, daily or out of order, and that stored Grace Days can be deleted and rebuilt exactly.
+- 147 database tests passing. New tests prove the same history gives the same result when read once, daily or out of order, and that stored Grace Days can be deleted and rebuilt exactly.
 - With a year of logs across 5 habits, a rebuild takes about 0.85 seconds and an unchanged read about 2 ms. Rebuilds happen about once a day or after a repair, not on every log.
 
 **Known gap**
 
 Editing a habit's schedule currently applies to its whole history, because schedules aren't dated. Changing Mon/Thu to daily would turn past unscheduled days into misses. This needs fixing before the habit editing screen ships.
 
+**Applied to the live database**
+
+- The local tests passed, and the dry run listed one migration, which was then pushed.
+- All 25 live checks passed using temporary users that were then deleted, including a mode change followed by a streak read.
