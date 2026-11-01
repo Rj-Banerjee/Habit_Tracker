@@ -19,6 +19,10 @@ export interface VoiceOutcome {
 
 type Api = Pick<TrackerApi, 'logHabit' | 'skipHabit' | 'getToday'>;
 
+// Undo must work when the AI doesn't, so these never leave the phone.
+export const isUndoPhrase = (text: string) =>
+  /^(please )?(undo|take (that|it) back)( that| it| the last one)?( please)?[.!]?$/i.test(text.trim());
+
 const todayRow = (rows: TodayRow[], habitId: string) =>
   rows.find((row) => row.habit_id === habitId && row.is_today) ??
   rows.find((row) => row.habit_id === habitId);

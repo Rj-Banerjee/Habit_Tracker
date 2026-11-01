@@ -948,3 +948,23 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** a real Gemini 429. 30 concurrent calls all succeeded, so backoff is tested only against Google's documented error shapes. The Ollama adapter is tested against a fake server, because Ollama isn't installed here.
 
+### Coach and voice screens (1 Nov 2026)
+
+**Changed**
+
+- Mobile gets Today and You tabs. You shows the email and signs out after a confirmation, and the rest of the tab is placeholders.
+- Today gets coach cards, made on the device with no AI call, and a coach drawer with streaming replies and two chips: "Quick log my day" and "I feel burned out".
+- Voice: a sheet with hold-to-talk, spoken and visual confirmation, an `ask_which` question when two habits match, an offer to add a habit when nothing matches, and a 10-second undo. Plain "undo" phrases are handled on the device, so undo works when the AI doesn't.
+- New migration `20261102000200_ai_counters_and_coach_events.sql`. Rate-limit counters move to `tracker.ai_counters` and survive restarts. Chats go to `coach_events` with their source, turn count and outcome, never their words. Only the service's secret key can reach either. Voice logs are recorded as `ai_assisted`.
+- `npm run ai` starts the service for a phone on the same Wi-Fi and writes `EXPO_PUBLIC_AI_URL` to `mobile/.env`.
+
+**Checked**
+
+- Typecheck, lint and the static build pass. Tests: core 172, web 26, mobile and UI 373, AI service 77, database 284.
+- 23 browser checks on Expo web with local Supabase and real Gemini, using made-up data: hold-to-talk with a simulated microphone, the clarifying question, undo by banner and by voice, the coach, limits across a service restart, the service being down, sign out, and an account not on the test list.
+- Live push followed the usual procedure. 19 checks with temporary users passed, and those users were deleted.
+
+**Bugs the browser run found:** the coach drawer collapsed to nothing when opened from a voice question, because a safe-area provider measured itself mid-animation. The tab bar didn't expose its selected tab on web.
+
+**Not checked:** hold-to-talk on a real phone. It needs a development build, because `expo-speech-recognition` isn't in Expo Go, and this Mac has no Xcode. Expo Go uses the text box and the keyboard's mic instead.
+

@@ -19,7 +19,8 @@ Rules:
 - If two or more habits could equally be what they meant, don't guess: call ask_which \
 with those refs and the action they wanted.
 - One sentence can mention several habits. Make one call for each.
-- A question or a request for advice is ask_coach.
+- ask_coach is only for a real question or a clear request for advice. Saying they \
+did something that isn't in the list is not a question: call nothing.
 - "Just the small version" or "only a little" is shrink_habit.
 - An amount such as "20 pages" is log_amount."""
 

@@ -37,7 +37,7 @@ def describe(error: LLMError) -> tuple[int, str, str, int | None]:
     if isinstance(error, Refused):
         return 422, "refused", REFUSED, None
     # Details stay in our log. A bad key isn't something the user can act on.
-    log.warning("AI call failed: %s", type(error).__name__)
+    log.warning("AI call failed: %s: %s", type(error).__name__, error)
     return 503, "unavailable", UNAVAILABLE, None
 
 

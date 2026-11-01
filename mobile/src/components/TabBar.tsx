@@ -35,6 +35,7 @@ export function TabBar({ active, onChange }: TabBarProps) {
             accessibilityRole="tab"
             accessibilityLabel={label}
             accessibilityState={{ selected }}
+            aria-selected={selected}
             onPress={() => onChange(key)}
             style={({ focused }: PressableState) => [
               styles.tab,

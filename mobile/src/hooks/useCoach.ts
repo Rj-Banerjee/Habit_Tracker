@@ -10,6 +10,7 @@ export function useCoach() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [replying, setReplying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(true);
   // A state update comes too late to stop a double tap.
   const busy = useRef(false);
 
@@ -27,6 +28,7 @@ export function useCoach() {
       }
     } catch (err) {
       setNotice(err instanceof CoachError ? err.message : FALLBACK);
+      setCanRetry(!(err instanceof CoachError && err.code === 'test_only'));
     } finally {
       busy.current = false;
       setReplying(false);
@@ -42,5 +44,5 @@ export function useCoach() {
     if (last >= 0) void ask(turns.slice(0, last + 1), 'chat');
   };
 
-  return { turns, replying, notice, send, retry };
+  return { turns, replying, notice, canRetry, send, retry };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TodayRow } from './api';
 import { VoiceQuestion } from './ai';
-import { answerWhich, isVoiceAction, runVoiceAction, whichQuestion } from './voice';
+import { answerWhich, isUndoPhrase, isVoiceAction, runVoiceAction, whichQuestion } from './voice';
 
 const row = (patch: Partial<TodayRow> = {}) =>
   ({
@@ -86,6 +86,17 @@ describe('runVoiceAction', () => {
     await runVoiceAction(tracker, { intent: 'log_habit', ...read }, []);
     expect(tracker.logHabit).toHaveBeenCalledWith('h1', null, 'full', null, 'voice');
   });
+});
+
+describe('isUndoPhrase', () => {
+  it.each(['undo', 'Undo that', 'undo that.', 'undo it', 'take that back', 'please undo that'])(
+    'hears %s',
+    (text) => expect(isUndoPhrase(text)).toBe(true)
+  );
+
+  it.each(['undo my run and log my walk', 'I read', 'undone', ''])('leaves %s to the parser', (text) =>
+    expect(isUndoPhrase(text)).toBe(false)
+  );
 });
 
 describe('which one', () => {

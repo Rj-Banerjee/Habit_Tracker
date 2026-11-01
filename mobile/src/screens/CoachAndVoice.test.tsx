@@ -202,6 +202,7 @@ describe('coach drawer', () => {
     await press('Ask coach');
     await press('I feel burned out');
     expect(screen.getByText('Coach is only open to test accounts for now.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
   it('never shows a raw failure', async () => {
@@ -247,6 +248,16 @@ describe('voice', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
   });
 
+  it('keeps the undo on offer when it fails', async () => {
+    api.undoLog.mockRejectedValueOnce(new Error('offline'));
+    await open();
+    await said('I read', [{ intent: 'log_habit', ...read }]);
+    await press('Undo');
+    expect(screen.getByText("That couldn't be undone. Try again.")).toBeTruthy();
+    await press('Undo');
+    expect(api.undoLog).toHaveBeenCalledTimes(2);
+  });
+
   it('takes the undo away after 10 seconds', async () => {
     await open();
     await said('I read', [{ intent: 'log_habit', ...read }]);
@@ -269,6 +280,17 @@ describe('voice', () => {
     await said('undo that', [{ intent: 'undo_last' }]);
     expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-02');
     expect(speak).toHaveBeenLastCalledWith('Undone.');
+  });
+
+  it('undoes without the AI, so it works when the AI is down', async () => {
+    await open();
+    await said('I read', [{ intent: 'log_habit', ...read }]);
+    coachApi.parseVoice.mockClear();
+    await press('Log by voice');
+    await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'Undo that');
+    await press('Log it');
+    expect(coachApi.parseVoice).not.toHaveBeenCalled();
+    expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-02');
   });
 
   it('says so when there is nothing to undo', async () => {

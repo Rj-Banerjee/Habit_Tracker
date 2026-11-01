@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import {
   answerWhich,
   CoachError,
+  isUndoPhrase,
   isVoiceAction,
   runVoiceAction,
   TodayRow,
@@ -72,9 +73,10 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
     try {
       for (const { habitId, date } of logged) await tracker.undoLog(habitId, date);
       speak('Undone.');
-    } catch (err) {
+    } catch {
+      // The sheet may be closed by now, so this goes where it will be seen.
       lastLogged.current = logged;
-      setProblem((err as Error).message);
+      setBanner({ id: nextBanner.current++, text: "That couldn't be undone. Try again." });
     }
     void refresh();
   };
@@ -87,6 +89,12 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
   const submit = async (transcript: string) => {
     const text = transcript.trim();
     if (!text) return;
+    if (isUndoPhrase(text)) {
+      reset();
+      onClose();
+      await undo();
+      return;
+    }
     setPhase('working');
     setProblem(null);
     try {
