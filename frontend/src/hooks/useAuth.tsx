@@ -21,15 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check initial active session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email ?? '' });
-      } else {
-        // Fallback demo user for immediate development/exploration
-        setUser({ id: '00000000-0000-0000-0000-000000000001', email: 'demo@habittracker.com' });
-      }
+      setUser(session?.user ? { id: session.user.id, email: session.user.email ?? '' } : null);
       setLoading(false);
     }).catch(() => {
-      setUser({ id: '00000000-0000-0000-0000-000000000001', email: 'demo@habittracker.com' });
+      setUser(null);
       setLoading(false);
     });
 
@@ -63,7 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } },
+      });
       if (error) return { error };
       if (data.user) {
         setUser({ id: data.user.id, email: data.user.email ?? '' });

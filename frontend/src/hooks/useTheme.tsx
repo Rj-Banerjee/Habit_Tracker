@@ -14,7 +14,6 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Check saved preference or system preference
@@ -27,7 +26,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeState(prefersDark ? 'dark' : 'light');
       document.documentElement.classList.toggle('dark', prefersDark);
     }
-    setMounted(true);
   }, []);
 
   const setTheme = (t: Theme) => {

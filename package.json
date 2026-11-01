@@ -1,14 +1,14 @@
 {
   "name": "aesthetic-habit-tracker-fullstack",
   "version": "2.0.0",
-  "description": "Enterprise Full-Stack Habit Tracking Dashboard (Next.js TypeScript + Express + Supabase + Prisma)",
+  "description": "Mobile-first habit tracker (Next.js, Supabase)",
   "scripts": {
-    "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
-    "build:backend": "cd backend && npm run build",
-    "build:frontend": "cd frontend && npm run build",
-    "prisma:generate": "cd backend && npx prisma generate",
-    "prisma:migrate": "cd backend && npx prisma migrate dev",
-    "prisma:studio": "cd backend && npx prisma studio"
+    "lint": "cd frontend && npm run lint",
+    "test": "cd frontend && npm test && cd ../mobile && npm test -- --watchAll=false",
+    "typecheck": "cd frontend && npx tsc --noEmit && cd ../mobile && npm run typecheck",
+    "dev": "cd frontend && npm run dev",
+    "test:db": "supabase test db",
+    "build": "cd frontend && npm run build",
+    "mobile": "cd mobile && npx expo start"
   }
 }

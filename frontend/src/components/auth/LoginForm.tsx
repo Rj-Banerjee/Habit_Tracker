@@ -35,14 +35,6 @@ export const LoginForm: React.FC = () => {
     }
   };
 
-  const handleDemoSignIn = async () => {
-    setEmail('demo@habittracker.com');
-    setPassword('DemoPass123!');
-    setLoading(true);
-    // Instant login for demo
-    router.push('/');
-  };
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {errorMsg && (
@@ -76,24 +68,6 @@ export const LoginForm: React.FC = () => {
         disabled={loading}
       >
         {loading ? 'Signing in...' : 'Sign In'}
-      </Button>
-
-      <div className="relative my-2 text-center">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200" />
-        </div>
-        <span className="relative bg-white px-2 text-xs text-slate-400 uppercase font-medium">
-          or
-        </span>
-      </div>
-
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={handleDemoSignIn}
-        className="w-full border-dashed border-blue-300 text-blue-700 hover:bg-blue-50/60"
-      >
-        Explore in Demo Mode (1-Click)
       </Button>
     </form>
   );

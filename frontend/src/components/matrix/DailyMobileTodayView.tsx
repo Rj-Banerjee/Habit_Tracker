@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Check, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
-import { DailyHabit, MonthCalendar } from '../../types';
+import { Plus, Check, Flame } from 'lucide-react';
+import { Habit, MonthCalendar } from '../../types';
 import { WEEK_CHECKBOX_THEMES } from './CheckboxCell';
 
 interface DailyMobileTodayViewProps {
-  habits: DailyHabit[];
+  habits: Habit[];
+  streaks: Record<string, number>;
   calendar: MonthCalendar;
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
@@ -16,6 +17,7 @@ interface DailyMobileTodayViewProps {
 
 export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
   habits,
+  streaks,
   calendar,
   todayDateKey,
   isCompleted,
@@ -129,17 +131,7 @@ export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
           habits.map((habit) => {
             const done = isCompleted(habit.id, selectedDateKey);
 
-            // Calculate active streak for this habit
-            let streak = 0;
-            for (let d = (selectedDayInfo?.day || 1); d >= 1; d--) {
-              const pad = (n: number) => String(n).padStart(2, '0');
-              const dStr = `${calendar.year}-${pad(calendar.month)}-${pad(d)}`;
-              if (isCompleted(habit.id, dStr)) {
-                streak++;
-              } else {
-                break;
-              }
-            }
+            const streak = streaks[habit.id] ?? 0;
 
             return (
               <div
@@ -162,7 +154,6 @@ export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
                     {habit.title}
                   </span>
                   <div className="flex items-center gap-2.5 text-[11px] text-slate-400 dark:text-slate-500">
-                    <span>Goal: {habit.goal_days}d</span>
                     {streak > 0 && (
                       <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
                         <Flame className="w-3 h-3 fill-current" />

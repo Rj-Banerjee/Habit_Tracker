@@ -27,8 +27,8 @@ export const RegisterForm: React.FC = () => {
       setErrorMsg('Passwords do not match.');
       return;
     }
-    if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    if (password.length < 8) {
+      setErrorMsg('Password must be at least 8 characters long.');
       return;
     }
 
@@ -78,7 +78,7 @@ export const RegisterForm: React.FC = () => {
         placeholder="••••••••"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        helperText="Minimum 6 characters"
+        helperText="Minimum 8 characters"
         required
       />
 

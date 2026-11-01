@@ -3,21 +3,23 @@
 import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { CheckboxCell } from './CheckboxCell';
-import { DailyHabit, DayCalendarInfo } from '../../types';
+import { Habit, DayCalendarInfo } from '../../types';
 
 interface HabitRowProps {
-  habit: DailyHabit;
+  habit: Habit;
+  streak: number;
   index: number;
   days: DayCalendarInfo[];
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
   onToggle: (habitId: string, dateKey: string) => void;
-  onEdit: (habit: DailyHabit) => void;
+  onEdit: (habit: Habit) => void;
   onDelete: (habitId: string) => void;
 }
 
 export const HabitRow: React.FC<HabitRowProps> = ({
   habit,
+  streak,
   index,
   days,
   todayDateKey,
@@ -26,25 +28,13 @@ export const HabitRow: React.FC<HabitRowProps> = ({
   onEdit,
   onDelete,
 }) => {
-  let completedCount = 0;
-  let longestStreak = 0;
-  let tempStreak = 0;
+  const completedCount = days.filter((d) => isCompleted(habit.id, d.dateKey)).length;
 
-  days.forEach((d) => {
-    if (isCompleted(habit.id, d.dateKey)) {
-      completedCount++;
-      tempStreak++;
-      if (tempStreak > longestStreak) {
-        longestStreak = tempStreak;
-      }
-    } else {
-      tempStreak = 0;
+  const handleDelete = () => {
+    if (window.confirm(`Delete "${habit.title}" and all of its logs?`)) {
+      onDelete(habit.id);
     }
-  });
-
-  const goal = habit.goal_days > 0 ? habit.goal_days : days.length;
-  const pct = Math.round((completedCount / goal) * 100);
-  const barWidth = Math.min(pct, 100);
+  };
 
   return (
     <tr className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group">
@@ -68,7 +58,7 @@ export const HabitRow: React.FC<HabitRowProps> = ({
               <Pencil className="w-3 h-3" />
             </button>
             <button
-              onClick={() => onDelete(habit.id)}
+              onClick={handleDelete}
               className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
               title="Delete habit"
             >
@@ -102,34 +92,14 @@ export const HabitRow: React.FC<HabitRowProps> = ({
         );
       })}
 
-      {/* Target Goal */}
-      <td className="text-center text-xs font-medium text-slate-500 dark:text-slate-400 py-3">
-        {goal}
-      </td>
-
-      {/* Percentage Progress Bar */}
-      <td className="px-3 py-3 w-[100px]">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 w-8 text-right">
-            {pct}%
-          </span>
-          <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-300"
-              style={{ width: `${barWidth}%` }}
-            />
-          </div>
-        </div>
-      </td>
-
       {/* Count */}
       <td className="text-center text-xs font-bold text-slate-800 dark:text-slate-200 py-3">
-        {completedCount} <span className="font-normal text-slate-400 dark:text-slate-500">/ {goal}</span>
+        {completedCount}
       </td>
 
-      {/* Longest Streak */}
+      {/* Current Streak */}
       <td className="text-center text-xs font-bold text-amber-600 dark:text-amber-400 py-3">
-        {longestStreak}
+        {streak}
       </td>
     </tr>
   );
