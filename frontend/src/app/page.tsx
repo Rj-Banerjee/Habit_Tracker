@@ -26,11 +26,9 @@ function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   const calendar = getMonthCalendar(selectedYear, selectedMonth);
-  const { habits, loading, loadFailed, refresh, addHabit, renameHabit, deleteHabit } = useHabits(
-    selectedYear,
-    selectedMonth
-  );
-  const { isCompleted, toggleLog } = useOptimisticDailyLog(habits);
+  const { habits, streaks, loading, loadFailed, refresh, refreshStreaks, addHabit, renameHabit, deleteHabit } =
+    useHabits(selectedYear, selectedMonth);
+  const { isCompleted, toggleLog } = useOptimisticDailyLog(habits, refreshStreaks);
 
   const shiftMonth = (delta: number) => {
     const next = new Date(selectedYear, selectedMonth - 1 + delta, 1);
@@ -78,6 +76,7 @@ function Dashboard() {
           <>
             <DailyMatrix
               habits={habits}
+              streaks={streaks}
               calendar={calendar}
               todayDateKey={today.dateKey}
               isCompleted={isCompleted}
@@ -88,6 +87,7 @@ function Dashboard() {
             />
             <DailyMobileTodayView
               habits={habits}
+              streaks={streaks}
               calendar={calendar}
               todayDateKey={today.dateKey}
               isCompleted={isCompleted}

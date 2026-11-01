@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Habit, StreakMode } from '../types';
+import { Habit, HabitStreak, StreakMode } from '../types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -55,23 +55,16 @@ export const trackerService = {
   },
 
   async setLog(habitId: string, date: string, done: boolean): Promise<void> {
-    if (done) {
-      const { error } = await supabase
-        .from('habit_logs')
-        .upsert(
-          { habit_id: habitId, date, status: 'done', level_done: 'full' },
-          { onConflict: 'habit_id,date' }
-        );
-      if (error) throw error;
-      return;
-    }
-
-    const { error } = await supabase
-      .from('habit_logs')
-      .delete()
-      .eq('habit_id', habitId)
-      .eq('date', date);
+    const { error } = done
+      ? await supabase.rpc('log_habit', { p_habit_id: habitId, p_date: date })
+      : await supabase.rpc('undo_log', { p_habit_id: habitId, p_date: date });
     if (error) throw error;
+  },
+
+  async getStreaks(): Promise<HabitStreak[]> {
+    const { data, error } = await supabase.rpc('get_streaks');
+    if (error) throw error;
+    return data;
   },
 
   async getMode(): Promise<StreakMode> {

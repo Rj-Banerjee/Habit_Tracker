@@ -10,19 +10,26 @@ export function useHabits(year: number, month: number) {
   const { user } = useAuth();
   const { success, error } = useToast();
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [streaks, setStreaks] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
 
+  const refreshStreaks = useCallback(async () => {
+    const rows = await trackerService.getStreaks();
+    setStreaks(Object.fromEntries(rows.map((row) => [row.habit_id, row.current_streak])));
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
-      setHabits(await trackerService.listHabits(year, month));
+      const [loaded] = await Promise.all([trackerService.listHabits(year, month), refreshStreaks()]);
+      setHabits(loaded);
       setLoadFailed(false);
     } catch {
       setLoadFailed(true);
     } finally {
       setLoading(false);
     }
-  }, [year, month]);
+  }, [year, month, refreshStreaks]);
 
   useEffect(() => {
     refresh();
@@ -57,5 +64,5 @@ export function useHabits(year: number, month: number) {
     }
   };
 
-  return { habits, loading, loadFailed, refresh, addHabit, renameHabit, deleteHabit };
+  return { habits, streaks, loading, loadFailed, refresh, refreshStreaks, addHabit, renameHabit, deleteHabit };
 }

@@ -7,6 +7,7 @@ import { WEEK_CHECKBOX_THEMES } from './CheckboxCell';
 
 interface DailyMobileTodayViewProps {
   habits: Habit[];
+  streaks: Record<string, number>;
   calendar: MonthCalendar;
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
@@ -16,6 +17,7 @@ interface DailyMobileTodayViewProps {
 
 export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
   habits,
+  streaks,
   calendar,
   todayDateKey,
   isCompleted,
@@ -129,17 +131,7 @@ export const DailyMobileTodayView: React.FC<DailyMobileTodayViewProps> = ({
           habits.map((habit) => {
             const done = isCompleted(habit.id, selectedDateKey);
 
-            // Calculate active streak for this habit
-            let streak = 0;
-            for (let d = (selectedDayInfo?.day || 1); d >= 1; d--) {
-              const pad = (n: number) => String(n).padStart(2, '0');
-              const dStr = `${calendar.year}-${pad(calendar.month)}-${pad(d)}`;
-              if (isCompleted(habit.id, dStr)) {
-                streak++;
-              } else {
-                break;
-              }
-            }
+            const streak = streaks[habit.id] ?? 0;
 
             return (
               <div

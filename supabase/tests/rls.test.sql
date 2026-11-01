@@ -103,7 +103,7 @@ select throws_ok(
 );
 select throws_ok(
   $$insert into public.habit_logs (habit_id, date, level_done, status) values ('b0000000-0000-4000-8000-000000000002', '2026-11-02', 'full', 'done')$$,
-  '42501', null, 'user A cannot log against user B''s habit'
+  '42501', null, 'user A cannot write to user B''s logs'
 );
 select throws_ok(
   $$update public.users set settled_through = '2030-01-01' where id = '11111111-1111-4111-8111-111111111111'$$,

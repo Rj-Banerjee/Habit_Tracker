@@ -21,6 +21,13 @@ export interface Habit {
   habit_logs: HabitLog[];
 }
 
+export interface HabitStreak {
+  habit_id: string;
+  current_streak: number;
+  longest_streak: number;
+  today_status: string;
+}
+
 export interface DayCalendarInfo {
   day: number;
   letter: string;

@@ -5,7 +5,7 @@ import { trackerService } from '../services/trackerService';
 import { useToast } from './useToast';
 import { Habit } from '../types';
 
-export function useOptimisticDailyLog(habits: Habit[]) {
+export function useOptimisticDailyLog(habits: Habit[], onSaved: () => void) {
   const [logMap, setLogMap] = useState<Record<string, boolean>>({});
   const { error } = useToast();
 
@@ -46,12 +46,13 @@ export function useOptimisticDailyLog(habits: Habit[]) {
 
       try {
         await trackerService.setLog(habitId, dateKey, !previous);
+        onSaved();
       } catch (err) {
         setKey(key, previous);
         error(`Couldn't save ${dateKey}: ${(err as Error).message}`);
       }
     },
-    [logMap, error]
+    [logMap, onSaved, error]
   );
 
   return { isCompleted, toggleLog };

@@ -642,3 +642,48 @@ No Anthropic, OpenAI or Google keys, JWTs, or `.env` files appear anywhere in hi
 - Offline idempotency keys, needed for the offline queue.
 - Rate-limit and AI cost tracking, for item 6.
 
+**Applied to the live database**
+
+- The local reset and tests passed, and the dry run listed one migration, `20261101000200_core_schema.sql`, which was then pushed.
+- All 25 live checks passed, using temporary users that were then deleted. Client reads and writes work, and the publishable key can't read other users' rows.
+- The advisor raised one new warning, a missing `search_path` on `is_valid_timezone`, fixed in the next migration.
+
+### Step 2 item 4: core tracker logic (1 Nov 2026)
+
+**Changed**
+
+- New migration `20261101000300_tracker_logic.sql` puts every rule from `PLAN.md`'s Streak rules section into SQL, in a private `tracker` schema.
+- Those functions take the current time as a parameter, so tests can control it. Clients only reach thin wrappers that use the real clock: `log_habit`, `skip_habit`, `undo_log`, `repair_habit`, `get_streaks`, `get_grace_bank` and `get_day_statuses`.
+- Clients can no longer write `habit_logs` directly, so nothing can skip the rules.
+- "Today" and the back-log window use the timezone on the profile. The window is exactly 24 elapsed hours, including across clock changes.
+- The web app logs through the API, and shows the streak computed in SQL. Streaks now cross month boundaries, and an unlogged today no longer shows 0.
+
+**Results**
+
+| Check | Result |
+| --- | --- |
+| Streak rule tests | 98 of 98 passing |
+| Access tests | 30 of 30 passing |
+| Frontend tests | 10 passing |
+| Typecheck, build, production `npm audit` | Pass, 0 vulnerabilities |
+| Lint | 0 errors, 3 warnings |
+
+The tests cover every rule, plus each requested case: a Mon/Thu habit repaired across the gap, two misses in a row, a 3rd skip covered by a Grace Day, back-logging one second before the window closes and refused at the moment it closes, and timezone changes in both directions.
+
+**Decisions made where the rules were silent**
+
+| Case | What the code does |
+| --- | --- |
+| A protected day during the 7-day Grace Day count | Resets the count, because the habit wasn't completed and only skips are defined as pausing it |
+| Bank already at 3 when a Grace Day is earned | The new one is discarded |
+| A day with more misses than Grace Days | Covers the oldest habit first |
+| A miss with no streak running | Spends no Grace Day, because nothing would break |
+| A repair made before the missed day's window closes | Allowed, and it saves the Grace Day that would otherwise be spent |
+| Changing mode | Applies to days settled from then on, and doesn't rewrite the past |
+| A count or duration repair | Uses the full level's target if it has one, otherwise the habit's target |
+| A repair on a `quit` habit | Uses the yes/no rule |
+
+**How Grace Days get applied**
+
+Grace Days are earned and spent when a day is settled, which happens whenever a client reads streaks. There is no nightly job yet, because `pg_cron` isn't enabled. A nudge or widget that reads the database without going through these functions could see out-of-date Grace Day state.
+

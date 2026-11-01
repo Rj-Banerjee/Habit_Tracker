@@ -7,6 +7,7 @@ import { Habit, DayCalendarInfo } from '../../types';
 
 interface HabitRowProps {
   habit: Habit;
+  streak: number;
   index: number;
   days: DayCalendarInfo[];
   todayDateKey: string;
@@ -18,6 +19,7 @@ interface HabitRowProps {
 
 export const HabitRow: React.FC<HabitRowProps> = ({
   habit,
+  streak,
   index,
   days,
   todayDateKey,
@@ -26,21 +28,7 @@ export const HabitRow: React.FC<HabitRowProps> = ({
   onEdit,
   onDelete,
 }) => {
-  let completedCount = 0;
-  let longestStreak = 0;
-  let tempStreak = 0;
-
-  days.forEach((d) => {
-    if (isCompleted(habit.id, d.dateKey)) {
-      completedCount++;
-      tempStreak++;
-      if (tempStreak > longestStreak) {
-        longestStreak = tempStreak;
-      }
-    } else {
-      tempStreak = 0;
-    }
-  });
+  const completedCount = days.filter((d) => isCompleted(habit.id, d.dateKey)).length;
 
   const handleDelete = () => {
     if (window.confirm(`Delete "${habit.title}" and all of its logs?`)) {
@@ -109,9 +97,9 @@ export const HabitRow: React.FC<HabitRowProps> = ({
         {completedCount}
       </td>
 
-      {/* Longest Streak */}
+      {/* Current Streak */}
       <td className="text-center text-xs font-bold text-amber-600 dark:text-amber-400 py-3">
-        {longestStreak}
+        {streak}
       </td>
     </tr>
   );

@@ -10,6 +10,7 @@ import { Habit, MonthCalendar } from '../../types';
 
 interface DailyMatrixProps {
   habits: Habit[];
+  streaks: Record<string, number>;
   calendar: MonthCalendar;
   todayDateKey: string;
   isCompleted: (habitId: string, dateKey: string) => boolean;
@@ -21,6 +22,7 @@ interface DailyMatrixProps {
 
 export const DailyMatrix: React.FC<DailyMatrixProps> = ({
   habits,
+  streaks,
   calendar,
   todayDateKey,
   isCompleted,
@@ -143,7 +145,7 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
               <th rowSpan={2} className="w-16 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2">
                 Done
               </th>
-              <th rowSpan={2} className="w-20 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2" title="Longest active streak in days">
+              <th rowSpan={2} className="w-20 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 py-2" title="Current streak">
                 Streak
               </th>
             </tr>
@@ -195,6 +197,7 @@ export const DailyMatrix: React.FC<DailyMatrixProps> = ({
                 <HabitRow
                   key={habit.id}
                   habit={habit}
+                  streak={streaks[habit.id] ?? 0}
                   index={index}
                   days={calendar.days}
                   todayDateKey={todayDateKey}
