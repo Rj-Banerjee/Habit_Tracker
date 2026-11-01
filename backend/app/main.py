@@ -1,0 +1,180 @@
+import json
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Literal
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
+
+from . import coach, voice
+from .auth import CurrentUser, current_user
+from .config import Settings, get_settings
+from .data_policy import may_reach_provider
+from .llm import build_provider
+from .llm.base import LLMError, LLMProvider, Message, RateLimited, Refused
+from .rate_limit import UserLimits
+from .tracker import Tracker, TrackerUnavailable
+
+log = logging.getLogger("ai")
+
+BUSY = "Coach is busy, try again in a minute."
+OUT_FOR_TODAY = "Coach has run out of requests for today. Try again tomorrow."
+UNAVAILABLE = "Coach isn't available right now. Your habits still work as normal."
+REFUSED = "Coach can't help with that one. Try asking another way."
+TEST_ONLY = "Coach is only open to test accounts for now."
+TOO_MANY = "That's a lot of questions for one hour. Try again a bit later."
+
+
+def describe(error: LLMError) -> tuple[int, str, str, int | None]:
+    if isinstance(error, RateLimited):
+        message = OUT_FOR_TODAY if error.daily else BUSY
+        wait = round(error.retry_after) if error.retry_after else 60
+        return 429, "out_for_today" if error.daily else "busy", message, wait
+    if isinstance(error, Refused):
+        return 422, "refused", REFUSED, None
+    # Details stay in our log. A bad key isn't something the user can act on.
+    log.warning("AI call failed: %s", type(error).__name__)
+    return 503, "unavailable", UNAVAILABLE, None
+
+
+class Denied(Exception):
+    def __init__(self, status: int, code: str, message: str, retry_after: int | None = None):
+        self.args = (status, code, message, retry_after)
+
+
+def problem(status: int, code: str, message: str, retry_after: int | None = None) -> JSONResponse:
+    headers = {"Retry-After": str(retry_after)} if retry_after else None
+    return JSONResponse(
+        {"code": code, "message": message, "retry_after": retry_after},
+        status_code=status,
+        headers=headers,
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    app.state.provider = build_provider(settings)
+    app.state.limits = UserLimits()
+    yield
+
+
+app = FastAPI(title="Habit tracker AI service", lifespan=lifespan)
+
+
+def add_cors(settings: Settings) -> None:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ai_allowed_origins,
+        allow_methods=["POST", "GET"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
+
+
+add_cors(get_settings())
+
+
+def get_provider(request: Request) -> LLMProvider:
+    return request.app.state.provider
+
+
+@app.exception_handler(LLMError)
+async def on_llm_error(_: Request, error: LLMError) -> JSONResponse:
+    return problem(*describe(error))
+
+
+@app.exception_handler(Denied)
+async def on_denied(_: Request, error: Denied) -> JSONResponse:
+    return problem(*error.args)
+
+
+@app.exception_handler(TrackerUnavailable)
+async def on_tracker_error(_: Request, __: TrackerUnavailable) -> JSONResponse:
+    return problem(503, "unavailable", UNAVAILABLE)
+
+
+def admit(
+    request: Request, user: CurrentUser, settings: Settings, action: str, per_hour: int
+) -> None:
+    if not may_reach_provider(user, settings, request.app.state.provider):
+        raise Denied(403, "test_only", TEST_ONLY)
+    wait = request.app.state.limits.wait_needed(user.id, action, per_hour)
+    if wait:
+        raise Denied(429, "too_many", TOO_MANY, round(wait))
+
+
+class Turn(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[Turn] = Field(min_length=1, max_length=40)
+
+
+class VoiceRequest(BaseModel):
+    transcript: str = Field(min_length=1, max_length=500)
+
+
+@app.get("/health")
+async def health(settings: Settings = Depends(get_settings)) -> dict[str, str]:
+    return {"status": "ok", "provider": settings.ai_provider}
+
+
+def sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+@app.post("/coach/chat")
+async def coach_chat(
+    body: ChatRequest,
+    request: Request,
+    user: CurrentUser = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+    provider: LLMProvider = Depends(get_provider),
+):
+    admit(request, user, settings, "chat", settings.ai_user_chats_per_hour)
+    if body.messages[-1].role != "user":
+        raise HTTPException(422, "The last message must be from the user")
+
+    tracker = Tracker(settings, user)
+    try:
+        messages = [Message(turn.role, turn.text) for turn in body.messages]
+        stream = await coach.reply(provider, settings, tracker, messages)
+        # Wait for the first words, so a failure can still be a normal error response.
+        first = await anext(stream, None)
+    finally:
+        await tracker.close()
+
+    async def events() -> AsyncIterator[str]:
+        if first is not None:
+            yield sse({"type": "delta", "text": first})
+        try:
+            async for text in stream:
+                yield sse({"type": "delta", "text": text})
+        except LLMError as error:
+            _, code, message, retry_after = describe(error)
+            yield sse({"type": "error", "code": code, "message": message, "retry_after": retry_after})
+            return
+        yield sse({"type": "done"})
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.post("/voice/parse")
+async def voice_parse(
+    body: VoiceRequest,
+    request: Request,
+    user: CurrentUser = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+    provider: LLMProvider = Depends(get_provider),
+) -> dict:
+    admit(request, user, settings, "voice", settings.ai_user_voice_per_hour)
+    tracker = Tracker(settings, user)
+    try:
+        return {"intents": await voice.parse(provider, tracker, body.transcript)}
+    finally:
+        await tracker.close()

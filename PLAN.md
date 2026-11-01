@@ -40,7 +40,7 @@ Clients                     Backend                         External
 Mobile app (RN + Expo)  ->  Supabase (Postgres, Auth,
 Phone extensions        ->    Realtime; streak rules in SQL)
   (Siri, widgets, tile)         ^  reads logs / writes nudges
-Web app (Next.js)       ->  AI service (FastAPI)        ->  Claude API
+Web app (Next.js)       ->  AI service (FastAPI)        ->  LLM provider
                               coach, voice parser,      ->  Push (APNs, FCM)
                               nightly pattern jobs
 ```
@@ -53,7 +53,7 @@ The apps never call the LLM directly. Every AI request goes through the FastAPI 
 | Web | Next.js | Desktop grid and weekly review; shares types with mobile |
 | Data and auth | Supabase: Postgres, Auth, Realtime, Storage | Realtime keeps phone, widget and web in sync after a voice log |
 | AI service | FastAPI (Python) | Coach, voice intent parsing, nightly pattern jobs |
-| LLM | Claude API | Small model for voice parsing and nudges; larger model for chat and letters |
+| LLM | Provider-agnostic, chosen by config (`AI_PROVIDER`, `AI_MODEL_FAST`, `AI_MODEL_STRONG`): Gemini free tier in development, Ollama for offline tests, Anthropic adapter later | Fast model for voice parsing and nudges; stronger model for chat and letters |
 | Speech | On-device speech-to-text; Picovoice Porcupine for the custom wake word | Fast, works offline, no audio sent to servers |
 | Notifications | Expo Notifications (APNs and FCM) | Actionable notifications on both platforms |
 | Scheduled jobs | Supabase cron + FastAPI workers | Nightly patterns, Sunday letters, preemptive nudges |
@@ -61,7 +61,7 @@ The apps never call the LLM directly. Every AI request goes through the FastAPI 
 
 ## Data model
 
-Eight core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
+Nine core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
 
 | Table | Key fields | Notes |
 | --- | --- | --- |
@@ -73,6 +73,9 @@ Eight core tables in Postgres cover v1. Streaks are computed from `habit_logs`, 
 | `grace_days` | user\_id, earned\_at, spent\_on\_habit, spent\_for\_date | Earned bank; spending one marks the day protected |
 | `reflections` | user\_id, week\_start, wins\[3\], month\_note, mood\_line | Sunday Review and evening line |
 | `coach_events` | id, user\_id, kind (nudge / miss\_review / letter / chat), payload, sent\_at, outcome | Every coach action and whether it helped; feeds the patterns |
+| `activity_events` | id, user\_id, occurred\_at, kind, subject\_id, payload (jsonb), source, actor (user / ai\_assisted / ai) | Append-only; written in the same transaction as every `habit_logs` change |
+
+Schedules, targets and Shrink level definitions are dated, so a change never rewrites the past. See Streak rules.
 
 A derived `user_patterns` view (best hours, weak weekdays, common skip reasons) is rebuilt nightly and given to the coach as context.
 
@@ -128,6 +131,22 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 Changing mode only affects days from then on.
 
+### Changing a habit
+
+- A change to a schedule, target or Shrink level takes effect from the day it's made. Earlier days keep the settings they had.
+- Streak Repair uses the target that applied on the missed day.
+- The Compound Forecaster uses the target that applied on each day it reads.
+
+### What a miss shows
+
+| Stage | Label | Action |
+| --- | --- | --- |
+| Back-log window open | "Not logged yet" | Tap to log it |
+| Window closed, can still be repaired | "Repair on Thu" (the repair day) | Repair on that day |
+| Window closed, can't be repaired | "Not done" | None |
+
+A Grace-covered miss shows as "Protected". That is a card state of its own.
+
 ### How results are computed
 
 Streaks and Grace Days are computed purely from `habit_logs` and settings, so the result is identical whenever it's read. They can update lazily on read rather than in a nightly job. `pg_cron` is enabled when reminders are built.
@@ -135,6 +154,7 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 ### Habit unlocks
 
 - "2 consistent weeks" means 14 consecutive days where at least 80% of due habits were completed, at any Shrink level. Repaired days count; protected days don't.
+- Days with nothing due are neutral: they neither count toward the 14 days nor break the run.
 - It unlocks 2 more habits, and the same rule then repeats.
 
 ### Progress definitions
@@ -184,7 +204,19 @@ Users will be able to log by voice without opening the app, but not with our own
 
 **Example phrases v1 must handle:** "I've completed my work" · "Read 15 pages" · "Did the minimum version of my run" · "Skip meditation today, I'm sick" · "Undo that."
 
+**AI data:** while the AI service runs on a free tier, only test accounts and test data may reach the provider, because free-tier prompts and responses may be used by the provider and read by human reviewers. The service enforces this with `AI_PROVIDER_TIER=free` and the `AI_TEST_USER_IDS` allow-list. **Production must use a paid tier with no training on user data**, set explicitly with `AI_PROVIDER_TIER=paid`. Google allows only paid services for users in the EEA, Switzerland and the UK.
+
 **Privacy rules:** wake-word detection runs on the device; no recordings are kept; transcripts are deleted after the log is written.
+
+## Long-term direction
+
+A desktop app (Mac and Windows, likely wrapping the web app, for example with Tauri) comes later, followed by a Notion-like workspace whose design is not decided. Neither is being built now. Everything from now on must work for mobile and the future desktop app:
+
+- **Shared core:** `packages/core` holds types, streak helpers, Supabase API functions, the AI client and design tokens. Mobile and web both import it, and screens stay thin.
+- **Shared UI:** tokens and components work in React Native and on the web, with layouts that adapt to wide screens, mouse, hover and keyboard shortcuts.
+- **Static web app:** the Next.js app builds as static files (`output: 'export'`), so it can be packaged as a desktop app.
+- **Activity history:** `activity_events` is append-only and records every `habit_logs` change.
+- **Privacy:** personal data (habits, logs, activity events, reflections, coach events) is readable only by its owner under RLS, with a test proving it.
 
 ## Roadmap
 
@@ -210,8 +242,9 @@ Design runs one phase ahead of build: screens for phase N are tested before phas
 - Warm neutral base in light and dark mode, designed together; no pure white or black.
 - One typeface with tabular numerals; three text sizes plus a display size for the Future-Self letter.
 - 8 identity accent colours, each checked for contrast in both modes and for colour-blind users.
-- Habit card states: due, done, done-minimum, skipped, missed (hollow), repaired (welded).
+- Habit card states: due, done, done-minimum, skipped, not logged yet, missed (hollow), repaired (welded), protected.
 - Motion: check-off under 400 ms with a haptic tick; fracture and weld animations for streaks.
+- Touch targets: 48px minimum. The one exception is the desktop grid with a mouse, where cells are 36px so a month fits on screen. On touch screens they stay 48px.
 
 **Screens in build order:**
 
@@ -240,6 +273,9 @@ We launch only after a closed beta proves people keep logging in week two. The t
 - Store listing, screenshots and a 30-second video of voice logging
 - Privacy policy covering voice, AI coach and data export
 - Analytics events on every log, with its `source`
+- Supabase Auth: turn Confirm email back on
+- Supabase Auth: leaked password protection on
+- Supabase Auth: custom email provider set up, so the built-in email limit can't block sign-ups
 
 | Metric | What it tells us | Starting target |
 | --- | --- | --- |

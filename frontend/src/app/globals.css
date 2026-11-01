@@ -1,130 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&display=swap');
+@font-face {
+  font-family: 'Figtree_400Regular';
+  src: url('../../../node_modules/@expo-google-fonts/figtree/400Regular/Figtree_400Regular.ttf');
+  font-display: swap;
+}
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@font-face {
+  font-family: 'Figtree_500Medium';
+  src: url('../../../node_modules/@expo-google-fonts/figtree/500Medium/Figtree_500Medium.ttf');
+  font-display: swap;
+}
 
-@layer base {
+@font-face {
+  font-family: 'Figtree_600SemiBold';
+  src: url('../../../node_modules/@expo-google-fonts/figtree/600SemiBold/Figtree_600SemiBold.ttf');
+  font-display: swap;
+}
+
+/* The page behind the app, before it loads. These match the canvas tokens. */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #f4efe7;
+}
+
+@media (prefers-color-scheme: dark) {
+  html,
   body {
-    @apply bg-gray-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200 antialiased;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    background: #1d1a16;
   }
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Keyboard focus only, so clicking leaves no ring. These match the text tokens. */
+:focus-visible {
+  outline: 2px solid #2b2620;
+  outline-offset: 1px;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleUp {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
+@media (prefers-color-scheme: dark) {
+  :focus-visible {
+    outline-color: #f1ebe1;
   }
 }
 
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+#app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes subtleBreathe {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -4px rgba(99, 102, 241, 0.2);
-  }
-  50% {
-    transform: scale(1.03);
-    box-shadow: 0 0 25px 2px rgba(139, 92, 246, 0.45), 0 10px 15px -3px rgba(99, 102, 241, 0.3);
-  }
-}
-
-.animate-breathe {
-  animation: subtleBreathe 3s ease-in-out infinite;
-}
-
-.animate-slideUp {
-  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.15s ease-out forwards;
-}
-
-.animate-scaleUp {
-  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-slideInRight {
-  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-scaleIn {
-  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Custom modern scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-200 dark:bg-slate-700 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-300 dark:bg-slate-600;
-}
-
-/* Hide scrollbar utility for clean mobile carousels */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-@media print {
-  body {
-    background: #ffffff !important;
-    padding: 0 !important;
-  }
-  header, button, select, .no-print {
-    display: none !important;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
   }
 }

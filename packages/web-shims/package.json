@@ -1,0 +1,12 @@
+{
+  "name": "@habit-tracker/web-shims",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./react-native": "./react-native.js",
+    "./assets-registry": "./assets-registry.js"
+  },
+  "peerDependencies": {
+    "react-native-web": "*"
+  }
+}

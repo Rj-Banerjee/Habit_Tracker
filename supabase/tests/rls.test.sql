@@ -114,13 +114,11 @@ select throws_ok(
   '42501', null, 'clients cannot grant themselves Grace Days'
 );
 
-delete from public.habits where id = 'b0000000-0000-4000-8000-000000000002';
-reset role;
-select is(
-  (select count(*)::int from public.habits where id = 'b0000000-0000-4000-8000-000000000002'),
-  1,
-  'user A cannot delete user B''s habit'
+select throws_ok(
+  $$delete from public.habits where id = 'b0000000-0000-4000-8000-000000000002'$$,
+  '42501', null, 'clients cannot delete habits directly'
 );
+reset role;
 
 select * from finish();
 rollback;

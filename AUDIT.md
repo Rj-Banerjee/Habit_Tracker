@@ -757,3 +757,194 @@ Editing a habit's schedule currently applies to its whole history, because sched
 - 12 moderate `npm audit` advisories in `mobile/`, all one `minimatch` issue in Expo's tooling. The suggested fix would downgrade Expo to SDK 53.
 - No ESLint in `mobile/` yet.
 
+**Web error fixed**
+
+- **Cause:** `StatusMark` passed the native-only `accessible={false}` prop to `<Svg>`. On web it reached the DOM element, and React rejects a boolean on an unknown attribute. React only logs this in development, and earlier checks used the production export and native test presets, so neither saw it.
+- **Not the cause:** `npx expo install --check` reports every package up to date.
+- **Fix:** removed the prop. `motion.useNativeDriver` now turns the native driver off on web, which removes the warning.
+- **Tests:** added a web test project with a real DOM. It draws every state in both themes and fails on any `console.error`. The tests for both issues failed before the fix and pass after it.
+- **Result:** 149 tests pass across the iOS, Android and web presets. The dev server logs 0 errors and 0 warnings. Native screens are not yet confirmed on a device.
+
+### Step 2 item 5: Today screen (1 Nov 2026)
+
+**Changed**
+
+- New migration `20261101000500_today.sql` adds `get_today()`, which returns due habits, levels, streaks, yesterday's open days and repair availability. "Today" always follows the profile timezone.
+- Added the Today screen, grouped by identity, plus sign-in, the Shrink sheet and the skip sheet.
+- One tap logs the full version, and another undoes it. A long press opens the Shrink sheet, which also offers Repair when the server allows it. A left swipe opens the skip reasons.
+- Skip is also in the Shrink sheet and is a screen-reader action, so swiping is never the only way.
+- Mornings lead with yesterday's open days. Evenings add a gentle note about what's left.
+- A failed log rolls back and shows the reason. A failed load offers a retry instead of an empty list.
+- Streak rules stay in SQL. The app holds no streak logic.
+
+**Results**
+
+- 160 database tests and 243 app tests passing, across the iOS, Android and web presets. Typecheck passes.
+- Run through the Expo dev server in Chrome at phone width, against local Supabase, with real sign-up: 0 console errors and 0 server warnings across tap, undo, long press, swipe, skip and back-log.
+- Viewing the real screens found three issues that tests had missed, all fixed: open days from yesterday said "Due today", skipped cards hid the reason, and there was no real evening state.
+
+**Not yet confirmed**
+
+- A real phone. Haptics, native swipe feel and Modal behaviour are untested.
+- The evening note and morning order were tested with a fake clock, not at those real times.
+
+**Not built yet**
+
+- Habit creation and onboarding, so a new account only sees the empty state. These are the planned hand-off screens.
+- Rebuilding the Next.js grid and weekly review on the design tokens.
+- Tapping a repair requires no count entry: it logs the required amount.
+
+**Applied to the live database**
+
+- The local tests passed, and the dry run listed one migration, `20261101000500_today.sql`, which was then pushed.
+- All live checks passed, using temporary users that were then deleted. `get_today` follows the profile timezone, shows nothing of other users, and is blocked for the publishable key alone.
+
+**Sign-up bug fixed**
+
+With `Confirm email` on, sign-up succeeds without a session, and the sign-in screen showed nothing, so repeat presses sent more emails until Supabase's email limit was reached. The screen now says to check email and moves to sign in, and common auth errors are explained in plain words. Local Supabase has confirmation off, which is why local testing never showed this.
+
+### Shared core, dated settings and activity history (1 Nov 2026)
+
+**Phone test:** in Expo Go, sign-in worked and the evening and empty states showed. Haptics and swipe are still unconfirmed, because no habits exist yet.
+
+**Database**
+
+- New migration `20261102000000_dated_settings_and_activity.sql`.
+- Schedules, targets and Shrink levels are stored by date in `tracker.habit_versions`. Past days keep the settings they had, and Streak Repair uses the target from the missed day.
+- `activity_events` is append-only. A trigger writes it in the same transaction as every `habit_logs` change, so a failed change leaves no event. Even privileged roles can't edit it. Rows go only when the account does.
+- Habit changes now go through `create_habit`, `update_habit` and `archive_habit`, so limits and history always apply. Clients can't write `habits` or `habit_levels` directly.
+- The server enforces the 3-habit cap and the 2 consistent weeks rule.
+- Added `get_repairs`, and `repair_on` in `get_day_statuses`, for "Repair on Thu".
+- Added `habits.milestone_amount` and `milestone_label` for the Forecaster.
+
+**Decision made where the rule was silent:** days with nothing due neither count toward nor break a run of 2 consistent weeks.
+
+**Shared code**
+
+- The repo is now an npm workspace, with one copy of React across both apps.
+- `packages/core` holds types, Supabase API functions, form logic, Today logic and design tokens. The AI client joins it in item 6.
+- `packages/ui` holds components for React Native and the web, with hover, focus rings, right click for long press, layout sizes and keyboard shortcuts.
+- `packages/web-shims` lets the web build use the shared components.
+- Haptics stay in the Expo app, so shared code has no native dependency.
+
+**Static web app**
+
+The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`. A shared `HabitCard` was confirmed rendering from a static build.
+
+**What needs a server**
+
+| Feature | Needs | Notes |
+| --- | --- | --- |
+| Sign-in, habits, logs, streaks | Supabase | Reached from the client, so it works in a packaged desktop app |
+| AI coach and voice parsing | FastAPI service | Holds the Anthropic key, so it can never ship in the app |
+| Push notifications | Server-side sending | Mobile only for now |
+| Nightly jobs | Supabase cron and FastAPI workers | Not built yet |
+| Next.js routes, middleware, image optimisation | None used | Static export rules these out, and none are needed |
+| Secure desktop sign-in storage | Decide with the desktop app | The web client stores the session in browser storage |
+
+**Miss labels:** a past open day shows "Not logged yet", and a closed miss shows "Repair on Thu" or "Not done". "Protected" is a state in `PLAN.md`.
+
+**Habit creation:** form logic, form components and API functions are built, and the spec is in `docs/handoff/habit-creation.md`.
+
+**Results**
+
+| Check | Result |
+| --- | --- |
+| Database tests | 248 passing, including a new privacy suite |
+| Core tests | 95 passing |
+| Mobile and shared UI tests | 158 passing across iOS, Android and web presets |
+| Web tests | 6 passing |
+| Typecheck and static build | Pass |
+| Mobile in Chrome | 0 errors and 0 warnings across all gestures |
+| Web in Chrome | Sign-up, create, log, undo, archive and sign-out work |
+
+**Known and accepted for now**
+
+- 12 moderate production `npm audit` advisories, all `glob` and `minimatch` in Expo's tooling.
+- The web dev server still logs a hydration warning, to be checked in the Next.js rebuild.
+- With a repair offered while yesterday is still open, logging yesterday normally is usually the better choice, but both are allowed.
+
+**Applied to the live database**
+
+- The local tests passed, and the dry run listed one migration, `20261102000000_dated_settings_and_activity.sql`, which was then pushed.
+- All 37 live checks passed, using temporary users that were then deleted. They covered the habit API, the 3-habit cap, activity events and strangers being blocked.
+- The advisor reports 13 expected warnings, one for each client API function, plus one setting to turn on: leaked password protection in Supabase Auth.
+
+**Decisions recorded**
+
+- Days with nothing due are neutral in 2 consistent weeks, as built.
+- The beta launch checklist in `PLAN.md` now covers Confirm email, leaked password protection and a custom email provider. On 1 Nov 2026 the Supabase advisor still reported leaked password protection as off.
+
+### Step 2 item 5: Next.js rebuild (1 Nov 2026)
+
+**Hydration warning**
+
+- **Cause:** the old `Input` component generated field IDs with `Math.random()`, so the server and browser disagreed.
+- **Fix:** that component is gone. The web app now renders entirely in the browser, because it depends on the session, colour scheme and date, none of which exist in a static build. The warning no longer appears.
+
+**Changed**
+
+- Rebuilt the web app on `packages/core` and `packages/ui`, and removed Tailwind, the old components and the `/register` route. Sign-in is now a shared form, used by mobile and web.
+- **31-day grid:** habits grouped by identity, with the same state marks as the phone. Click logs and undoes. Right click or long press opens levels and skip with a reason. Misses show "Repair on Thu" where that applies. Keys: `[` and `]` change month, `T` returns to this month.
+- **Weekly review:** each habit's week at a glance, three wins, a mood line and a note, saved to `reflections`. Protected days don't count as done. Earlier weeks can be opened.
+- The app shell has `G` and `W` shortcuts, and settings for streak mode and sign-out.
+- Narrow windows show today's cards, because the grid needs the width.
+- The two React rules relaxed for the old screens are errors again, and lint now reports no problems.
+
+**Touch targets:** grid cells are 48px on touch screens and 36px with a mouse. The owner approved this exception, and it's recorded in `PLAN.md`. All 31 days fit at 1440 wide. Narrower windows and touch screens scroll, with "Earlier days" and "Later days" buttons shown when days are out of view. Every other control keeps the 48px minimum.
+
+**Results**
+
+| Check | Result |
+| --- | --- |
+| Core tests | 120 passing |
+| Web tests in a real DOM | 21 passing, failing on any console error |
+| Mobile and shared UI tests | 158 passing |
+| Database tests | 248 passing |
+| Lint | 0 errors, 0 warnings |
+| Static build in Chrome | Sign-up, log, undo, right click, skip, keyboard, review, reload and sign-out all work |
+
+**Not done:** weekly review is a form for now. Its coach summary comes with the Sunday Review in item 6.
+
+**Grid review fixes**
+
+- Added "Earlier days" and "Later days" buttons when days are out of view. A fade was considered, but the design avoids gradients.
+- Keyboard focus now uses a token colour instead of the browser's blue, and clicking leaves no ring.
+- Days past the back-log window are now inactive in the grid, instead of looking clickable and being refused by the server.
+
+### Step 2 item 5: habit creation merged (1 Nov 2026)
+
+**Changed**
+
+- Merged `feature/habit-creation`, resolving `mobile/App.tsx` as its notes describe.
+- New migration `20261102000100_habit_editing.sql`. `update_habit` now takes a jsonb of changes: a missing field keeps its value and an explicit null clears it. A habit can move to an existing or new identity, keeps its logs, streak and dated settings, and the move is written to `activity_events`. `create_habit` can create an identity in the same transaction, so a refused habit leaves nothing behind. The server's wording is now "2 consistent weeks unlock 2 more."
+- Core: `habitLimitMessage` matches the server, offline errors read in plain words, and `FIELD_LIMITS`, `usesTarget` and the identity name check moved in. `createIdentity` is removed.
+- Mobile: the form moves habits, sends null when a field is cleared, and handles the keyboard on Android as well as iPhone. Today's props are required. `app.json` now follows the system theme.
+- Root `npm run lint` covers `mobile/` with the same strict hooks rules as the web app.
+
+**Checked**
+
+- Typecheck and lint pass. Tests: core 139, web 26, mobile and UI 310, database 274.
+- 43 browser checks on Expo web against a local database, including the form's own save on a backdated habit, and the remaining states at 390px dark, 1200px dark and 390px light.
+- Live push followed the usual procedure. 23 checks with temporary users passed, those users were deleted, and both real accounts are untouched.
+
+**Phone test:** the owner ran the full test list on their phone against the live database on 1 Nov 2026, including the keyboard, and reported everything working.
+
+### Step 2 item 6: provider-agnostic AI service (1 Nov 2026)
+
+**Changed**
+
+- New FastAPI service in `backend/`, the only caller of an LLM. Everything goes through one interface in `app/llm/base.py`: streaming chat, tool calls and token counting. Gemini and Ollama adapters exist. Adding Anthropic is one adapter file and one registry line, and choosing a provider is `AI_PROVIDER` plus the model names in env.
+- Models come from env: `gemini-3.5-flash-lite` for voice and nudges, `gemini-3.6-flash` for coach chat and letters. `gemini-3.8-flash`, the newer model, stalled past 45 seconds on this key, so it isn't the default.
+- Rate limits: backoff with jitter inside an 8-second limit, per-user hourly limits, an optional service-wide throttle, and friendly messages. Daily quota errors aren't retried.
+- On a free tier only `AI_TEST_USER_IDS` reach the provider, and the setting fails closed. `PLAN.md` records that production must use a paid tier with no training on user data.
+- The service reads with the person's own token, so RLS applies. Voice returns intents and never writes.
+- `packages/core` gains `createAiClient`. `docs/handoff/coach-and-voice.md` covers the screens, which aren't built.
+
+**Checked**
+
+- 64 service tests, core 144.
+- Real Gemini with made-up data on local Supabase: chat streamed its first words in 3.6 seconds, nine voice phrases all parsed correctly in under 2.2 seconds each, and a prompt injection attempt produced no intents. A signed-out request got 401 and a non-test account got 403.
+
+**Not checked:** a real Gemini 429. 30 concurrent calls all succeeded, so backoff is tested only against Google's documented error shapes. The Ollama adapter is tested against a fake server, because Ollama isn't installed here.
+
