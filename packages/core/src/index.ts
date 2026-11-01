@@ -1,4 +1,6 @@
 export * from './ai';
+export * from './coachCard';
+export * from './voice';
 export * from './api';
 export * from './colorChecks';
 export * from './dates';

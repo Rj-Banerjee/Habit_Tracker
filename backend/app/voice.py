@@ -15,13 +15,16 @@ Their habits, as ref: name (other names they use):
 {habits}
 
 Rules:
-- Use a ref from the list. If no habit clearly matches, call nothing.
+- Use a ref from the list. If no habit matches, call nothing.
+- If two or more habits could equally be what they meant, don't guess: call ask_which \
+with those refs and the action they wanted.
 - One sentence can mention several habits. Make one call for each.
 - A question or a request for advice is ask_coach.
 - "Just the small version" or "only a little" is shrink_habit.
 - An amount such as "20 pages" is log_amount."""
 
 HABIT = {"type": "string", "description": "A ref from the habit list, such as h1"}
+ACTIONS = {"log_habit", "log_amount", "shrink_habit", "skip_habit"}
 
 TOOLS = [
     ToolSpec(
@@ -66,8 +69,21 @@ TOOLS = [
             "required": ["question"],
         },
     ),
+    ToolSpec(
+        "ask_which",
+        "Two or more habits could equally be what they meant.",
+        {
+            "type": "object",
+            "properties": {
+                "habits": {"type": "array", "items": HABIT},
+                "action": {"type": "string", "enum": sorted(ACTIONS)},
+                "amount": {"type": "number"},
+                "reason": {"type": "string"},
+            },
+            "required": ["habits", "action"],
+        },
+    ),
 ]
-NEEDS_HABIT = {"log_habit", "log_amount", "shrink_habit", "skip_habit"}
 
 
 def habit_list(habits: list[dict[str, Any]]) -> tuple[str, dict[str, dict[str, Any]]]:
@@ -80,10 +96,28 @@ def habit_list(habits: list[dict[str, Any]]) -> tuple[str, dict[str, dict[str, A
     return "\n".join(lines) or "None yet.", refs
 
 
+def to_question(call: ToolCall, refs: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    action = call.arguments.get("action")
+    if action not in ACTIONS:
+        return None
+    details = {key: call.arguments[key] for key in ("amount", "reason") if key in call.arguments}
+    chosen = list(dict.fromkeys(str(ref) for ref in call.arguments.get("habits") or []))
+    known = [refs[ref] for ref in chosen if ref in refs]
+    if len(known) == 0:
+        return None
+    if len(known) == 1:  # only one was real, so there's nothing to ask
+        ref = next(ref for ref in chosen if ref in refs)
+        return to_intent(ToolCall(action, {"habit": ref, **details}), refs)
+    options = [{"habit_id": habit["id"], "habit_title": habit["title"]} for habit in known]
+    return {"intent": "ask_which", "options": options, "action": action, **details}
+
+
 def to_intent(call: ToolCall, refs: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
     """Everything the model said is checked. A call that doesn't hold up is dropped."""
+    if call.name == "ask_which":
+        return to_question(call, refs)
     intent: dict[str, Any] = {"intent": call.name}
-    if call.name in NEEDS_HABIT:
+    if call.name in ACTIONS:
         habit = refs.get(str(call.arguments.get("habit")))
         if habit is None:
             return None

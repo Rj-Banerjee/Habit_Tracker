@@ -40,3 +40,25 @@ class FakeProvider(LLMProvider):
 
     async def count_tokens(self, tier: Tier, system: str, messages: list[Message]) -> int:
         return (len(system) + sum(len(m.text) for m in messages)) // 4
+
+
+class FakeDb:
+    """Stands in for ServiceDb. Scopes count up to their limit, then refuse."""
+
+    def __init__(self):
+        self.used: dict[str, int] = {}
+        self.events: list[dict] = []
+
+    async def take_slot(self, scope: str, limit: int, seconds: int) -> int:
+        if limit <= 0:
+            return 0
+        if self.used.get(scope, 0) >= limit:
+            return seconds
+        self.used[scope] = self.used.get(scope, 0) + 1
+        return 0
+
+    async def record_coach_event(self, user_id, kind, payload, outcome) -> None:
+        self.events.append({"user": user_id, "kind": kind, "payload": payload, "outcome": outcome})
+
+    async def close(self) -> None:
+        pass

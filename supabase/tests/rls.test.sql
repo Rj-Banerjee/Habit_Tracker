@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(39);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-4111-8111-111111111111', 'a@example.test', '{"timezone": "Asia/Kolkata"}'),
@@ -119,6 +119,39 @@ select throws_ok(
   '42501', null, 'clients cannot delete habits directly'
 );
 reset role;
+
+-- AI service counters and coach events are for the secret key only.
+set local role authenticated;
+select throws_ok(
+  $$ select public.ai_take_slot('user:x:chat', 100, 3600) $$,
+  '42501', null, 'app users cannot touch the AI counters'
+);
+select throws_ok(
+  $$ insert into public.coach_events (user_id, kind) values (auth.uid(), 'chat') $$,
+  '42501', null, 'app users cannot write coach events'
+);
+reset role;
+set local role anon;
+select throws_ok(
+  $$ select public.ai_take_slot('user:x:chat', 100, 3600) $$,
+  '42501', null, 'signed-out callers cannot touch the AI counters'
+);
+reset role;
+set local role service_role;
+select is(public.ai_take_slot('t:scope', 2, 3600), 0, 'the first slot is granted');
+select is(public.ai_take_slot('t:scope', 2, 3600), 0, 'and the second, up to the limit');
+select cmp_ok(public.ai_take_slot('t:scope', 2, 3600), '>', 0, 'the next one is told how long to wait');
+select is(public.ai_take_slot('t:other', 1, 3600), 0, 'each scope counts separately');
+reset role;
+select is(
+  (select used from tracker.ai_counters where scope = 't:scope'), 2,
+  'a refused slot does not count'
+);
+insert into tracker.ai_counters (scope, bucket) values ('t:old', now() - interval '3 days');
+set local role service_role;
+select public.ai_take_slot('t:scope', 2, 3600);
+reset role;
+select is((select count(*)::int from tracker.ai_counters where scope = 't:old'), 0, 'old windows are cleared');
 
 select * from finish();
 rollback;

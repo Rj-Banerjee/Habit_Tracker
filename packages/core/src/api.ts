@@ -4,6 +4,7 @@ import { IdentityToken } from './tokens';
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
 export type LogStatus = 'done' | 'skipped' | 'repaired';
+export type LogSource = 'tap' | 'voice';
 export type StreakMode = 'strict' | 'grace';
 
 export interface LevelOption {
@@ -172,14 +173,32 @@ export function createTrackerApi(client: SupabaseClient) {
     getDayStatuses: (from: string, to: string) =>
       call<DayStatus[]>('get_day_statuses', { p_from: from, p_to: to }),
 
-    logHabit: (habitId: string, date: string, level: HabitLevel = 'full', amount: number | null = null) =>
-      call('log_habit', { p_habit_id: habitId, p_date: date, p_level: level, p_amount: amount }),
+    // A null date means today, in the person's timezone.
+    logHabit: (
+      habitId: string,
+      date: string | null,
+      level: HabitLevel = 'full',
+      amount: number | null = null,
+      source: LogSource = 'tap'
+    ) =>
+      call('log_habit', {
+        p_habit_id: habitId,
+        p_date: date,
+        p_level: level,
+        p_amount: amount,
+        p_source: source,
+      }),
 
-    undoLog: (habitId: string, date: string) =>
+    undoLog: (habitId: string, date: string | null) =>
       call('undo_log', { p_habit_id: habitId, p_date: date }),
 
-    skipHabit: (habitId: string, date: string, reason: string) =>
-      call('skip_habit', { p_habit_id: habitId, p_date: date, p_reason: reason }),
+    skipHabit: (habitId: string, date: string | null, reason: string, source: LogSource = 'tap') =>
+      call('skip_habit', {
+        p_habit_id: habitId,
+        p_date: date,
+        p_reason: reason,
+        p_source: source,
+      }),
 
     repairHabit: (habitId: string, date: string, amount: number | null) =>
       call('repair_habit', {

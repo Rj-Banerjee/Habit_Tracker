@@ -3,37 +3,18 @@
 import asyncio
 import random
 import time
-from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Protocol
 
 from .base import LLMProvider, Message, RateLimited, Tier, ToolResult, ToolSpec, Unavailable
 
-MINUTE = 60.0
-DAY = 86400.0
+MINUTE = 60
+DAY = 86400
 
 
-class Window:
-    """Counts events in a sliding window."""
-
-    def __init__(self, limit: int, seconds: float, clock: Callable[[], float] = time.monotonic):
-        self.limit = limit
-        self.seconds = seconds
-        self.clock = clock
-        self.events: deque[float] = deque()
-
-    def wait_needed(self) -> float:
-        """Seconds until there's room. 0 means go ahead."""
-        if self.limit <= 0:
-            return 0.0
-        now = self.clock()
-        while self.events and now - self.events[0] >= self.seconds:
-            self.events.popleft()
-        if len(self.events) < self.limit:
-            return 0.0
-        return self.seconds - (now - self.events[0])
-
-    def record(self) -> None:
-        self.events.append(self.clock())
+class Counters(Protocol):
+    async def take_slot(self, scope: str, limit: int, seconds: int) -> int:
+        """Seconds to wait, or 0 if granted."""
 
 
 class ReliableProvider(LLMProvider):
@@ -41,28 +22,27 @@ class ReliableProvider(LLMProvider):
         self,
         inner: LLMProvider,
         limits: dict[Tier, tuple[int, int]],
+        counters: Counters,
         attempts: int,
         budget_seconds: float,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         self.inner = inner
-        self.windows = {
-            tier: (Window(rpm, MINUTE), Window(rpd, DAY)) for tier, (rpm, rpd) in limits.items()
-        }
+        self.limits = limits
+        self.counters = counters
         self.attempts = attempts
         self.budget_seconds = budget_seconds
         self.sleep = sleep
 
-    def _admit(self, tier: Tier) -> None:
-        minute, day = self.windows[tier]
-        wait = day.wait_needed()
+    async def _admit(self, tier: Tier) -> None:
+        per_minute, per_day = self.limits[tier]
+        # The day goes first, so a refused request doesn't use up a minute slot.
+        wait = await self.counters.take_slot(f"provider:{tier.value}:day", per_day, DAY)
         if wait:
             raise RateLimited(retry_after=wait, daily=True)
-        wait = minute.wait_needed()
+        wait = await self.counters.take_slot(f"provider:{tier.value}:minute", per_minute, MINUTE)
         if wait:
             raise RateLimited(retry_after=wait)
-        minute.record()
-        day.record()
 
     def _delay(self, attempt: int, error: Exception) -> float:
         """How long to wait before retrying, or raises if it isn't worth it."""
@@ -79,7 +59,7 @@ class ReliableProvider(LLMProvider):
         started = time.monotonic()
         attempt = 0
         while True:
-            self._admit(tier)
+            await self._admit(tier)
             try:
                 return await call()
             except (RateLimited, Unavailable) as error:

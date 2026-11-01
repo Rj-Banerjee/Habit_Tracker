@@ -6,12 +6,33 @@ export interface ChatTurn {
   text: string;
 }
 
+export interface VoiceOption {
+  habit_id: string;
+  habit_title: string;
+}
+
+export type VoiceAction =
+  | (VoiceOption & { intent: 'log_habit' | 'shrink_habit' })
+  | (VoiceOption & { intent: 'log_amount'; amount: number })
+  | (VoiceOption & { intent: 'skip_habit'; reason: string });
+
+// Two habits could be what they meant, so the app asks once.
+export interface VoiceQuestion {
+  intent: 'ask_which';
+  options: VoiceOption[];
+  action: VoiceAction['intent'];
+  amount?: number;
+  reason?: string;
+}
+
 export type VoiceIntent =
-  | { intent: 'log_habit' | 'shrink_habit'; habit_id: string; habit_title: string }
-  | { intent: 'log_amount'; habit_id: string; habit_title: string; amount: number }
-  | { intent: 'skip_habit'; habit_id: string; habit_title: string; reason: string }
+  | VoiceAction
+  | VoiceQuestion
   | { intent: 'undo_last' }
   | { intent: 'ask_coach'; question: string };
+
+// Where a conversation started. Recorded in coach_events, without the words.
+export type ChatSource = 'chat' | 'card' | 'burned_out';
 
 export class CoachError extends Error {
   constructor(
@@ -26,7 +47,8 @@ export class CoachError extends Error {
 const UNAVAILABLE = "Coach isn't available right now. Your habits still work as normal.";
 
 interface AiClientOptions {
-  baseUrl: string;
+  // Missing means no AI service is set up, which reads the same as one that's down.
+  baseUrl?: string;
   getToken: () => Promise<string | null>;
   // React Native's own fetch can't stream, so mobile passes expo/fetch.
   fetch?: typeof fetch;
@@ -34,6 +56,7 @@ interface AiClientOptions {
 
 export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiClientOptions) {
   const post = async (path: string, body: unknown) => {
+    if (!baseUrl) throw new CoachError(UNAVAILABLE, 'unavailable');
     const token = await getToken();
     let response: Response;
     try {
@@ -59,8 +82,8 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
       (await (await post('/voice/parse', { transcript })).json()).intents,
 
     // Yields the reply as it arrives.
-    async *chat(messages: ChatTurn[]): AsyncGenerator<string> {
-      const response = await post('/coach/chat', { messages });
+    async *chat(messages: ChatTurn[], source: ChatSource = 'chat'): AsyncGenerator<string> {
+      const response = await post('/coach/chat', { messages, source });
       const reader = response.body?.getReader();
       if (!reader) throw new CoachError(UNAVAILABLE, 'unavailable');
 

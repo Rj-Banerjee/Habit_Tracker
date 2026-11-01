@@ -6,6 +6,10 @@ import { ThemeProvider } from '@habit-tracker/ui';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
+jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('../services/speak', () => ({ speak: jest.fn() }));
+jest.mock('../voice/speech', () => ({ speechInput: () => null }));
+
 jest.mock('../services/tracker', () => ({
   tracker: {
     getToday: jest.fn(),

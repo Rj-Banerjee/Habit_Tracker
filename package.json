@@ -10,7 +10,8 @@
     "test:db": "supabase test db",
     "test:ai": "cd backend && .venv/bin/python -m pytest -q",
     "build": "npm run build -w habit-tracker-frontend",
-    "mobile": "npm start -w habit-tracker-mobile"
+    "mobile": "npm start -w habit-tracker-mobile",
+    "ai": "bash backend/run-local.sh"
   },
   "private": true,
   "workspaces": [

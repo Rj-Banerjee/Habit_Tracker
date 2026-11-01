@@ -17,6 +17,8 @@ from app.llm.base import (
 from app.llm.gemini import GeminiProvider, to_input, to_llm_error
 from app.llm.ollama import OllamaProvider
 
+from .fakes import FakeDb
+
 HI = [Message("user", "hi")]
 
 
@@ -29,13 +31,13 @@ class ApiError(Exception):
 def test_unknown_provider_names_the_options():
     settings = get_settings().model_copy(update={"ai_provider": "nope"})
     with pytest.raises(ValueError, match="gemini"):
-        build_provider(settings)
+        build_provider(settings, FakeDb())
 
 
 def test_switching_provider_is_config_only():
     for name in ADAPTERS:
         settings = get_settings().model_copy(update={"ai_provider": name})
-        assert build_provider(settings).inner is not None
+        assert build_provider(settings, FakeDb()).inner is not None
 
 
 @pytest.mark.parametrize(

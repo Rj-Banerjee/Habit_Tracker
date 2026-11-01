@@ -988,6 +988,16 @@ select throws_like(
   '%full version and a minimum%', 'a habit cannot lose its ladder'
 );
 
+-- A voice log is marked as AI-assisted.
+select t.make_user(90);
+select t.make_habit(190, 90, '2026-11-02');
+select tracker.log_habit(t.u(90), t.h(190), '2026-11-03', 'full', null, 'voice', t.noon(90, '2026-11-03'));
+select is(
+  (select actor::text from public.activity_events where user_id = t.u(90) and kind = 'log_created'),
+  'ai_assisted',
+  'a voice log is recorded as AI-assisted'
+);
+
 -- Moving a habit to another identity.
 select t.make_user(89);
 select t.make_habit(99, 89, '2026-11-02');

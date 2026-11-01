@@ -60,6 +60,11 @@ describe('createAiClient', () => {
     });
   });
 
+  it('reads an unset service the same as one that is down', async () => {
+    const unset = createAiClient({ getToken: async () => 'tok' });
+    await expect(unset.parseVoice('I ran')).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
   it('stays calm when the service is unreachable', async () => {
     const send = async () => {
       throw new TypeError('Failed to fetch');

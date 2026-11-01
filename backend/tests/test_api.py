@@ -7,10 +7,9 @@ from app.auth import CurrentUser, current_user
 from app.config import get_settings
 from app.llm.base import LLMProvider, RateLimited, Refused, ToolCall, Unavailable
 from app.main import app
-from app.rate_limit import UserLimits
 from app import tracker as tracker_module
 
-from .fakes import FakeProvider
+from .fakes import FakeDb, FakeProvider
 
 HABITS = [
     {"id": "uuid-read", "title": "Read", "type": "count", "unit": "pages", "voice_aliases": ["book"]},
@@ -59,7 +58,7 @@ def api(monkeypatch):
     FakeTracker.fail = False
     app.dependency_overrides[current_user] = lambda: CurrentUser("test-user", "token")
     with TestClient(app) as client:
-        app.state.limits = UserLimits()
+        app.state.db = FakeDb()
         yield client
     app.dependency_overrides.clear()
 
@@ -192,6 +191,39 @@ def test_per_user_limit(api):
     assert provider.opened == 1
 
 
+def test_limits_are_per_person(api):
+    use(FakeProvider(["ok"]))
+    limited = get_settings().model_copy(update={"ai_user_chats_per_hour": 1})
+    app.dependency_overrides[get_settings] = lambda: limited
+    api.post("/coach/chat", json=ASK)
+    assert app.state.db.used == {"user:test-user:chat": 1}
+
+
+def test_a_finished_chat_is_recorded_without_its_words(api):
+    use(FakeProvider(["ok"]))
+    api.post("/coach/chat", json={**ASK, "source": "burned_out"})
+    assert app.state.db.events == [
+        {
+            "user": "test-user",
+            "kind": "chat",
+            "payload": {"source": "burned_out", "turns": 1},
+            "outcome": "replied",
+        }
+    ]
+
+
+def test_a_failed_chat_is_recorded(api):
+    use(FakeProvider([Unavailable()]))
+    api.post("/coach/chat", json=ASK)
+    assert app.state.db.events[0]["outcome"] == "failed"
+
+
+def test_a_failure_mid_reply_is_recorded(api):
+    use(FakeProvider(["Hello", Unavailable()]))
+    api.post("/coach/chat", json=ASK)
+    assert app.state.db.events[0]["outcome"] == "failed"
+
+
 def test_the_last_turn_must_be_the_user(api):
     use(FakeProvider(["ok"]))
     body = {"messages": [{"role": "assistant", "text": "hi"}]}
@@ -257,6 +289,43 @@ def test_voice_other_intents(api):
     assert [i["intent"] for i in intents] == ["shrink_habit", "skip_habit", "undo_last", "ask_coach"]
     assert intents[1]["reason"] == "Sick"
     assert intents[3]["question"] == "Why do I skip Mondays?"
+
+
+def test_voice_asks_when_two_habits_match(api):
+    call = ToolCall("ask_which", {"habits": ["h1", "h2"], "action": "log_habit"})
+    assert voice(api, [call])[0] == [
+        {
+            "intent": "ask_which",
+            "action": "log_habit",
+            "options": [
+                {"habit_id": "uuid-read", "habit_title": "Read"},
+                {"habit_id": "uuid-run", "habit_title": "Run"},
+            ],
+        }
+    ]
+
+
+def test_voice_question_keeps_the_amount(api):
+    call = ToolCall("ask_which", {"habits": ["h1", "h2"], "action": "log_amount", "amount": 5})
+    assert voice(api, [call])[0][0]["amount"] == 5
+
+
+def test_voice_doesnt_ask_about_one_real_habit(api):
+    call = ToolCall("ask_which", {"habits": ["h1", "h9"], "action": "log_habit"})
+    intents = voice(api, [call])[0]
+    assert intents == [{"intent": "log_habit", "habit_id": "uuid-read", "habit_title": "Read"}]
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"habits": ["h8", "h9"], "action": "log_habit"},
+        {"habits": ["h1", "h2"], "action": "delete_habit"},
+        {"action": "log_habit"},
+    ],
+)
+def test_voice_drops_a_bad_question(api, arguments):
+    assert voice(api, [ToolCall("ask_which", arguments)])[0] == []
 
 
 def test_voice_when_nothing_matches(api):

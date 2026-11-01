@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     supabase_url: str
     supabase_publishable_key: str
+    supabase_secret_key: str
 
     # What one person can use.
     ai_user_chats_per_hour: int = 20
