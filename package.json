@@ -9,6 +9,9 @@
     "build:frontend": "cd frontend && npm run build",
     "prisma:generate": "cd backend && npx prisma generate",
     "prisma:migrate": "cd backend && npx prisma migrate dev",
-    "prisma:studio": "cd backend && npx prisma studio"
+    "prisma:studio": "cd backend && npx prisma studio",
+    "lint": "cd frontend && npm run lint",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
+    "typecheck": "cd backend && npm run typecheck && cd ../frontend && npx tsc --noEmit"
   }
 }

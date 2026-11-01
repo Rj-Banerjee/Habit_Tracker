@@ -136,7 +136,7 @@ The PostgreSQL database schema enforces the required relations and constraints:
 
 #### Backend (`backend/.env`):
 ```env
-PORT=5000
+PORT=5001
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
@@ -154,7 +154,7 @@ UNSPLASH_ACCESS_KEY="your-unsplash-access-key"
 
 #### Frontend (`frontend/.env.local`):
 ```env
-NEXT_PUBLIC_API_URL="http://localhost:5000/api"
+NEXT_PUBLIC_API_URL="http://localhost:5001/api"
 NEXT_PUBLIC_SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
 ```
@@ -184,7 +184,7 @@ npx tsx prisma/seed.ts
 ```bash
 cd backend
 npm run dev
-# Server running at http://localhost:5000
+# Server running at http://localhost:5001
 ```
 
 #### Terminal 2 (Frontend Next.js):

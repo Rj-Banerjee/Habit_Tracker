@@ -6,7 +6,7 @@ An enterprise-grade, high-performance Habit Tracking Dashboard crafted with mode
 
 ## 🏗️ Architecture & Tech Stack
 
-- **Frontend**: [Next.js 14](https://nextjs.org/) (App Router, TypeScript) + [Tailwind CSS](https://tailwindcss.com/)
+- **Frontend**: [Next.js 16](https://nextjs.org/) (App Router, TypeScript) + [Tailwind CSS](https://tailwindcss.com/)
   - Modular enterprise architecture (`/components`, `/hooks`, `/services`, `/utils`, `/types`)
   - Floating Glassmorphic Header with dynamic time-aware greetings and quick actions
   - Global Command Palette (`Cmd+K` / `Ctrl+K`)
@@ -21,7 +21,7 @@ An enterprise-grade, high-performance Habit Tracking Dashboard crafted with mode
   - Secured REST API with Supabase JWT Bearer token authentication
   - Centralized error handling and Zod request validation
   - Midnight automated Cron scheduler (`0 0 * * *`) caching fresh inspirational quotes and Unsplash photography
-  - Direct connection to Supabase PostgreSQL on port 5001
+  - API server runs on port 5001 and connects directly to Supabase PostgreSQL
 
 - **Database & Auth**: [Supabase](https://supabase.com/) (PostgreSQL) + [Prisma ORM](https://www.prisma.io/)
   - Strict relational schema for users, daily habits, unique daily logs (`habit_id + date`), weekly milestones, monthly reflections, and daily quote cache
@@ -32,7 +32,7 @@ An enterprise-grade, high-performance Habit Tracking Dashboard crafted with mode
 ## 🚀 Quick Start & Local Setup
 
 ### Prerequisites
-- Node.js (v18.0.0 or higher)
+- Node.js (v20.9.0 or higher)
 - npm or yarn
 
 ### 1. Backend Setup
@@ -55,7 +55,7 @@ npm install
 
 # Start Next.js development server
 npm run dev
-# Dashboard accessible at http://localhost:3001
+# Dashboard accessible at http://localhost:3000
 ```
 
 ---

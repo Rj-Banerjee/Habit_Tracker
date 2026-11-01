@@ -58,7 +58,7 @@ This document serves as the permanent system memory and technical blueprint for 
 ### 1. Port Allocation
 - **Backend API Server**: Runs on `http://localhost:5001`
   - *Note*: Port 5000 is occupied by macOS Monterey/Ventura/Sonoma AirPlay Receiver (`AirTunes`). The backend was deliberately assigned port 5001.
-- **Frontend Next.js Server**: Runs on `http://localhost:3001`
+- **Frontend Next.js Server**: Runs on `http://localhost:3000`
 
 ### 2. Backend Environment (`backend/.env`)
 ```env
@@ -237,7 +237,7 @@ npm run dev
 ```bash
 cd "Habit tracker/frontend"
 npm run dev
-# Running on http://localhost:3001
+# Running on http://localhost:3000
 ```
 
 ### Git Repository
