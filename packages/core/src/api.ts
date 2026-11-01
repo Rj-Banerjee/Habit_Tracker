@@ -76,14 +76,28 @@ export interface HabitLog {
   habit_id: string;
   date: string;
   status: LogStatus;
+  level_done: HabitLevel | null;
 }
 
-export interface MonthHabit {
+export interface RangeHabit {
   id: string;
   identity_id: string;
   title: string;
-  schedule_days: number[];
+  identities: { name: string; colour_token: IdentityToken };
+  habit_levels: LevelOption[];
   habit_logs: HabitLog[];
+}
+
+export interface Profile {
+  timezone: string;
+  mode: StreakMode;
+}
+
+export interface Reflection {
+  week_start: string;
+  wins: string[];
+  month_note: string | null;
+  mood_line: string | null;
 }
 
 export interface HabitDetail {
@@ -116,8 +130,6 @@ export interface HabitInput {
 }
 
 export type HabitChanges = Partial<Omit<HabitInput, 'identityId' | 'type'>>;
-
-const pad = (n: number) => String(n).padStart(2, '0');
 
 export function createTrackerApi(client: SupabaseClient) {
   const call = async <T>(name: string, args?: Record<string, unknown>): Promise<T> => {
@@ -218,19 +230,38 @@ export function createTrackerApi(client: SupabaseClient) {
           .single()
       ),
 
-    listMonthHabits: (year: number, month: number) => {
-      const from = `${year}-${pad(month)}-01`;
-      const to = `${year}-${pad(month)}-${pad(new Date(year, month, 0).getDate())}`;
-      return select<MonthHabit[]>(
+    listHabitsInRange: (from: string, to: string) =>
+      select<RangeHabit[]>(
         client
           .from('habits')
-          .select('id, identity_id, title, schedule_days, habit_logs(id, habit_id, date, status)')
+          .select(
+            'id, identity_id, title, identities(name, colour_token), habit_levels(level, description, target), habit_logs(id, habit_id, date, status, level_done)'
+          )
           .is('archived_at', null)
           .gte('habit_logs.date', from)
           .lte('habit_logs.date', to)
           .order('created_at')
+      ),
+
+    getProfile: () =>
+      select<Profile>(client.from('users').select('timezone, mode').single()),
+
+    getReflection: async (weekStart: string) => {
+      const rows = await select<Reflection[]>(
+        client
+          .from('reflections')
+          .select('week_start, wins, month_note, mood_line')
+          .eq('week_start', weekStart)
       );
+      return rows[0] ?? null;
     },
+
+    saveReflection: (userId: string, reflection: Reflection) =>
+      select(
+        client
+          .from('reflections')
+          .upsert({ user_id: userId, ...reflection }, { onConflict: 'user_id,week_start' })
+      ),
 
     getMode: async () =>
       (await select<{ mode: StreakMode }>(client.from('users').select('mode').single())).mode,

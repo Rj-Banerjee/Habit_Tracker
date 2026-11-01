@@ -10,10 +10,9 @@ import {
 } from '@expo-google-fonts/figtree';
 import type { Session } from '@supabase/supabase-js';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
-import { SignInScreen } from './src/screens/SignInScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { supabase } from './src/services/supabase';
-import { ThemeProvider, useTheme } from '@habit-tracker/ui';
+import { AuthForm, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
 function Root() {
   const { colors } = useTheme();
@@ -36,7 +35,7 @@ function Root() {
     );
   }
 
-  return session ? <TodayScreen /> : <SignInScreen />;
+  return session ? <TodayScreen /> : <AuthForm auth={supabase.auth} />;
 }
 
 export default function App() {

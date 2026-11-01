@@ -10,15 +10,17 @@ interface ButtonProps {
   onPress: () => void;
   disabled?: boolean;
   quiet?: boolean;
+  accessibilityLabel?: string;
 }
 
-export function Button({ label, onPress, disabled, quiet }: ButtonProps) {
+export function Button({ label, onPress, disabled, quiet, accessibilityLabel }: ButtonProps) {
   const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!disabled }}
       style={({ pressed, hovered, focused }: PressableState) => [
         styles.button,

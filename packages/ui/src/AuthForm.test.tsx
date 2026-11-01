@@ -1,22 +1,15 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { supabase } from '../services/supabase';
-import { ThemeProvider } from '@habit-tracker/ui';
-import { SignInScreen } from './SignInScreen';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { AuthForm } from './AuthForm';
+import { ThemeProvider } from './ThemeProvider';
 
-jest.mock('../services/supabase', () => ({
-  supabase: { auth: { signUp: jest.fn(), signInWithPassword: jest.fn() } },
-}));
-
-const auth = supabase.auth as unknown as {
-  signUp: jest.Mock;
-  signInWithPassword: jest.Mock;
-};
+const auth = { signUp: jest.fn(), signInWithPassword: jest.fn() };
 
 const open = () =>
   render(
     <ThemeProvider forced="light">
-      <SignInScreen />
+      <AuthForm auth={auth as unknown as SupabaseClient['auth']} />
     </ThemeProvider>
   );
 
@@ -25,7 +18,7 @@ const fill = async (password = 'correct-horse-battery') => {
   await fireEvent.changeText(screen.getByLabelText('Password'), password);
 };
 
-describe('SignInScreen', () => {
+describe('AuthForm', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('says to check email when sign-up needs confirmation', async () => {

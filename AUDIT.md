@@ -875,3 +875,34 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - Days with nothing due are neutral in 2 consistent weeks, as built.
 - The beta launch checklist in `PLAN.md` now covers Confirm email, leaked password protection and a custom email provider. On 1 Nov 2026 the Supabase advisor still reported leaked password protection as off.
 
+### Step 2 item 5: Next.js rebuild (1 Nov 2026)
+
+**Hydration warning**
+
+- **Cause:** the old `Input` component generated field IDs with `Math.random()`, so the server and browser disagreed.
+- **Fix:** that component is gone. The web app now renders entirely in the browser, because it depends on the session, colour scheme and date, none of which exist in a static build. The warning no longer appears.
+
+**Changed**
+
+- Rebuilt the web app on `packages/core` and `packages/ui`, and removed Tailwind, the old components and the `/register` route. Sign-in is now a shared form, used by mobile and web.
+- **31-day grid:** habits grouped by identity, with the same state marks as the phone. Click logs and undoes. Right click or long press opens levels and skip with a reason. Misses show "Repair on Thu" where that applies. Keys: `[` and `]` change month, `T` returns to this month.
+- **Weekly review:** each habit's week at a glance, three wins, a mood line and a note, saved to `reflections`. Protected days don't count as done. Earlier weeks can be opened.
+- The app shell has `G` and `W` shortcuts, and settings for streak mode and sign-out.
+- Narrow windows show today's cards, because the grid needs the width.
+- The two React rules relaxed for the old screens are errors again, and lint now reports no problems.
+
+**Touch targets:** grid cells are 48px on touch screens and 36px with a mouse, so a whole month fits on a desktop screen. Every other control keeps the 48px minimum.
+
+**Results**
+
+| Check | Result |
+| --- | --- |
+| Core tests | 120 passing |
+| Web tests in a real DOM | 21 passing, failing on any console error |
+| Mobile and shared UI tests | 158 passing |
+| Database tests | 248 passing |
+| Lint | 0 errors, 0 warnings |
+| Static build in Chrome | Sign-up, log, undo, right click, skip, keyboard, review, reload and sign-out all work |
+
+**Not done:** weekly review is a form for now. Its coach summary comes with the Sunday Review in item 6.
+

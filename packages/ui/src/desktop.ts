@@ -30,6 +30,21 @@ export function rightClick(handler?: () => void) {
   };
 }
 
+// react-native-web ignores a right button press but still tracks its release,
+// which logs a warning. Dropping that release lets right click act alone.
+export function useRightClickGuard() {
+  useEffect(() => {
+    if (Platform.OS !== 'web') return undefined;
+
+    const onMouseUp = (event: MouseEvent) => {
+      if (event.button !== 0) event.stopPropagation();
+    };
+
+    window.addEventListener('mouseup', onMouseUp, true);
+    return () => window.removeEventListener('mouseup', onMouseUp, true);
+  }, []);
+}
+
 // A keyboard shortcut on web and desktop. It stays out of the way while typing.
 export function useShortcut(key: string, handler: () => void, enabled = true) {
   useEffect(() => {

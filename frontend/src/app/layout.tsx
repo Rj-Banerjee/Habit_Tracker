@@ -1,29 +1,17 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { AuthProvider } from '../hooks/useAuth';
-import { ToastProvider } from '../hooks/useToast';
-import { ThemeProvider } from '../hooks/useTheme';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Aesthetic Monthly Habit Tracker | Enterprise Dashboard',
-  description: 'Modern, card-based habit tracking dashboard with Supabase, Next.js, and Express',
+  title: 'Habit tracker',
+  description: 'The habit tracker that adapts instead of punishes.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased min-h-screen">
-        <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
-          </AuthProvider>
-        </ThemeProvider>
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

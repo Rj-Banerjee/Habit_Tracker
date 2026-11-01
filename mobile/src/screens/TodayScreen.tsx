@@ -18,11 +18,18 @@ import {
   space,
   TodayRow,
 } from '@habit-tracker/core';
-import { Button, HabitCard, Text, useLayoutSize, useShortcut, useTheme } from '@habit-tracker/ui';
+import {
+  Button,
+  HabitCard,
+  SkipSheet,
+  Text,
+  useLayoutSize,
+  useShortcut,
+  useTheme,
+} from '@habit-tracker/ui';
 import { useToday } from '../hooks/useToday';
 import { checkOffTick } from '../services/haptics';
 import { ShrinkSheet } from '../today/ShrinkSheet';
-import { SkipSheet } from '../today/SkipSheet';
 import { SwipeToSkip } from '../today/SwipeToSkip';
 
 export function TodayScreen() {
@@ -165,11 +172,11 @@ export function TodayScreen() {
         }}
       />
       <SkipSheet
-        row={skipRow}
+        visible={skipRow !== null}
         onClose={() => setSkipRow(null)}
-        onSkip={(row, reason) => {
+        onSkip={(reason) => {
+          if (skipRow) skip(skipRow, reason);
           setSkipRow(null);
-          skip(row, reason);
         }}
       />
     </SafeAreaView>
