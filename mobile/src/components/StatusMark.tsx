@@ -20,7 +20,7 @@ export function StatusMark({ status, identity, size = 28 }: StatusMarkProps) {
   const { accent, onAccent } = identityColor(identity);
 
   return (
-    <Svg width={size} height={size} viewBox="0 0 28 28" accessible={false}>
+    <Svg width={size} height={size} viewBox="0 0 28 28">
       {status === 'due' && (
         <Circle cx={CENTRE} cy={CENTRE} r={RADIUS} stroke={accent} strokeWidth={2} fill="none" />
       )}

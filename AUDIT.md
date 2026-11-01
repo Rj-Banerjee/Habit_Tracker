@@ -757,3 +757,11 @@ Editing a habit's schedule currently applies to its whole history, because sched
 - 12 moderate `npm audit` advisories in `mobile/`, all one `minimatch` issue in Expo's tooling. The suggested fix would downgrade Expo to SDK 53.
 - No ESLint in `mobile/` yet.
 
+**Web error fixed**
+
+- **Cause:** `StatusMark` passed the native-only `accessible={false}` prop to `<Svg>`. On web it reached the DOM element, and React rejects a boolean on an unknown attribute. React only logs this in development, and earlier checks used the production export and native test presets, so neither saw it.
+- **Not the cause:** `npx expo install --check` reports every package up to date.
+- **Fix:** removed the prop. `motion.useNativeDriver` now turns the native driver off on web, which removes the warning.
+- **Tests:** added a web test project with a real DOM. It draws every state in both themes and fails on any `console.error`. The tests for both issues failed before the fix and pass after it.
+- **Result:** 149 tests pass across the iOS, Android and web presets. The dev server logs 0 errors and 0 warnings. Native screens are not yet confirmed on a device.
+

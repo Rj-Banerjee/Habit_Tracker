@@ -43,7 +43,7 @@ export function HabitCard({
           toValue: 1,
           duration: motion.checkOffMs,
           easing: Easing.out(Easing.back(2.2)),
-          useNativeDriver: true,
+          useNativeDriver: motion.useNativeDriver,
         }).start();
       });
     }

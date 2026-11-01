@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { Animated, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ThemeProvider } from '../theme/ThemeProvider';
 import { layout } from '../theme/tokens';
@@ -69,6 +69,19 @@ describe('HabitCard', () => {
       </ThemeProvider>
     );
     expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the native driver on phones', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const view = await renderCard('due');
+    await view.rerender(
+      <ThemeProvider forced="light">
+        <HabitCard title="Deep work" status="done" identity="identity-1" streak={13} />
+      </ThemeProvider>
+    );
+    expect(timing).toHaveBeenCalledTimes(1);
+    expect(timing.mock.calls[0][1]).toMatchObject({ useNativeDriver: true });
+    timing.mockRestore();
   });
 
   it('gives no haptic tick when already logged, or when undone', async () => {

@@ -1,5 +1,7 @@
 // Design tokens from the Design workflow section of PLAN.md. Components read
-// these instead of hard-coding values. colorChecks.test.ts enforces the rules.
+// these instead of hard-coding values. tokens.test.ts enforces the rules.
+
+import { Platform } from 'react-native';
 
 export type ThemeName = 'light' | 'dark';
 
@@ -97,4 +99,8 @@ export const radius = { sm: 8, md: 14, full: 999 } as const;
 
 export const layout = { minTouchTarget: 48 } as const;
 
-export const motion = { checkOffMs: 260 } as const;
+export const motion = {
+  checkOffMs: 260,
+  // Web has no native animated module.
+  useNativeDriver: Platform.OS !== 'web',
+} as const;
