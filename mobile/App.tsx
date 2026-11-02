@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -9,17 +10,31 @@ import {
   useFonts,
 } from '@expo-google-fonts/figtree';
 import type { Session } from '@supabase/supabase-js';
+import { Tab, TabBar } from './src/components/TabBar';
+import { useNeedsOnboarding } from './src/hooks/useNeedsOnboarding';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { ProgressScreen } from './src/screens/ProgressScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
+import { YouScreen } from './src/screens/YouScreen';
 import { supabase } from './src/services/supabase';
 import { AuthForm, ThemeProvider, useTheme } from '@habit-tracker/ui';
+
+const THEME_KEY = 'theme-preference';
+const themeStorage = {
+  load: () => AsyncStorage.getItem(THEME_KEY),
+  save: (value: string) => AsyncStorage.setItem(THEME_KEY, value),
+};
+
+function ThemedStatusBar() {
+  const { name } = useTheme();
+  return <StatusBar style={name === 'dark' ? 'light' : 'dark'} />;
+}
 
 function Root() {
   const { colors } = useTheme();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  // No router yet. Null shows Today; otherwise the form, for a new habit or habitId.
-  const [habitForm, setHabitForm] = useState<{ habitId?: string } | null>(null);
 
   useEffect(() => {
     supabase.auth
@@ -32,7 +47,7 @@ function Root() {
 
   if (session === undefined) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: colors.canvas }}>
+      <View style={[styles.center, { backgroundColor: colors.canvas }]}>
         <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading" />
       </View>
     );
@@ -40,13 +55,60 @@ function Root() {
 
   if (!session) return <AuthForm auth={supabase.auth} />;
 
-  return habitForm ? (
-    <HabitFormScreen habitId={habitForm.habitId} onClose={() => setHabitForm(null)} />
-  ) : (
-    <TodayScreen
-      onAddHabit={() => setHabitForm({})}
-      onEditHabit={(habitId) => setHabitForm({ habitId })}
-    />
+  // The key starts everything afresh for the next person to sign in.
+  return <SignedIn key={session.user.id} session={session} />;
+}
+
+function SignedIn({ session }: { session: Session }) {
+  const { colors } = useTheme();
+  const onboarding = useNeedsOnboarding();
+  // No router yet. Null shows the tabs; otherwise the form, for a new habit or habitId.
+  const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
+  const [tab, setTab] = useState<Tab>('today');
+
+  if (onboarding.needed === undefined) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.canvas }]}>
+        <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading" />
+      </View>
+    );
+  }
+
+  if (onboarding.needed) {
+    return <OnboardingScreen userId={session.user.id} onDone={onboarding.finished} />;
+  }
+
+  if (habitForm) {
+    return (
+      <HabitFormScreen
+        habitId={habitForm.habitId}
+        initialTitle={habitForm.title}
+        onClose={() => setHabitForm(null)}
+      />
+    );
+  }
+
+  // Both stay mounted, so a coach conversation survives a look at the You tab.
+  return (
+    <View style={[styles.root, { backgroundColor: colors.canvas }]}>
+      <View style={[styles.root, tab !== 'today' && styles.hidden]}>
+        <TodayScreen
+          onAddHabit={(title) => setHabitForm({ title })}
+          onEditHabit={(habitId) => setHabitForm({ habitId })}
+        />
+      </View>
+      <View style={[styles.root, tab !== 'progress' && styles.hidden]}>
+        <ProgressScreen active={tab === 'progress'} />
+      </View>
+      <View style={[styles.root, tab !== 'you' && styles.hidden]}>
+        <YouScreen
+          userId={session.user.id}
+          email={session.user.email ?? ''}
+          onSignedOut={() => setTab('today')}
+        />
+      </View>
+      <TabBar active={tab} onChange={setTab} />
+    </View>
   );
 }
 
@@ -63,10 +125,16 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <StatusBar style="auto" />
+      <ThemeProvider storage={themeStorage}>
+        <ThemedStatusBar />
         <Root />
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center' },
+  hidden: { display: 'none' },
+});

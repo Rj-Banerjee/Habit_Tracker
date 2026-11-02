@@ -9,4 +9,5 @@ os.environ.update(
     GEMINI_API_KEY="",
     SUPABASE_URL="http://supabase.test",
     SUPABASE_PUBLISHABLE_KEY="publishable",
+    SUPABASE_SECRET_KEY="secret",
 )

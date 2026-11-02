@@ -7,7 +7,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rjbanerjee.habittracker"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,14 +17,31 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.rjbanerjee.habittracker"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone so you can log habits by voice.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to turn your voice into text so you can log habits by voice.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false
+        }
+      ]
     ]
   }
 }

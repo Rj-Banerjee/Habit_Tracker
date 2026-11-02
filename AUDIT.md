@@ -948,3 +948,104 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** a real Gemini 429. 30 concurrent calls all succeeded, so backoff is tested only against Google's documented error shapes. The Ollama adapter is tested against a fake server, because Ollama isn't installed here.
 
+### Coach and voice screens (1 Nov 2026)
+
+**Changed**
+
+- Mobile gets Today and You tabs. You shows the email and signs out after a confirmation, and the rest of the tab is placeholders.
+- Today gets coach cards, made on the device with no AI call, and a coach drawer with streaming replies and two chips: "Quick log my day" and "I feel burned out".
+- Voice: a sheet with hold-to-talk, spoken and visual confirmation, an `ask_which` question when two habits match, an offer to add a habit when nothing matches, and a 10-second undo. Plain "undo" phrases are handled on the device, so undo works when the AI doesn't.
+- New migration `20261102000200_ai_counters_and_coach_events.sql`. Rate-limit counters move to `tracker.ai_counters` and survive restarts. Chats go to `coach_events` with their source, turn count and outcome, never their words. Only the service's secret key can reach either. Voice logs are recorded as `ai_assisted`.
+- `npm run ai` starts the service for a phone on the same Wi-Fi and writes `EXPO_PUBLIC_AI_URL` to `mobile/.env`.
+
+**Checked**
+
+- Typecheck, lint and the static build pass. Tests: core 172, web 26, mobile and UI 374, AI service 77, database 284.
+- 23 browser checks on Expo web with local Supabase and real Gemini, using made-up data: hold-to-talk with a simulated microphone, the clarifying question, undo by banner and by voice, the coach, limits across a service restart, the service being down, sign out, and an account not on the test list.
+- Live push followed the usual procedure. 19 checks with temporary users passed, and those users were deleted.
+
+**Bugs the browser run found:** the coach drawer collapsed to nothing when opened from a voice question, because a safe-area provider measured itself mid-animation. The tab bar didn't expose its selected tab on web.
+
+**Not checked:** hold-to-talk on a real phone. It needs a development build, because `expo-speech-recognition` isn't in Expo Go, and this Mac has no Xcode. Expo Go uses the text box and the keyboard's mic instead.
+
+### Voice: mishearings and the development build (2 Nov 2026)
+
+**Changed**
+
+- `backend/app/speech_fix.py` matches words by sound (Double Metaphone) and spelling against command words and habit names, and reads Hindi script. It only suggests: "and" sounds exactly like "undo", so the model sees both versions and decides.
+- The parser prompt says the text comes from speech recognition, and every call returns a confidence. The response carries `heard`, `corrected`, `confidence` and `level`. High acts, medium asks "Did you mean" with Yes and No, low shows what it heard to edit, and none is a plain no match. The app always shows what it heard.
+- A statement can't reach the coach any more. The model did this however the prompt was worded, so `ask_coach` is now checked in code.
+- Development build: `eas.json`, `expo-dev-client`, app identifiers, and recogniser hints with English and Hindi. See `docs/dev-build.md`.
+
+**Checked**
+
+- Accuracy 91% to 98% on 46 phrases, and wrong actions 4 to 0. See `docs/voice-accuracy.md`, including why 98% will drop on a fresh set.
+- 118 service tests, 174 core, 402 mobile and UI. `expo-doctor` passes 20 of 20 checks.
+
+**Not checked:** the development build itself, which needs your Expo login, and hold-to-talk on a real phone.
+
+### Progress screen (2 Nov 2026)
+
+**Changed**
+
+- New migration `20261102000300_progress.sql` adds `get_habit_days`: one row per scheduled day with its status, level, amount and the target that applied that day. It returns one JSON value, because a year of rows would pass the API's 1,000-row limit.
+- `packages/core/src/progress.ts` holds the identity score, yearly heatmap, streak history, top habits and the Compound Forecaster, all pure functions with tests.
+- Mobile gets a Progress tab. Each kind of day has its own shape as well as colour, a miss is a quiet hollow ring, and there's no red. On wide screens the sections sit side by side.
+- `backend/scripts/seed_test_history.py` replays 60 days through the real logging rules with a backdated clock, so its repairs and protected days are genuine. It refuses any address without `+test`.
+
+**Decisions**
+
+- The score covers the 30 days up to the last finished day, so an unfinished today can't count for or against anyone.
+- A skipped day is due but not done, so it lowers the identity score. PLAN.md says "every due habit", and only days with nothing due are left out.
+- The forecast slider changes how often, not how much: the amount per completed day stays the same.
+- Forecasts need 7 settled days first.
+
+**Checked**
+
+- Typecheck, lint and the static build pass. Tests: core 211, web 26, mobile and UI 422, AI service 118, database 291.
+- In a browser on seeded local data, light and dark at 390px and 1200px: no sideways scrolling, and the screenshots were viewed. A year of data loads in 0.07 seconds locally.
+- Live push followed the usual procedure. 12 checks with temporary users passed, and those users were deleted. The +test account now has 60 days of history, including 10 repairs and 4 protected days, and no other account was touched.
+
+### Phone test fixes (2 Nov 2026)
+
+**Changed**
+
+- Voice now tells three cases apart. Misheard: high acts and shows "Heard: … → understood as: …", medium asks, and only then can the text be edited. A clear command for a habit that doesn't exist offers Create it and Cancel. Something unrelated gets an example and no edit box.
+- `undo_habit` undoes a named habit's log today. Skip and shrink by name are in the test set with typos.
+- The coach acts. The service decides with the fast model, and the app runs the result through the same core functions as voice, using the person's own login, so it can't reach another account. Clear requests are done with an Undo chip, and unclear ones ask. These are recorded as `ai_assisted`, and `undo_log` now takes a source so a coach undo of a tapped log reads the same.
+- You has Theme: System, Light, Dark. It applies at once, is remembered, and the Next site has it in Settings.
+- An allowed skip no longer lowers the identity score. PLAN.md updated.
+
+**Checked**
+
+- Voice set 62 of 63, with 0 wrong actions. Tests: core 226, mobile and UI 462, AI service 133, database 293.
+- 13 browser checks with real Gemini and made-up data, covering "undi the read", "I did yoga", "I bought a red car", the coach logging and undoing with `ai_assisted`, and theme persistence. The Next theme was checked on the built site.
+- Live push followed the usual procedure.
+
+### Onboarding (2 Nov 2026)
+
+**Changed**
+
+- A new account goes through four steps before Today: pick or write an identity, create up to 3 habits with a minimum version, choose a reminder time, then a calm explanation of the streak rules.
+- Accounts that already have habits skip it, and if the check fails the app goes to Today, so nobody can be stuck at a welcome screen.
+- The identity and habits save one at a time, and a retry carries on from where it stopped, so a failed save can't make duplicates.
+- Reminders are real: a daily local notification through `expo-notifications`, which works in Expo Go. The module loads only when it's needed, and a failure never blocks anyone. You now has the same picker, so the time can be changed later. Web saves the time but sends nothing.
+- `users` gains `onboarded_at` and `reminder_time`, and existing accounts with habits were marked as onboarded.
+
+**Checked**
+
+- Unit tests for every step and failure, and 8 browser checks with a new account, at 390px light and 1200px dark, with screenshots viewed.
+- The migration was pushed with the phone test fixes, and owner-only access to these columns was verified live.
+
+**Not checked:** a notification actually arriving on a phone.
+
+### Reminder fix (2 Nov 2026)
+
+**Reported:** no permission prompt and no notification on a real phone.
+
+**Cause:** not confirmed, because Expo Go can't be run here. These faults were real, and all are fixed: every failure was swallowed and the screen ignored the result, the Android channel was created at default importance so it wouldn't pop up, and without a handler a reminder that fires with the app open isn't shown.
+
+**Changed:** results now reach the screen with the real reason. You has **Send a test reminder**, which fires in about 5 seconds, and **Open phone settings** once the phone won't ask again. The handler and a missing reminder are restored when the app opens.
+
+**Not checked:** a notification arriving on a real phone. This still needs the phone test.
+

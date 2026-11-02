@@ -159,7 +159,7 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 
 ### Progress definitions
 
-**Identity score:** out of the last 30 days, the number of days where every due habit in that identity was done at any Shrink level. Repaired counts; protected doesn't. It's shown as "23 of 30 days". Days with no due habits in that identity are left out of the total.
+**Identity score:** out of the last 30 days, the number of days where every due habit in that identity was done at any Shrink level. Repaired counts; protected doesn't. A skip with a reason, within the allowance of 2 a week, makes that habit not due that day; a 3rd skip counts as a miss. It's shown as "23 of 30 days". Days with no due habits in that identity are left out of the total.
 
 **Compound Forecaster:**
 
@@ -194,10 +194,12 @@ Users will be able to log by voice without opening the app, but not with our own
 
 ### How one voice log works
 
-1. Speech becomes text on the device (iOS Speech framework, Android SpeechRecognizer). No audio leaves the phone.
+1. Speech becomes text on the device where the phone supports it (iOS Speech framework, Android SpeechRecognizer), in `en-IN` or `hi-IN`, with the command words and habit names as hints. Where a phone can't do that language on-device, its own recogniser may use its maker's servers. Our servers never receive audio.
 2. The text goes to our intent parser: an LLM call with a small, fixed tool list — `log_habit`, `log_amount`, `shrink_habit`, `skip_habit`, `undo_last`, `ask_coach` — and the user's habit list with its `voice_aliases`.
-3. Confidence decides the reply:
+3. Misheard words are found first, by sound and spelling against the command words and habit names, and offered to the parser as suggestions. Confidence then decides the reply, and the app always shows what it heard:
    - **Clear match:** log it and speak back. "Logged Deep Work. 12-day streak." With an undo for 10 seconds.
+   - **A guess at a misheard word:** ask first. "Did you mean: Undo the last log?" with Yes and No.
+   - **Can't tell:** say so, and show what it heard so it can be edited.
    - **Two possible habits:** ask once. "Deep work or workout?"
    - **No match:** offer to create the habit, never guess silently.
 4. Offline: the log is queued on the device and synced later. Simple phrases ("done with X") are matched on-device without the LLM.

@@ -64,13 +64,14 @@ function FieldAnchor({ field, onMeasure, style, children }: FieldAnchorProps) {
 
 interface HabitFormScreenProps {
   habitId?: string;
+  initialTitle?: string;
   onClose: () => void;
 }
 
-export function HabitFormScreen({ habitId, onClose }: HabitFormScreenProps) {
+export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScreenProps) {
   const { colors } = useTheme();
   const size = useLayoutSize();
-  const form = useHabitForm({ habitId, onDone: onClose });
+  const form = useHabitForm({ habitId, initialTitle, onDone: onClose });
   const [showMore, setShowMore] = useState(false);
   const [sheet, setSheet] = useState<'discard' | 'archive' | null>(null);
 

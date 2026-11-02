@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CoachError, createAiClient } from './ai';
+import { ChatEvent, CoachError, createAiClient } from './ai';
 
 const client = (send: typeof fetch) =>
   createAiClient({ baseUrl: 'http://ai.test', getToken: async () => 'tok', fetch: send });
@@ -14,9 +14,9 @@ const streamed = (...chunks: string[]) =>
     })
   );
 
-const read = async (stream: AsyncGenerator<string>) => {
+const read = async (stream: AsyncGenerator<ChatEvent>) => {
   const seen: string[] = [];
-  for await (const text of stream) seen.push(text);
+  for await (const event of stream) if (event.type === 'text') seen.push(event.text);
   return seen;
 };
 
@@ -24,7 +24,9 @@ const ask = [{ role: 'user' as const, text: 'hi' }];
 
 describe('createAiClient', () => {
   it('sends the session token', async () => {
-    const send = vi.fn(async () => Response.json({ intents: [] }));
+    const send = vi.fn(async () =>
+      Response.json({ heard: 'I ran', corrected: 'I ran', confidence: 1, level: 'none', intents: [] })
+    );
     await client(send as unknown as typeof fetch).parseVoice('I ran');
     expect(send).toHaveBeenCalledWith(
       'http://ai.test/voice/parse',
@@ -40,11 +42,19 @@ describe('createAiClient', () => {
     await expect(read(client(send).chat(ask))).resolves.toEqual(['Hello', ' you']);
   });
 
+  it('passes on what the coach decided to do', async () => {
+    const send = async () =>
+      streamed('data: {"type":"actions","level":"high","intents":[{"intent":"undo_last"}]}\n\n');
+    await expect(client(send).chat(ask).next()).resolves.toMatchObject({
+      value: { type: 'actions', level: 'high' },
+    });
+  });
+
   it('raises a failure that arrives mid-reply', async () => {
     const send = async () =>
       streamed('data: {"type":"delta","text":"Hi"}\n\ndata: {"type":"error","code":"busy","message":"Coach is busy, try again in a minute.","retry_after":60}\n\n');
     const stream = client(send).chat(ask);
-    await expect(stream.next()).resolves.toMatchObject({ value: 'Hi' });
+    await expect(stream.next()).resolves.toMatchObject({ value: { text: 'Hi' } });
     await expect(stream.next()).rejects.toMatchObject({ code: 'busy', retryAfter: 60 });
   });
 
@@ -58,6 +68,11 @@ describe('createAiClient', () => {
       message: 'Coach is busy, try again in a minute.',
       retryAfter: 30,
     });
+  });
+
+  it('reads an unset service the same as one that is down', async () => {
+    const unset = createAiClient({ getToken: async () => 'tok' });
+    await expect(unset.parseVoice('I ran')).rejects.toMatchObject({ code: 'unavailable' });
   });
 
   it('stays calm when the service is unreachable', async () => {

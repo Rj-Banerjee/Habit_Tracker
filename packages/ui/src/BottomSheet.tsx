@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from './ThemeProvider';
 import { radius, space } from '@habit-tracker/core';
 import { Text } from './Text';
@@ -15,7 +15,10 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
   const { colors } = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'web' ? undefined : 'padding'}
+      >
         <Pressable
           style={[styles.backdrop, { backgroundColor: colors.scrim }]}
           onPress={onClose}
@@ -26,9 +29,11 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
           <Text variant="title" accessibilityRole="header">
             {title}
           </Text>
-          <ScrollView contentContainerStyle={styles.body}>{children}</ScrollView>
+          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

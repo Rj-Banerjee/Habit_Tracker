@@ -1,9 +1,9 @@
 import pytest
 
 from app.llm.base import Message, Misconfigured, RateLimited, Refused, Tier, ToolResult, Unavailable
-from app.llm.reliable import ReliableProvider, Window
+from app.llm.reliable import ReliableProvider
 
-from .fakes import FakeProvider
+from .fakes import FakeDb, FakeProvider
 
 HI = [Message("user", "hi")]
 LIMITS = {Tier.FAST: (0, 0), Tier.STRONG: (0, 0)}
@@ -15,30 +15,12 @@ def reliable(inner, limits=LIMITS, attempts=3, budget=8.0):
     async def sleep(seconds):
         slept.append(seconds)
 
-    wrapped = ReliableProvider(inner, limits, attempts, budget, sleep=sleep)
+    wrapped = ReliableProvider(inner, limits, FakeDb(), attempts, budget, sleep=sleep)
     return wrapped, slept
 
 
 async def collect(provider):
     return [text async for text in provider.stream_chat(Tier.STRONG, "s", HI, 10)]
-
-
-def test_window_counts_and_clears():
-    now = [0.0]
-    window = Window(2, 60, clock=lambda: now[0])
-    window.record()
-    window.record()
-    assert window.wait_needed() == 60
-    now[0] = 45
-    assert window.wait_needed() == 15
-    now[0] = 61
-    assert window.wait_needed() == 0
-
-
-def test_a_limit_of_zero_means_no_check():
-    window = Window(0, 60)
-    window.record()
-    assert window.wait_needed() == 0
 
 
 async def test_retries_a_rate_limit_then_streams():

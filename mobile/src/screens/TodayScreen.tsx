@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   cardDetail,
   cardStatus,
+  coachCard,
   dayPart,
   eveningNote,
   greeting,
@@ -27,13 +28,23 @@ import {
   useShortcut,
   useTheme,
 } from '@habit-tracker/ui';
+import { CoachCard } from '../coach/CoachCard';
+import { CoachDrawer } from '../coach/CoachDrawer';
+import { useActions } from '../hooks/useActions';
+import { useCoach } from '../hooks/useCoach';
 import { useToday } from '../hooks/useToday';
+import { useVoice } from '../hooks/useVoice';
 import { checkOffTick } from '../services/haptics';
 import { ShrinkSheet } from '../today/ShrinkSheet';
 import { SwipeToSkip } from '../today/SwipeToSkip';
+import { UndoBanner } from '../voice/UndoBanner';
+import { VoiceSheet } from '../voice/VoiceSheet';
+
+// iOS drops a sheet opened while another is still closing.
+const SHEET_CLOSE_MS = 400;
 
 interface TodayScreenProps {
-  onAddHabit: () => void;
+  onAddHabit: (title?: string) => void;
   onEditHabit: (habitId: string) => void;
 }
 
@@ -44,6 +55,27 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
   const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
+  const [panel, setPanel] = useState<'coach' | 'voice' | null>(null);
+  const actions = useActions(rows, refresh);
+  const coach = useCoach(actions);
+  const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
+    setPanel(null);
+    if (switching.current) clearTimeout(switching.current);
+    switching.current = setTimeout(() => {
+      setPanel(next);
+      then?.();
+    }, SHEET_CLOSE_MS);
+  };
+
+  const voice = useVoice({
+    rows,
+    actions,
+    refresh,
+    onClose: () => setPanel(null),
+    onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
+  });
 
   const part = dayPart(new Date().getHours());
   const today = rows.filter((row) => row.is_today);
@@ -77,6 +109,8 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
 
   useShortcut('r', refreshNow);
 
+  const card = coachCard(rows, repairs, part);
+
   const repairSection =
     repairs.length > 0 ? (
       <View style={styles.group}>
@@ -107,7 +141,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
     ) : null;
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.canvas }]}>
+    <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.canvas }]}>
       <ScrollView contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}>
         <View style={styles.header}>
           <Text variant="small" muted>
@@ -122,6 +156,32 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             </Text>
           ) : null}
         </View>
+
+        <View style={styles.actions}>
+          <View style={styles.action}>
+            <Button
+              label="Log by voice"
+              quiet
+              onPress={() => {
+                voice.reset();
+                setPanel('voice');
+              }}
+            />
+          </View>
+          <View style={styles.action}>
+            <Button label="Ask coach" quiet onPress={() => setPanel('coach')} />
+          </View>
+        </View>
+
+        {card && !loading ? (
+          <CoachCard
+            text={card.text}
+            onPress={() => {
+              setPanel('coach');
+              void coach.send(card.prompt, 'card');
+            }}
+          />
+        ) : null}
 
         {message ? (
           <Text variant="small" muted accessibilityLiveRegion="polite">
@@ -142,7 +202,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             <Text variant="small" muted>
               Habits you add will show up here on the days they&apos;re scheduled.
             </Text>
-            <Button label="Add habit" onPress={onAddHabit} />
+            <Button label="Add habit" onPress={() => onAddHabit()} />
           </View>
         ) : (
           <>
@@ -157,10 +217,14 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             ))}
             {showYesterdayFirst(part) ? null : yesterdaySection}
             {repairSection}
-            <Button label="Add habit" quiet onPress={onAddHabit} />
+            <Button label="Add habit" quiet onPress={() => onAddHabit()} />
           </>
         )}
       </ScrollView>
+
+      {voice.banner ? (
+        <UndoBanner banner={voice.banner} onUndo={voice.undo} onExpire={voice.clearBanner} />
+      ) : null}
 
       <ShrinkSheet
         row={shrinkRow}
@@ -190,6 +254,29 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
           setSkipRow(null);
         }}
       />
+      <VoiceSheet
+        visible={panel === 'voice'}
+        voice={voice}
+        onAddHabit={(title) => {
+          setPanel(null);
+          voice.reset();
+          onAddHabit(title);
+        }}
+        onClose={() => setPanel(null)}
+      />
+      <CoachDrawer
+        visible={panel === 'coach'}
+        coach={coach}
+        onQuickLog={() => {
+          voice.reset();
+          switchTo('voice');
+        }}
+        onCreateHabit={(title) => {
+          setPanel(null);
+          onAddHabit(title);
+        }}
+        onClose={() => setPanel(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -205,6 +292,8 @@ const styles = StyleSheet.create({
   },
   contentWide: { paddingTop: space.xxl },
   header: { gap: space.xs, paddingTop: space.lg },
+  actions: { flexDirection: 'row', gap: space.sm },
+  action: { flex: 1 },
   group: { gap: space.sm },
   notice: { gap: space.md },
 });

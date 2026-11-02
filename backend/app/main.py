@@ -15,7 +15,7 @@ from .config import Settings, get_settings
 from .data_policy import may_reach_provider
 from .llm import build_provider
 from .llm.base import LLMError, LLMProvider, Message, RateLimited, Refused
-from .rate_limit import UserLimits
+from .service_db import ServiceDb
 from .tracker import Tracker, TrackerUnavailable
 
 log = logging.getLogger("ai")
@@ -26,6 +26,7 @@ UNAVAILABLE = "Coach isn't available right now. Your habits still work as normal
 REFUSED = "Coach can't help with that one. Try asking another way."
 TEST_ONLY = "Coach is only open to test accounts for now."
 TOO_MANY = "That's a lot of questions for one hour. Try again a bit later."
+HOUR = 3600
 
 
 def describe(error: LLMError) -> tuple[int, str, str, int | None]:
@@ -36,7 +37,7 @@ def describe(error: LLMError) -> tuple[int, str, str, int | None]:
     if isinstance(error, Refused):
         return 422, "refused", REFUSED, None
     # Details stay in our log. A bad key isn't something the user can act on.
-    log.warning("AI call failed: %s", type(error).__name__)
+    log.warning("AI call failed: %s: %s", type(error).__name__, error)
     return 503, "unavailable", UNAVAILABLE, None
 
 
@@ -57,9 +58,10 @@ def problem(status: int, code: str, message: str, retry_after: int | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    app.state.provider = build_provider(settings)
-    app.state.limits = UserLimits()
+    app.state.db = ServiceDb(settings)
+    app.state.provider = build_provider(settings, app.state.db)
     yield
+    await app.state.db.close()
 
 
 app = FastAPI(title="Habit tracker AI service", lifespan=lifespan)
@@ -96,12 +98,12 @@ async def on_tracker_error(_: Request, __: TrackerUnavailable) -> JSONResponse:
     return problem(503, "unavailable", UNAVAILABLE)
 
 
-def admit(
+async def admit(
     request: Request, user: CurrentUser, settings: Settings, action: str, per_hour: int
 ) -> None:
     if not may_reach_provider(user, settings, request.app.state.provider):
         raise Denied(403, "test_only", TEST_ONLY)
-    wait = request.app.state.limits.wait_needed(user.id, action, per_hour)
+    wait = await request.app.state.db.take_slot(f"user:{user.id}:{action}", per_hour, HOUR)
     if wait:
         raise Denied(429, "too_many", TOO_MANY, round(wait))
 
@@ -113,6 +115,8 @@ class Turn(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[Turn] = Field(min_length=1, max_length=40)
+    # Where the conversation started, for coach_events. The words are never stored.
+    source: Literal["chat", "card", "burned_out"] = "chat"
 
 
 class VoiceRequest(BaseModel):
@@ -122,6 +126,16 @@ class VoiceRequest(BaseModel):
 @app.get("/health")
 async def health(settings: Settings = Depends(get_settings)) -> dict[str, str]:
     return {"status": "ok", "provider": settings.ai_provider}
+
+
+def should_act(decision: dict) -> bool:
+    """Only a real request reaches the app. Anything else is left to the coach to talk
+    through, including asking what they meant."""
+    if decision["talk"]:
+        return False
+    return decision["level"] == "no_habit" or (
+        bool(decision["intents"]) and decision["level"] in ("high", "medium")
+    )
 
 
 def sse(payload: dict) -> str:
@@ -136,16 +150,32 @@ async def coach_chat(
     settings: Settings = Depends(get_settings),
     provider: LLMProvider = Depends(get_provider),
 ):
-    admit(request, user, settings, "chat", settings.ai_user_chats_per_hour)
+    await admit(request, user, settings, "chat", settings.ai_user_chats_per_hour)
     if body.messages[-1].role != "user":
         raise HTTPException(422, "The last message must be from the user")
+
+    db: ServiceDb = request.app.state.db
+
+    async def record(outcome: str) -> None:
+        payload = {"source": body.source, "turns": len(body.messages)}
+        await db.record_coach_event(user.id, "chat", payload, outcome)
 
     tracker = Tracker(settings, user)
     try:
         messages = [Message(turn.role, turn.text) for turn in body.messages]
+        decision = await voice.for_chat(provider, tracker, messages)
+        if should_act(decision):
+            await record("acted")
+            return StreamingResponse(
+                iter([sse({"type": "actions", **decision}), sse({"type": "done"})]),
+                media_type="text/event-stream",
+            )
         stream = await coach.reply(provider, settings, tracker, messages)
         # Wait for the first words, so a failure can still be a normal error response.
         first = await anext(stream, None)
+    except LLMError:
+        await record("failed")
+        raise
     finally:
         await tracker.close()
 
@@ -157,8 +187,10 @@ async def coach_chat(
                 yield sse({"type": "delta", "text": text})
         except LLMError as error:
             _, code, message, retry_after = describe(error)
+            await record("failed")
             yield sse({"type": "error", "code": code, "message": message, "retry_after": retry_after})
             return
+        await record("replied")
         yield sse({"type": "done"})
 
     return StreamingResponse(events(), media_type="text/event-stream")
@@ -172,9 +204,9 @@ async def voice_parse(
     settings: Settings = Depends(get_settings),
     provider: LLMProvider = Depends(get_provider),
 ) -> dict:
-    admit(request, user, settings, "voice", settings.ai_user_voice_per_hour)
+    await admit(request, user, settings, "voice", settings.ai_user_voice_per_hour)
     tracker = Tracker(settings, user)
     try:
-        return {"intents": await voice.parse(provider, tracker, body.transcript)}
+        return await voice.parse(provider, tracker, body.transcript)
     finally:
         await tracker.close()

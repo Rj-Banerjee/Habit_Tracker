@@ -96,10 +96,11 @@ const snapshot = (values: HabitFormValues) =>
 
 interface HabitFormOptions {
   habitId?: string;
+  initialTitle?: string;
   onDone: () => void;
 }
 
-export function useHabitForm({ habitId, onDone }: HabitFormOptions) {
+export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOptions) {
   const [status, setStatus] = useState<Status>('loading');
   const [attempt, setAttempt] = useState(0);
   const [limitMessage, setLimitMessage] = useState('');
@@ -127,7 +128,7 @@ export function useHabitForm({ habitId, onDone }: HabitFormOptions) {
         }
         const start = habit
           ? formFromHabit(habit)
-          : emptyHabitForm(list.length === 1 ? list[0].id : null);
+          : { ...emptyHabitForm(list.length === 1 ? list[0].id : null), title: initialTitle };
         setIdentities(list);
         setInitial(start);
         setValues(start);
@@ -135,7 +136,7 @@ export function useHabitForm({ habitId, onDone }: HabitFormOptions) {
         setStatus('ready');
       })
       .catch(() => setStatus('failed'));
-  }, [habitId, attempt]);
+  }, [habitId, initialTitle, attempt]);
 
   const retry = () => {
     setStatus('loading');

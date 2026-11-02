@@ -4,6 +4,7 @@ import { IdentityToken } from './tokens';
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
 export type LogStatus = 'done' | 'skipped' | 'repaired';
+export type LogSource = 'tap' | 'voice' | 'coach';
 export type StreakMode = 'strict' | 'grace';
 
 export interface LevelOption {
@@ -88,9 +89,34 @@ export interface RangeHabit {
   habit_logs: HabitLog[];
 }
 
+export interface ProgressHabit {
+  id: string;
+  identity_id: string;
+  title: string;
+  type: HabitType;
+  target: number | null;
+  unit: string | null;
+  schedule_days: number[];
+  milestone_amount: number | null;
+  milestone_label: string | null;
+  identities: { name: string; colour_token: IdentityToken };
+}
+
+// One scheduled day, with the target that applied on it.
+export interface ProgressDay {
+  habit_id: string;
+  date: string;
+  status: string;
+  level_done: HabitLevel | null;
+  amount: number | null;
+  target: number | null;
+}
+
 export interface Profile {
   timezone: string;
   mode: StreakMode;
+  onboarded_at: string | null;
+  reminder_time: string | null;
 }
 
 export interface Reflection {
@@ -172,14 +198,32 @@ export function createTrackerApi(client: SupabaseClient) {
     getDayStatuses: (from: string, to: string) =>
       call<DayStatus[]>('get_day_statuses', { p_from: from, p_to: to }),
 
-    logHabit: (habitId: string, date: string, level: HabitLevel = 'full', amount: number | null = null) =>
-      call('log_habit', { p_habit_id: habitId, p_date: date, p_level: level, p_amount: amount }),
+    // A null date means today, in the person's timezone.
+    logHabit: (
+      habitId: string,
+      date: string | null,
+      level: HabitLevel = 'full',
+      amount: number | null = null,
+      source: LogSource = 'tap'
+    ) =>
+      call('log_habit', {
+        p_habit_id: habitId,
+        p_date: date,
+        p_level: level,
+        p_amount: amount,
+        p_source: source,
+      }),
 
-    undoLog: (habitId: string, date: string) =>
-      call('undo_log', { p_habit_id: habitId, p_date: date }),
+    undoLog: (habitId: string, date: string | null, source: LogSource = 'tap') =>
+      call('undo_log', { p_habit_id: habitId, p_date: date, p_source: source }),
 
-    skipHabit: (habitId: string, date: string, reason: string) =>
-      call('skip_habit', { p_habit_id: habitId, p_date: date, p_reason: reason }),
+    skipHabit: (habitId: string, date: string | null, reason: string, source: LogSource = 'tap') =>
+      call('skip_habit', {
+        p_habit_id: habitId,
+        p_date: date,
+        p_reason: reason,
+        p_source: source,
+      }),
 
     repairHabit: (habitId: string, date: string, amount: number | null) =>
       call('repair_habit', {
@@ -260,8 +304,40 @@ export function createTrackerApi(client: SupabaseClient) {
           .order('created_at')
       ),
 
+    // The words speech recognition should listen out for.
+    listVoiceNames: async () => {
+      const rows = await select<{ title: string; voice_aliases: string[] }[]>(
+        client.from('habits').select('title, voice_aliases').is('archived_at', null)
+      );
+      return rows.flatMap((row) => [row.title, ...row.voice_aliases]);
+    },
+
+    listProgressHabits: () =>
+      select<ProgressHabit[]>(
+        client
+          .from('habits')
+          .select(
+            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, identities(name, colour_token)'
+          )
+          .is('archived_at', null)
+          .order('created_at')
+      ),
+
+    getHabitDays: (from: string, to: string) =>
+      call<ProgressDay[]>('get_habit_days', { p_from: from, p_to: to }),
+
     getProfile: () =>
-      select<Profile>(client.from('users').select('timezone, mode').single()),
+      select<Profile>(
+        client.from('users').select('timezone, mode, onboarded_at, reminder_time').single()
+      ),
+
+    setReminderTime: (userId: string, time: string | null) =>
+      select(client.from('users').update({ reminder_time: time }).eq('id', userId)),
+
+    finishOnboarding: (userId: string) =>
+      select(
+        client.from('users').update({ onboarded_at: new Date().toISOString() }).eq('id', userId)
+      ),
 
     getReflection: async (weekStart: string) => {
       const rows = await select<Reflection[]>(

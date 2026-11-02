@@ -1,15 +1,16 @@
 # Hand-off: coach chat and voice
 
-The AI service and the shared client are done and tested. The screens aren't built.
+The AI service, the shared client and the mobile screens are built. Coach cards, the drawer, the voice sheet and the You tab are in `mobile/src`.
 
 ## Run the service
 
+From the repo root, with the phone on the same Wi-Fi as the Mac:
+
 ```
-cd backend
-python3.13 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/uvicorn app.main:app --port 8200
+npm run ai
 ```
+
+It installs the service on first run, writes this Mac's address to `EXPO_PUBLIC_AI_URL` in `mobile/.env`, and listens on port 8200. If the address changed, restart Expo. With the dev client installed, Expo Go needs `npx expo start --go -c`.
 
 On a free tier, only the user IDs in `AI_TEST_USER_IDS` get through. Everyone else gets `test_only`.
 
@@ -42,8 +43,22 @@ Mobile must pass `fetch` from `expo/fetch`, because React Native's own fetch can
 | `refused` | 422 | The provider's safety filter blocked it |
 | `unavailable` | 503 | Provider or tracker down |
 
+## Voice in Expo Go
+
+Hold-to-talk uses `expo-speech-recognition`, a native module that isn't in Expo Go. There, `speechInput()` returns null and the sheet shows only the text box, where the keyboard's own mic does the speech-to-text on the phone. `docs/dev-build.md` covers the build that adds it. It prefers on-device recognition, and offers English (`en-IN`) and Hindi (`hi-IN`). On web, the browser's speech recognition is used where it exists.
+
+## Decisions
+
+- Coach cards are made on the device from Today's data, so a card costs no AI call and still shows when the AI is down. Tapping one asks the coach.
+- "Quick log my day" opens the voice sheet, and "I feel burned out" asks the coach. PLAN.md doesn't describe the chips, so these are my reading.
+- `ask_which` joins the voice tools, for "Deep work or workout?".
+- `coach_events` records the source, turn count and outcome of a chat, never its words.
+- Voice logs are saved with source `voice` and actor `ai_assisted`.
+- Plain "undo" phrases are matched on the device, so undo never depends on the AI.
+- Rate-limit counters live in `tracker.ai_counters`. Only the service's secret key can reach them.
+
 ## Not done yet
 
-- `coach_events` isn't written, because that needs the secret key on the service.
-- Limits are in memory, so they reset on restart and need shared storage before running more than one process.
+- Offline voice logs and on-device matching of simple phrases, from PLAN.md's voice section.
+- The wake word, Siri and widgets.
 - The service isn't deployed, so a phone can only reach it on your own network.

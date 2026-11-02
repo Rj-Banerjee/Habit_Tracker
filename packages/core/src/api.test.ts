@@ -18,6 +18,7 @@ describe('createTrackerApi', () => {
       p_date: '2026-11-01',
       p_level: 'minimum',
       p_amount: 2,
+      p_source: 'tap',
     });
   });
 
