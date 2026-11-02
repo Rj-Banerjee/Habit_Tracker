@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TodayRow } from './api';
-import { toggleFromWidget, widgetModel } from './widget';
+import { toggledRows, toggleFromWidget, widgetModel } from './widget';
 
 const row = (id: string, status = 'pending', patch: Partial<TodayRow> = {}) =>
   ({
@@ -19,10 +19,18 @@ const row = (id: string, status = 'pending', patch: Partial<TodayRow> = {}) =>
 const api = () => ({ logHabit: vi.fn(async () => null), undoLog: vi.fn(async () => null) });
 
 describe('widgetModel', () => {
-  it('puts open habits first', () => {
-    const model = widgetModel([row('a', 'done'), row('b')]);
-    expect(model.items.map((item) => item.habitId)).toEqual(['b', 'a']);
-    expect(model.items[1].done).toBe(true);
+  it('keeps rows in place when one is logged, so a second tap hits the same habit', () => {
+    const before = widgetModel([row('a'), row('b')]);
+    const after = widgetModel([row('a', 'done'), row('b')]);
+    expect(after.items.map((item) => item.habitId)).toEqual(
+      before.items.map((item) => item.habitId)
+    );
+    expect(after.items[0].done).toBe(true);
+  });
+
+  it('shows open habits when there are too many to fit', () => {
+    const rows = [row('a', 'done'), row('b', 'done'), row('c'), row('d'), row('e'), row('f')];
+    expect(widgetModel(rows).items.map((item) => item.habitId)).toEqual(['c', 'd', 'e', 'f']);
   });
 
   it('leaves out yesterday', () => {
@@ -37,6 +45,20 @@ describe('widgetModel', () => {
 
   it('copes with nothing due', () => {
     expect(widgetModel([])).toEqual({ summary: 'Today', items: [], more: 0 });
+  });
+});
+
+describe('toggledRows', () => {
+  it('marks an open habit done', () => {
+    expect(widgetModel(toggledRows([row('a')], 'a')).items[0].done).toBe(true);
+  });
+
+  it('clears a done habit', () => {
+    expect(widgetModel(toggledRows([row('a', 'done')], 'a')).items[0].done).toBe(false);
+  });
+
+  it('leaves the others alone', () => {
+    expect(widgetModel(toggledRows([row('a'), row('b')], 'a')).items[1].done).toBe(false);
   });
 });
 

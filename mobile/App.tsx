@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Figtree_400Regular,
   Figtree_500Medium,
@@ -20,7 +20,7 @@ import { SundayReviewScreen } from './src/screens/SundayReviewScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { YouScreen } from './src/screens/YouScreen';
 import { supabase } from './src/services/supabase';
-import { AuthForm, ThemeProvider, useTheme } from '@habit-tracker/ui';
+import { AuthForm, SheetInsetContext, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
 const THEME_KEY = 'theme-preference';
 const themeStorage = {
@@ -58,6 +58,11 @@ function Root() {
 
   // The key starts everything afresh for the next person to sign in.
   return <SignedIn key={session.user.id} session={session} />;
+}
+
+function SheetInset({ children }: { children: React.ReactNode }) {
+  const { bottom } = useSafeAreaInsets();
+  return <SheetInsetContext.Provider value={bottom}>{children}</SheetInsetContext.Provider>;
 }
 
 function SignedIn({ session }: { session: Session }) {
@@ -134,7 +139,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider storage={themeStorage}>
         <ThemedStatusBar />
-        <Root />
+        <SheetInset>
+          <Root />
+        </SheetInset>
       </ThemeProvider>
     </SafeAreaProvider>
   );

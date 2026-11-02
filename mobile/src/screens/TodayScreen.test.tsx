@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
@@ -75,6 +76,20 @@ const open = async (rows: TodayRow[]) => {
 };
 
 describe('TodayScreen', () => {
+  it('reloads when the app comes back, so a widget log shows up', async () => {
+    const listeners: ((state: string) => void)[] = [];
+    (AppState.addEventListener as jest.Mock).mockImplementationOnce((_, listener) => {
+      listeners.push(listener);
+      return { remove: jest.fn() };
+    });
+    await open([row()]);
+    api.getToday.mockClear();
+    await act(async () => listeners[0]('background'));
+    expect(api.getToday).not.toHaveBeenCalled();
+    await act(async () => listeners[0]('active'));
+    expect(api.getToday).toHaveBeenCalled();
+  });
+
   beforeEach(() => jest.clearAllMocks());
 
   it('groups habits by identity', async () => {

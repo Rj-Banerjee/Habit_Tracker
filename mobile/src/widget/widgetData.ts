@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TodayRow, toggleFromWidget, widgetModel } from '@habit-tracker/core';
+import { TodayRow, toggledRows, toggleFromWidget, widgetModel } from '@habit-tracker/core';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import type { WidgetState } from './TodayWidget';
@@ -24,6 +24,13 @@ export async function loadWidget(note?: string): Promise<WidgetState> {
   } catch {
     return { kind: 'ready', model: widgetModel(await cached()), note: OFFLINE_NOTE };
   }
+}
+
+// Shown straight away, so a tap feels like a tap. Null if there's nothing to go on.
+export async function previewToggle(habitId: string): Promise<WidgetState | null> {
+  const rows = await cached();
+  if (rows.length === 0) return null;
+  return { kind: 'ready', model: widgetModel(toggledRows(rows, habitId)) };
 }
 
 export async function toggleAndLoad(habitId: string): Promise<WidgetState> {

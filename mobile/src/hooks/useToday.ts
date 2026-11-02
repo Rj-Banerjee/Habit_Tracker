@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { HabitLevel, levelTarget, RepairRow, TodayRow } from '@habit-tracker/core';
 import { tracker } from '../services/tracker';
 import { refreshWidget } from '../services/widget';
@@ -28,6 +29,11 @@ export function useToday() {
 
   useEffect(() => {
     void refresh();
+    // A log from the widget or another device happens while this isn't looking.
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    return () => listener.remove();
   }, [refresh]);
 
   // Shows the change at once, then lets the server have the final word.

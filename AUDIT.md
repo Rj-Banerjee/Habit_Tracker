@@ -1103,3 +1103,5 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Blank widget, found on a real phone:** the layout used a React Fragment, which `react-native-android-widget` can't read, so the build threw in the background and nothing was drawn. The tests had replaced the library with a stand-in, so they couldn't see it. A new test builds every widget state with the library's real tree builder, and a failure now draws "Open the app to see your habits" rather than nothing.
 
+**Phone testing over adb (Realme RMX2189, Android 11):** first real-device checks by the agent. Confirmed: the widget draws, a tap logs with source `widget` and undo works, about 2 seconds warm and 5.5 from a frozen app, and the voice button opens the sheet. Found and fixed: Today stayed stale after a widget log because it only loaded on start, widget rows moved after a tap so a second tap could hit another habit, and bottom sheets sat under Android's navigation bar. A tap now shows at once and then confirms.
+

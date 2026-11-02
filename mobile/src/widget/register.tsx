@@ -1,7 +1,7 @@
 import { registerWidgetTaskHandler, WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { WIDGET_TOGGLE } from '@habit-tracker/core';
 import { widgetView } from './TodayWidget';
-import { loadWidget, toggleAndLoad } from './widgetData';
+import { loadWidget, previewToggle, toggleAndLoad } from './widgetData';
 
 export async function handleWidget(props: WidgetTaskHandlerProps) {
   const { widgetAction, clickAction, clickActionData, renderWidget } = props;
@@ -11,11 +11,14 @@ export async function handleWidget(props: WidgetTaskHandlerProps) {
   // Anything that fails in here is invisible, and an undrawn widget is just a transparent
   // gap on the home screen. So there's always something to draw.
   try {
-    const state =
-      widgetAction === 'WIDGET_CLICK'
-        ? await toggleAndLoad(String(clickActionData?.habitId))
-        : await loadWidget();
-    renderWidget(widgetView(state));
+    if (widgetAction === 'WIDGET_CLICK') {
+      const habitId = String(clickActionData?.habitId);
+      const preview = await previewToggle(habitId);
+      if (preview) renderWidget(widgetView(preview));
+      renderWidget(widgetView(await toggleAndLoad(habitId)));
+    } else {
+      renderWidget(widgetView(await loadWidget()));
+    }
   } catch (error) {
     console.warn('[widget]', error instanceof Error ? error.message : error);
     renderWidget(widgetView({ kind: 'failed' }));

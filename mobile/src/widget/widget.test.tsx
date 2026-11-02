@@ -107,6 +107,16 @@ describe('the widget', () => {
     warn.mockRestore();
   });
 
+  it('shows the tap before the server answers, then confirms', async () => {
+    await loadWidget();
+    const render = await handled({
+      widgetAction: 'WIDGET_CLICK',
+      clickAction: 'TOGGLE',
+      clickActionData: { habitId: 'h1' },
+    });
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
   it('ignores a removed widget', async () => {
     const render = await handled({ widgetAction: 'WIDGET_DELETED' });
     expect(render).not.toHaveBeenCalled();

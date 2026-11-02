@@ -21,22 +21,34 @@ export interface WidgetModel {
   more: number;
 }
 
-// Open habits first, since those are the ones with something to tap.
+// Rows keep their places, or a second tap could land on a different habit. If there are
+// too many to show, the open ones are the ones that make the cut.
 export function widgetModel(rows: TodayRow[]): WidgetModel {
   const today = rows.filter((row) => row.is_today);
-  const items = today
-    .map((row) => ({
-      habitId: row.habit_id,
-      title: row.title,
-      done: isLogged(row),
-      identity: row.colour_token,
-    }))
-    .sort((a, b) => Number(a.done) - Number(b.done));
+  const items = today.map((row) => ({
+    habitId: row.habit_id,
+    title: row.title,
+    done: isLogged(row),
+    identity: row.colour_token,
+  }));
+  const shown = [...items]
+    .sort((a, b) => Number(a.done) - Number(b.done))
+    .slice(0, WIDGET_MAX_ROWS);
   return {
     summary: progressLabel(today) || 'Today',
-    items: items.slice(0, WIDGET_MAX_ROWS),
+    items: items.filter((item) => shown.includes(item)),
     more: Math.max(0, items.length - WIDGET_MAX_ROWS),
   };
+}
+
+// What a tap will do, to show before the server has answered.
+export function toggledRows(rows: TodayRow[], habitId: string): TodayRow[] {
+  return rows.map((row) => {
+    if (row.habit_id !== habitId || !row.is_today) return row;
+    return isLogged(row)
+      ? { ...row, status: 'pending', level_done: null }
+      : { ...row, status: 'done', level_done: 'full' };
+  });
 }
 
 // One tap logs the full version, and a second takes it back, as on Today.
