@@ -24,7 +24,9 @@ const ask = [{ role: 'user' as const, text: 'hi' }];
 
 describe('createAiClient', () => {
   it('sends the session token', async () => {
-    const send = vi.fn(async () => Response.json({ intents: [] }));
+    const send = vi.fn(async () =>
+      Response.json({ heard: 'I ran', corrected: 'I ran', confidence: 1, level: 'none', intents: [] })
+    );
     await client(send as unknown as typeof fetch).parseVoice('I ran');
     expect(send).toHaveBeenCalledWith(
       'http://ai.test/voice/parse',

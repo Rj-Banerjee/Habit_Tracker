@@ -279,6 +279,14 @@ export function createTrackerApi(client: SupabaseClient) {
           .order('created_at')
       ),
 
+    // The words speech recognition should listen out for.
+    listVoiceNames: async () => {
+      const rows = await select<{ title: string; voice_aliases: string[] }[]>(
+        client.from('habits').select('title, voice_aliases').is('archived_at', null)
+      );
+      return rows.flatMap((row) => [row.title, ...row.voice_aliases]);
+    },
+
     getProfile: () =>
       select<Profile>(client.from('users').select('timezone, mode').single()),
 

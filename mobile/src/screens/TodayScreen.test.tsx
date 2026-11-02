@@ -12,6 +12,7 @@ jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
 jest.mock('../services/tracker', () => ({
   tracker: {
+    listVoiceNames: jest.fn(() => Promise.resolve([])),
     getToday: jest.fn(),
     getRepairs: jest.fn(() => Promise.resolve([])),
     logHabit: jest.fn(() => Promise.resolve()),
@@ -135,10 +136,13 @@ describe('TodayScreen', () => {
   });
 
   it('shows days that can still be back-logged', async () => {
+    // Mornings list yesterday first, which would change the order below.
+    const afternoon = jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
     await open([row(), row({ day: '2026-11-02', is_today: false })]);
     expect(screen.getByText('Still open from yesterday')).toBeTruthy();
     await fireEvent.press(screen.getAllByRole('button', { name: /^Run/ })[1]);
     expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null);
+    afternoon.mockRestore();
   });
 
   it('labels an open day from yesterday as not logged yet', async () => {

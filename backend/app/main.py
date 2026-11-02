@@ -190,6 +190,6 @@ async def voice_parse(
     await admit(request, user, settings, "voice", settings.ai_user_voice_per_hour)
     tracker = Tracker(settings, user)
     try:
-        return {"intents": await voice.parse(provider, tracker, body.transcript)}
+        return await voice.parse(provider, tracker, body.transcript)
     finally:
         await tracker.close()

@@ -12,13 +12,10 @@ function loadModule() {
 
 export function speechInput(): SpeechInput | null {
   const recognizer = loadModule();
-  // No audio leaves the phone, so a device that can't do this on its own goes without.
-  if (!recognizer?.isRecognitionAvailable() || !recognizer.supportsOnDeviceRecognition()) {
-    return null;
-  }
+  if (!recognizer?.isRecognitionAvailable()) return null;
 
   return {
-    async start(onText, onEnd) {
+    async start({ language, hints }, onText, onEnd) {
       const { granted } = await recognizer.requestPermissionsAsync();
       if (!granted) return false;
 
@@ -31,7 +28,13 @@ export function speechInput(): SpeechInput | null {
           onEnd();
         }),
       ];
-      recognizer.start({ lang: 'en-US', interimResults: true, requiresOnDeviceRecognition: true });
+      recognizer.start({
+        lang: language,
+        interimResults: true,
+        contextualStrings: hints,
+        // Stays on the phone wherever the phone can do this language.
+        requiresOnDeviceRecognition: recognizer.supportsOnDeviceRecognition(),
+      });
       return true;
     },
     stop: () => recognizer.stop(),

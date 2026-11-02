@@ -45,7 +45,7 @@ Mobile must pass `fetch` from `expo/fetch`, because React Native's own fetch can
 
 ## Voice in Expo Go
 
-Hold-to-talk uses `expo-speech-recognition`, a native module that isn't in Expo Go. There, `speechInput()` returns null and the sheet shows only the text box, where the keyboard's own mic does the speech-to-text on the phone. A development build gets the hold-to-talk button with no code change. It runs on-device only, so a phone that can't do that also gets the text box. On web, the browser's speech recognition is used where it exists.
+Hold-to-talk uses `expo-speech-recognition`, a native module that isn't in Expo Go. There, `speechInput()` returns null and the sheet shows only the text box, where the keyboard's own mic does the speech-to-text on the phone. `docs/dev-build.md` covers the build that adds it. It prefers on-device recognition, and offers English (`en-IN`) and Hindi (`hi-IN`). On web, the browser's speech recognition is used where it exists.
 
 ## Decisions
 

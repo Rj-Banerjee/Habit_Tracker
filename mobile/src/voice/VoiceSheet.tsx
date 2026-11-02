@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
-import { layout, radius, whichQuestion } from '@habit-tracker/core';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import {
+  describeIntents,
+  layout,
+  radius,
+  space,
+  VOICE_COMMAND_WORDS,
+  VOICE_LANGUAGES,
+  VoiceLanguage,
+  whichQuestion,
+} from '@habit-tracker/core';
 import {
   BottomSheet,
   Button,
+  Chip,
   FormMessage,
   PressableState,
   SheetOption,
@@ -24,17 +34,17 @@ interface VoiceSheetProps {
 export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetProps) {
   const { colors } = useTheme();
   const [speech] = useState(speechInput);
-  const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
   const [micRefused, setMicRefused] = useState(false);
+  const [language, setLanguage] = useState<VoiceLanguage>('en-IN');
 
   const close = () => {
-    setText('');
+    voice.reset();
     onClose();
   };
 
   const send = (said: string) => {
-    setText('');
+    voice.setDraft('');
     void voice.submit(said);
   };
 
@@ -42,10 +52,12 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
     if (!speech) return;
     setMicRefused(false);
     let heard = '';
+    const hints = [...VOICE_COMMAND_WORDS, ...voice.names];
     const started = await speech.start(
+      { language, hints },
       (words) => {
         heard = words;
-        setText(words);
+        voice.setDraft(words);
       },
       () => {
         setListening(false);
@@ -55,6 +67,12 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
     if (started) setListening(true);
     else setMicRefused(true);
   };
+
+  const heardLine = voice.heard ? (
+    <Text variant="small" muted>
+      Heard: {voice.heard}
+    </Text>
+  ) : null;
 
   const talkHint = speech
     ? 'Or type it here.'
@@ -66,6 +84,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
         <ActivityIndicator color={colors.textMuted} accessibilityLabel="Working it out" />
       ) : voice.phase === 'asking' && voice.question ? (
         <>
+          {heardLine}
           <Text accessibilityLiveRegion="polite">{whichQuestion(voice.question)}</Text>
           {voice.question.options.map((option) => (
             <SheetOption
@@ -75,14 +94,41 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
             />
           ))}
         </>
+      ) : voice.phase === 'confirming' ? (
+        <>
+          {heardLine}
+          <Text accessibilityLiveRegion="polite">
+            Did you mean: {describeIntents(voice.pending)}?
+          </Text>
+          <Button label="Yes" onPress={() => void voice.confirm()} />
+          <Button label="No" quiet onPress={voice.reject} />
+        </>
       ) : voice.phase === 'noMatch' ? (
         <>
+          {heardLine}
           <Text accessibilityLiveRegion="polite">That didn&apos;t match one of your habits.</Text>
           <Button label="Add habit" onPress={onAddHabit} />
           <Button label="Try again" quiet onPress={voice.reset} />
         </>
       ) : (
         <>
+          {voice.phase === 'unclear' ? (
+            <Text accessibilityLiveRegion="polite">
+              I didn&apos;t catch that. Fix what I heard, or try again.
+            </Text>
+          ) : null}
+          {speech ? (
+            <View style={styles.languages}>
+              {VOICE_LANGUAGES.map(({ code, label }) => (
+                <Chip
+                  key={code}
+                  label={label}
+                  selected={language === code}
+                  onPress={() => setLanguage(code)}
+                />
+              ))}
+            </View>
+          ) : null}
           {speech ? (
             <Pressable
               accessibilityRole="button"
@@ -103,14 +149,18 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
             </Pressable>
           ) : null}
           <TextField
-            label="What did you do?"
+            label={voice.phase === 'unclear' ? 'What I heard' : 'What did you do?'}
             hint={talkHint}
-            value={text}
+            value={voice.draft}
             maxLength={500}
-            onChangeText={setText}
-            onSubmitEditing={() => send(text)}
+            onChangeText={voice.setDraft}
+            onSubmitEditing={() => send(voice.draft)}
           />
-          <Button label="Log it" disabled={!text.trim()} onPress={() => send(text)} />
+          <Button
+            label="Log it"
+            disabled={!voice.draft.trim()}
+            onPress={() => send(voice.draft)}
+          />
           <FormMessage
             message={
               micRefused
@@ -125,6 +175,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
 }
 
 const styles = StyleSheet.create({
+  languages: { flexDirection: 'row', gap: space.sm },
   mic: {
     minHeight: layout.minTouchTarget * 2,
     alignItems: 'center',

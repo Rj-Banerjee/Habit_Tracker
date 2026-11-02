@@ -21,9 +21,9 @@ export function speechInput(): SpeechInput | null {
 
   let active: BrowserRecognition | null = null;
   return {
-    async start(onText, onEnd) {
+    async start({ language }, onText, onEnd) {
       active = new Recognizer();
-      active.lang = navigator.language;
+      active.lang = language;
       active.interimResults = true;
       active.onresult = ({ results }) =>
         onText(Array.from(results, (result) => result[0].transcript).join(' '));

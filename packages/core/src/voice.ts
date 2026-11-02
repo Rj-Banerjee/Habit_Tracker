@@ -4,6 +4,18 @@ import { levelTarget } from './todayModel';
 
 export const VOICE_UNDO_SECONDS = 10;
 
+// Passed to the phone's recogniser so it favours these over similar-sounding words.
+export const VOICE_COMMAND_WORDS = [
+  'undo', 'skip', 'log', 'done', 'finished', 'shrink', 'minimum', 'cancel',
+  'ho gaya', 'kar liya', 'chhod do', 'wapas', 'thoda',
+];
+
+export const VOICE_LANGUAGES = [
+  { code: 'en-IN', label: 'English' },
+  { code: 'hi-IN', label: 'Hindi' },
+] as const;
+export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number]['code'];
+
 const SKIP_WITHOUT_A_REASON = 'Not today';
 const SOURCE: LogSource = 'voice';
 
@@ -47,6 +59,29 @@ export function answerWhich(question: VoiceQuestion, option: VoiceOption): Voice
       return { intent: question.action, habit_id, habit_title };
   }
 }
+
+function describeIntent(intent: VoiceIntent): string {
+  switch (intent.intent) {
+    case 'log_habit':
+      return `Log ${intent.habit_title}`;
+    case 'log_amount':
+      return `Log ${intent.amount} of ${intent.habit_title}`;
+    case 'shrink_habit':
+      return `Log the minimum for ${intent.habit_title}`;
+    case 'skip_habit':
+      return `Skip ${intent.habit_title}`;
+    case 'undo_last':
+      return 'Undo the last log';
+    case 'ask_coach':
+      return `Ask the coach: ${intent.question}`;
+    case 'ask_which':
+      return whichQuestion(intent);
+  }
+}
+
+// For "Did you mean: Undo the last log?"
+export const describeIntents = (intents: VoiceIntent[]) =>
+  intents.map(describeIntent).join(' and ');
 
 export const isVoiceAction = (intent: VoiceIntent): intent is VoiceAction =>
   ['log_habit', 'log_amount', 'shrink_habit', 'skip_habit'].includes(intent.intent);

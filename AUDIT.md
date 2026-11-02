@@ -968,3 +968,19 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** hold-to-talk on a real phone. It needs a development build, because `expo-speech-recognition` isn't in Expo Go, and this Mac has no Xcode. Expo Go uses the text box and the keyboard's mic instead.
 
+### Voice: mishearings and the development build (2 Nov 2026)
+
+**Changed**
+
+- `backend/app/speech_fix.py` matches words by sound (Double Metaphone) and spelling against command words and habit names, and reads Hindi script. It only suggests: "and" sounds exactly like "undo", so the model sees both versions and decides.
+- The parser prompt says the text comes from speech recognition, and every call returns a confidence. The response carries `heard`, `corrected`, `confidence` and `level`. High acts, medium asks "Did you mean" with Yes and No, low shows what it heard to edit, and none is a plain no match. The app always shows what it heard.
+- A statement can't reach the coach any more. The model did this however the prompt was worded, so `ask_coach` is now checked in code.
+- Development build: `eas.json`, `expo-dev-client`, app identifiers, and recogniser hints with English and Hindi. See `docs/dev-build.md`.
+
+**Checked**
+
+- Accuracy 91% to 98% on 46 phrases, and wrong actions 4 to 0. See `docs/voice-accuracy.md`, including why 98% will drop on a fresh set.
+- 118 service tests, 174 core, 402 mobile and UI. `expo-doctor` passes 20 of 20 checks.
+
+**Not checked:** the development build itself, which needs your Expo login, and hold-to-talk on a real phone.
+

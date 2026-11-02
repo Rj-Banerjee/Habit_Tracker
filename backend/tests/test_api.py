@@ -245,6 +245,10 @@ def voice(api, calls, transcript="anything"):
     return response.json()["intents"], provider
 
 
+def calls(*names):
+    return [ToolCall(name, {"confidence": "high"}) for name in names]
+
+
 def test_voice_uses_the_fast_model_and_short_refs(api):
     intents, provider = voice(api, [ToolCall("log_habit", {"habit": "h1"})])
     assert intents == [{"intent": "log_habit", "habit_id": "uuid-read", "habit_title": "Read"}]
@@ -285,6 +289,7 @@ def test_voice_other_intents(api):
             ToolCall("undo_last", {}),
             ToolCall("ask_coach", {"question": "Why do I skip Mondays?"}),
         ],
+        "why do I skip Mondays",
     )
     assert [i["intent"] for i in intents] == ["shrink_habit", "skip_habit", "undo_last", "ask_coach"]
     assert intents[1]["reason"] == "Sick"
@@ -326,6 +331,73 @@ def test_voice_doesnt_ask_about_one_real_habit(api):
 )
 def test_voice_drops_a_bad_question(api, arguments):
     assert voice(api, [ToolCall("ask_which", arguments)])[0] == []
+
+
+def voice_response(api, calls, transcript="I read"):
+    use(FakeProvider(calls=calls))
+    return api.post("/voice/parse", json={"transcript": transcript}).json()
+
+
+def test_voice_always_returns_what_it_heard(api):
+    body = voice_response(api, [ToolCall("log_habit", {"habit": "h1", "confidence": "high"})])
+    assert body["heard"] == "I read"
+    assert body["level"] == "high"
+
+
+def test_voice_tells_the_model_it_may_be_misheard(api):
+    provider = use(FakeProvider(calls=[]))
+    api.post("/voice/parse", json={"transcript": "anduda latest update"})
+    assert "speech recognition" in provider.seen[0]["system"]
+    assert "undo" in provider.seen[0]["system"]
+    assert "anduda latest update" in provider.seen[0]["messages"][0].text
+    assert "may be wrong: undo" in provider.seen[0]["messages"][0].text
+
+
+def test_a_guess_at_a_misheard_word_needs_confirming(api):
+    call = ToolCall("undo_last", {"confidence": "high"})
+    body = voice_response(api, [call], "anduda latest update")
+    assert body["level"] == "medium"
+    assert body["corrected"].startswith("undo")
+    assert body["heard"] == "anduda latest update"
+
+
+@pytest.mark.parametrize("sureness,level", [("high", "high"), ("medium", "medium"), ("low", "low")])
+def test_the_models_own_confidence_counts(api, sureness, level):
+    call = ToolCall("log_habit", {"habit": "h1", "confidence": sureness})
+    assert voice_response(api, [call])["level"] == level
+
+
+def test_the_least_sure_call_sets_the_level(api):
+    both = [
+        ToolCall("log_habit", {"habit": "h1", "confidence": "high"}),
+        ToolCall("log_habit", {"habit": "h2", "confidence": "low"}),
+    ]
+    assert voice_response(api, both)["level"] == "low"
+
+
+def test_nonsense_is_low_with_nothing_to_do(api):
+    body = voice_response(api, [ToolCall("unclear", {})], "blorp frim")
+    assert body["level"] == "low"
+    assert body["intents"] == []
+    assert body["heard"] == "blorp frim"
+
+
+def test_clear_speech_with_no_habit_is_a_plain_no_match(api):
+    assert voice_response(api, [], "I went swimming")["level"] == "none"
+
+
+def test_a_statement_is_never_sent_to_the_coach(api):
+    call = ToolCall("ask_coach", {"question": "I went swimming", "confidence": "high"})
+    assert voice_response(api, [call], "I went swimming")["level"] == "none"
+
+
+@pytest.mark.parametrize(
+    "heard",
+    ["why do I skip", "how can I start", "gym kyu miss hota hai", "help me plan", "is this ok?"],
+)
+def test_a_real_question_reaches_the_coach(api, heard):
+    call = ToolCall("ask_coach", {"question": heard, "confidence": "high"})
+    assert voice_response(api, [call], heard)["intents"][0]["intent"] == "ask_coach"
 
 
 def test_voice_when_nothing_matches(api):

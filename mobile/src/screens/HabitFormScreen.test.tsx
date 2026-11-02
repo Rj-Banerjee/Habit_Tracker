@@ -28,6 +28,7 @@ jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
 jest.mock('../services/tracker', () => ({
   tracker: {
+    listVoiceNames: jest.fn(() => Promise.resolve([])),
     getHabitAllowance: jest.fn(),
     listIdentities: jest.fn(),
     createHabit: jest.fn(),

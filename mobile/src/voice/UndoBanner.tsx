@@ -29,6 +29,11 @@ export function UndoBanner({ banner, onUndo, onExpire }: UndoBannerProps) {
         <Text variant="small" numeric>
           {banner.text}
         </Text>
+        {banner.heard ? (
+          <Text variant="small" muted>
+            Heard: {banner.heard}
+          </Text>
+        ) : null}
       </View>
       <Button label="Undo" quiet onPress={onUndo} />
     </View>

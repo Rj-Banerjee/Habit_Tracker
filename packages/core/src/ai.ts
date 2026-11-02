@@ -31,6 +31,18 @@ export type VoiceIntent =
   | { intent: 'undo_last' }
   | { intent: 'ask_coach'; question: string };
 
+// How sure the parser is. high acts, medium asks first, low shows what it heard so they
+// can fix it, and none means it was clear but isn't one of their habits.
+export type VoiceLevel = 'high' | 'medium' | 'low' | 'none';
+
+export interface VoiceParse {
+  heard: string;
+  corrected: string;
+  confidence: number;
+  level: VoiceLevel;
+  intents: VoiceIntent[];
+}
+
 // Where a conversation started. Recorded in coach_events, without the words.
 export type ChatSource = 'chat' | 'card' | 'burned_out';
 
@@ -78,8 +90,8 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
   };
 
   return {
-    parseVoice: async (transcript: string): Promise<VoiceIntent[]> =>
-      (await (await post('/voice/parse', { transcript })).json()).intents,
+    parseVoice: async (transcript: string): Promise<VoiceParse> =>
+      (await post('/voice/parse', { transcript })).json(),
 
     // Yields the reply as it arrives.
     async *chat(messages: ChatTurn[], source: ChatSource = 'chat'): AsyncGenerator<string> {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TodayRow } from './api';
 import { VoiceQuestion } from './ai';
-import { answerWhich, isUndoPhrase, isVoiceAction, runVoiceAction, whichQuestion } from './voice';
+import { answerWhich, describeIntents, isUndoPhrase, isVoiceAction, runVoiceAction, whichQuestion } from './voice';
 
 const row = (patch: Partial<TodayRow> = {}) =>
   ({
@@ -85,6 +85,24 @@ describe('runVoiceAction', () => {
     const tracker = api([]);
     await runVoiceAction(tracker, { intent: 'log_habit', ...read }, []);
     expect(tracker.logHabit).toHaveBeenCalledWith('h1', null, 'full', null, 'voice');
+  });
+});
+
+describe('describeIntents', () => {
+  it('says what it would do', () => {
+    expect(describeIntents([{ intent: 'undo_last' }])).toBe('Undo the last log');
+    expect(describeIntents([{ intent: 'log_amount', ...read, amount: 20 }])).toBe('Log 20 of Read');
+    expect(describeIntents([{ intent: 'shrink_habit', ...read }])).toBe('Log the minimum for Read');
+    expect(describeIntents([{ intent: 'skip_habit', ...read, reason: '' }])).toBe('Skip Read');
+  });
+
+  it('joins several', () => {
+    expect(
+      describeIntents([
+        { intent: 'log_habit', ...read },
+        { intent: 'log_habit', habit_id: 'h2', habit_title: 'Run' },
+      ])
+    ).toBe('Log Read and Log Run');
   });
 });
 

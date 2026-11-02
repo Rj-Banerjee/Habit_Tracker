@@ -10,8 +10,8 @@ if [ ! -x .venv/bin/uvicorn ]; then
   echo "First run: installing the AI service..."
   PYTHON=$(command -v python3.13 || command -v python3)
   "$PYTHON" -m venv .venv
-  .venv/bin/pip install -q -r requirements.txt
 fi
+.venv/bin/pip install -q --disable-pip-version-check -r requirements.txt
 
 IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
 if [ -z "$IP" ]; then

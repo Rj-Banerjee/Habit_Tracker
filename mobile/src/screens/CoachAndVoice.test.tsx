@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { CoachError, TodayRow, VoiceIntent } from '@habit-tracker/core';
+import { CoachError, TodayRow, VoiceIntent, VoiceLevel, VoiceParse } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { ai } from '../services/ai';
 import { speak } from '../services/speak';
@@ -19,6 +19,7 @@ jest.mock('../services/tracker', () => ({
     logHabit: jest.fn(() => Promise.resolve()),
     skipHabit: jest.fn(() => Promise.resolve()),
     undoLog: jest.fn(() => Promise.resolve()),
+    listVoiceNames: jest.fn(() => Promise.resolve(['Read', 'book'])),
   },
 }));
 jest.mock('expo-haptics', () => ({
@@ -85,8 +86,16 @@ const open = async () => {
 
 const onAddHabit = jest.fn();
 const read = { habit_id: 'h1', habit_title: 'Read' };
-const said = async (text: string, intents: VoiceIntent[]) => {
-  coachApi.parseVoice.mockResolvedValue(intents);
+const parsed = (text: string, intents: VoiceIntent[], level?: VoiceLevel): VoiceParse => ({
+  heard: text,
+  corrected: text,
+  confidence: 1,
+  level: level ?? (intents.length > 0 ? 'high' : 'none'),
+  intents,
+});
+
+const said = async (text: string, intents: VoiceIntent[], level?: VoiceLevel) => {
+  coachApi.parseVoice.mockResolvedValue(parsed(text, intents, level));
   await press('Log by voice');
   await fireEvent.changeText(screen.getByLabelText('What did you do?'), text);
   await press('Log it');
@@ -335,6 +344,69 @@ describe('voice', () => {
     expect(onAddHabit).toHaveBeenCalled();
   });
 
+  it('always shows what it heard', async () => {
+    await open();
+    await said('I red', [{ intent: 'log_habit', ...read }]);
+    expect(screen.getByText('Heard: I red')).toBeTruthy();
+  });
+
+  it('asks first at medium confidence, and acts on Yes', async () => {
+    await open();
+    await said('anduda latest update', [{ intent: 'log_habit', ...read }], 'medium');
+    expect(api.logHabit).not.toHaveBeenCalled();
+    expect(screen.getByText('Heard: anduda latest update')).toBeTruthy();
+    expect(screen.getByText('Did you mean: Log Read?')).toBeTruthy();
+    expect(speak).toHaveBeenCalledWith('Did you mean: Log Read?');
+    await press('Yes');
+    expect(api.logHabit).toHaveBeenCalled();
+  });
+
+  it('confirms an undo too', async () => {
+    await open();
+    await said('I read', [{ intent: 'log_habit', ...read }]);
+    await said('anduda latest update', [{ intent: 'undo_last' }], 'medium');
+    expect(screen.getByText('Did you mean: Undo the last log?')).toBeTruthy();
+    expect(api.undoLog).not.toHaveBeenCalled();
+    await press('Yes');
+    expect(api.undoLog).toHaveBeenCalled();
+  });
+
+  it('goes back to what it heard on No, ready to fix', async () => {
+    await open();
+    await said('anduda', [{ intent: 'undo_last' }], 'medium');
+    await press('No');
+    expect(screen.getByLabelText('What I heard').props.value).toBe('anduda');
+    expect(api.undoLog).not.toHaveBeenCalled();
+  });
+
+  it('shows what it heard at low confidence and lets them fix it', async () => {
+    await open();
+    await said('blorp frim', [], 'low');
+    expect(screen.getByText(/I didn't catch that/)).toBeTruthy();
+    const field = screen.getByLabelText('What I heard');
+    expect(field.props.value).toBe('blorp frim');
+    await fireEvent.changeText(field, 'I read');
+    coachApi.parseVoice.mockResolvedValue(parsed('I read', [{ intent: 'log_habit', ...read }]));
+    await press('Log it');
+    expect(coachApi.parseVoice).toHaveBeenLastCalledWith('I read');
+    expect(api.logHabit).toHaveBeenCalled();
+  });
+
+  it('never acts at low confidence, even with an intent', async () => {
+    await open();
+    await said('maybe read', [{ intent: 'log_habit', ...read }], 'low');
+    expect(api.logHabit).not.toHaveBeenCalled();
+  });
+
+  it('keeps the words when the AI is down, so they can retry', async () => {
+    coachApi.parseVoice.mockRejectedValue(new CoachError('Coach is busy', 'busy'));
+    await open();
+    await press('Log by voice');
+    await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'I read');
+    await press('Log it');
+    expect(screen.getByLabelText('What did you do?').props.value).toBe('I read');
+  });
+
   it('hands a question to the coach', async () => {
     jest.useFakeTimers();
     await open();
@@ -374,7 +446,7 @@ describe('voice', () => {
     const recognizer = (granted = true) => {
       const handlers: { text?: (t: string) => void; end?: () => void } = {};
       const input = {
-        start: jest.fn(async (text, end) => {
+        start: jest.fn(async (_options, text, end) => {
           handlers.text = text;
           handlers.end = end;
           return granted;
@@ -387,7 +459,7 @@ describe('voice', () => {
 
     it('listens while held and sends what it heard on release', async () => {
       const { input, handlers } = recognizer();
-      coachApi.parseVoice.mockResolvedValue([{ intent: 'log_habit', ...read }]);
+      coachApi.parseVoice.mockResolvedValue(parsed('I read', [{ intent: 'log_habit', ...read }]));
       await open();
       await press('Log by voice');
       const mic = screen.getByRole('button', { name: 'Hold to talk' });
@@ -400,6 +472,18 @@ describe('voice', () => {
       await act(async () => handlers.end?.());
       await settle();
       expect(coachApi.parseVoice).toHaveBeenCalledWith('I read');
+    });
+
+    it('passes the habit names and chosen language to the recogniser', async () => {
+      const { input } = recognizer();
+      await open();
+      await press('Log by voice');
+      await press('Hindi');
+      await fireEvent(screen.getByRole('button', { name: 'Hold to talk' }), 'pressIn');
+      await settle();
+      const [options] = input.start.mock.calls[0];
+      expect(options.language).toBe('hi-IN');
+      expect(options.hints).toEqual(expect.arrayContaining(['undo', 'Read', 'book']));
     });
 
     it('sends nothing if nothing was heard', async () => {
