@@ -1101,3 +1101,5 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Not built:** an iPhone widget, which needs the paid Apple account, and lock-screen notification actions.
 
+**Blank widget, found on a real phone:** the layout used a React Fragment, which `react-native-android-widget` can't read, so the build threw in the background and nothing was drawn. The tests had replaced the library with a stand-in, so they couldn't see it. A new test builds every widget state with the library's real tree builder, and a failure now draws "Open the app to see your habits" rather than nothing.
+

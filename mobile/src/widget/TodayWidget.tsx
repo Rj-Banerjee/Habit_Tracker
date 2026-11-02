@@ -17,7 +17,8 @@ const ROW = 44;
 
 export type WidgetState =
   | { kind: 'ready'; model: WidgetModel; note?: string }
-  | { kind: 'signedOut' };
+  | { kind: 'signedOut' }
+  | { kind: 'failed' };
 
 function Row({ item, theme }: { item: WidgetItem; theme: ThemeName }) {
   const palette = colors[theme];
@@ -75,8 +76,11 @@ function View({ state, theme }: { state: WidgetState; theme: ThemeName }) {
     >
       {state.kind === 'signedOut' ? (
         <TextWidget text="Sign in to see your habits" style={{ fontSize: 15, color: text }} />
+      ) : state.kind === 'failed' ? (
+        <TextWidget text="Open the app to see your habits" style={{ fontSize: 15, color: text }} />
       ) : (
-        <>
+        // A Fragment would stop the library from building the widget, leaving it blank.
+        <FlexWidget style={{ width: 'match_parent' }}>
           <TextWidget
             text={state.model.summary}
             maxLines={1}
@@ -101,7 +105,7 @@ function View({ state, theme }: { state: WidgetState; theme: ThemeName }) {
           >
             <TextWidget text="Log by voice" style={{ fontSize: 14, color: text }} />
           </FlexWidget>
-        </>
+        </FlexWidget>
       )}
     </FlexWidget>
   );

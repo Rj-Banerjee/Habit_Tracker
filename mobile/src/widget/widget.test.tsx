@@ -99,6 +99,14 @@ describe('the widget', () => {
     expect(render).toHaveBeenCalled();
   });
 
+  it('always draws something, even when everything fails', async () => {
+    session.mockRejectedValue(new Error('storage is broken'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const render = await handled({ widgetAction: 'WIDGET_UPDATE' });
+    expect(render).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it('ignores a removed widget', async () => {
     const render = await handled({ widgetAction: 'WIDGET_DELETED' });
     expect(render).not.toHaveBeenCalled();
