@@ -4,7 +4,7 @@ import { IdentityToken } from './tokens';
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
 export type LogStatus = 'done' | 'skipped' | 'repaired';
-export type LogSource = 'tap' | 'voice' | 'coach';
+export type LogSource = 'tap' | 'voice' | 'coach' | 'widget';
 export type StreakMode = 'strict' | 'grace';
 
 export interface LevelOption {

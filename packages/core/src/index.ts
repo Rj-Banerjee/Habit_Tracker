@@ -4,6 +4,7 @@ export * from './onboarding';
 export * from './patterns';
 export * from './progress';
 export * from './voice';
+export * from './widget';
 export * from './api';
 export * from './colorChecks';
 export * from './dates';

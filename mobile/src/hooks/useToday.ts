@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { HabitLevel, levelTarget, RepairRow, TodayRow } from '@habit-tracker/core';
 import { tracker } from '../services/tracker';
+import { refreshWidget } from '../services/widget';
 
 type Patch = Partial<Pick<TodayRow, 'status' | 'level_done' | 'amount' | 'current_streak'>>;
 
@@ -18,6 +19,7 @@ export function useToday() {
           setRows(today);
           setRepairs(repairable);
           setLoadFailed(false);
+          void refreshWidget();
         })
         .catch(() => setLoadFailed(true))
         .finally(() => setLoading(false)),

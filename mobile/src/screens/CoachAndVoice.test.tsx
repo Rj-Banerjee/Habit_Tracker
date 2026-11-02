@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChatEvent, CoachError, TodayRow, VoiceIntent, VoiceLevel, VoiceParse } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
@@ -11,6 +12,7 @@ import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
+jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: jest.fn(() => null) }));
 jest.mock('../services/tracker', () => ({
@@ -190,6 +192,22 @@ describe('miss review', () => {
     await openReview();
     await press('Not now');
     expect(coachApi.chat).not.toHaveBeenCalled();
+  });
+});
+
+describe('the widget voice button', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('opens the voice sheet straight away', async () => {
+    jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('habittracker://voice');
+    await open();
+    expect(screen.getByLabelText('What did you do?')).toBeTruthy();
+  });
+
+  it('ignores other links', async () => {
+    jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('exp://192.168.1.2:8081');
+    await open();
+    expect(screen.queryByLabelText('What did you do?')).toBeNull();
   });
 });
 

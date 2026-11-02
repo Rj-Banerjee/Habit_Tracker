@@ -1,5 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   cardDetail,
@@ -18,6 +18,7 @@ import {
   showYesterdayFirst,
   space,
   TodayRow,
+  VOICE_LINK,
 } from '@habit-tracker/core';
 import {
   Button,
@@ -80,6 +81,18 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     onClose: () => setPanel(null),
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
   });
+
+  // The widget's voice button opens straight to the sheet.
+  useEffect(() => {
+    const opened = (url: string | null | undefined) => {
+      if (url === VOICE_LINK) setPanel('voice');
+    };
+    Linking.getInitialURL()
+      .then(opened)
+      .catch(() => {});
+    const links = Linking.addEventListener('url', ({ url }) => opened(url));
+    return () => links.remove();
+  }, []);
 
   const part = dayPart(new Date().getHours());
   const today = rows.filter((row) => row.is_today);

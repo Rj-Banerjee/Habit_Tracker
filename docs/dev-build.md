@@ -47,3 +47,14 @@ Needs the paid Apple account.
 3. For Expo Go, use `npx expo start --go -c` instead.
 
 You only rebuild when native code changes. App code still loads from your Mac.
+
+## Preview build
+
+The development build loads its JavaScript from this Mac. A widget has to run with the app closed, so testing one needs the preview build, which carries its code inside. It has the same app ID, so installing one replaces the other.
+
+```
+npx eas-cli build --platform android --profile preview
+```
+
+Its settings come from the `preview` environment on EAS, not `mobile/.env`. `EXPO_PUBLIC_AI_URL` there is this Mac's address, so if that changes, update it and rebuild. The coach also needs `npm run ai` running. Logging, Today and the widget don't.
+

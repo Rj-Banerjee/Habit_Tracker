@@ -1088,3 +1088,16 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Phase 2 is now complete, apart from the gate:** "Coach nudges lead to a log more often than plain reminders" needs real use to measure, and plain reminders aren't recorded yet.
 
+### Android widget (2 Nov 2026)
+
+**Changed**
+
+- `react-native-android-widget` adds a home-screen Today widget, offered for the lock screen on Android versions that support it. It shows progress and up to 4 habits, open ones first. A tap logs the full version or takes it back, with the app closed, as source `widget`. "Log by voice" opens straight to the voice sheet.
+- The app redraws it after each change, and Android refreshes it about every 30 minutes. Offline it shows the last list and says so.
+- The native module is only loaded outside Expo Go, because importing it there throws.
+- A `preview` build profile bundles the code inside the APK, because a widget runs with the app closed.
+
+**Checked:** unit tests and generating the Android project. **Not checked:** the widget on a real phone, which needs the build.
+
+**Not built:** an iPhone widget, which needs the paid Apple account, and lock-screen notification actions.
+
