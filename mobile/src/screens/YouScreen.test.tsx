@@ -3,12 +3,17 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { openPhoneSettings, sendTestReminder, setDailyReminder } from '../services/reminders';
+import { setNudgesEnabled } from '../services/nudges';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import { YouScreen } from './YouScreen';
 
 jest.mock('../services/supabase', () => ({
   supabase: { auth: { signOut: jest.fn() } },
+}));
+jest.mock('../services/nudges', () => ({
+  nudgesEnabled: jest.fn(() => Promise.resolve(true)),
+  setNudgesEnabled: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('../services/tracker', () => ({
   tracker: {
@@ -135,6 +140,14 @@ describe('YouScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Save why' }));
     await act(async () => {});
     expect(tracker.updateIdentityWhy).toHaveBeenCalledWith('i1', 'For my kids');
+  });
+
+  it('turns nudges off', async () => {
+    await open();
+    expect(screen.getByRole('button', { name: 'On', selected: true })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Off' }));
+    await act(async () => {});
+    expect(setNudgesEnabled).toHaveBeenCalledWith(false);
   });
 
   it('asks before signing out', async () => {

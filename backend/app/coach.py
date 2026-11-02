@@ -35,7 +35,10 @@ Today:
 {today}
 
 Last 14 days:
-{logs}"""
+{logs}
+
+Their patterns:
+{patterns}"""
 
 
 LETTER_SYSTEM = """Write a short letter to this person from themselves, one year from \
@@ -99,6 +102,20 @@ async def fit_budget(
     return kept
 
 
+WEEKDAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def describe_patterns(patterns: dict[str, Any]) -> str:
+    lines = []
+    if hours := patterns.get("best_hours"):
+        lines.append("Usually logs around: " + ", ".join(f"{hour}:00" for hour in hours))
+    if days := patterns.get("weak_weekdays"):
+        lines.append("Skips most on: " + ", ".join(WEEKDAYS[day] for day in days))
+    if reasons := patterns.get("common_skip_reasons"):
+        lines.append("Common skip reasons: " + ", ".join(reasons))
+    return "\n".join(lines) or "Not enough history yet."
+
+
 def describe_identities(rows: list[dict[str, Any]]) -> str:
     lines = [
         f"- {row['name']}: {row['why_text']}" if row.get("why_text") else f"- {row['name']}"
@@ -135,6 +152,7 @@ async def reply(
         tone=TONES.get(tone, TONES["gentle"]),
         today=describe_today(today),
         logs=describe_logs(logs),
+        patterns=describe_patterns(await tracker.patterns()),
     )
     if miss_review:
         system = f"{system}\n\n{MISS_NOTE}"

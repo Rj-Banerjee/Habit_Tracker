@@ -99,6 +99,10 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
       (await post('/voice/parse', { transcript })).json(),
 
     // Yields the reply as it arrives, or what the coach decided to do.
+    nudgeOutcome: async (habitId: string, date: string, outcome: 'logged' | 'ignored') => {
+      await post('/coach/nudge-outcome', { habit_id: habitId, date, outcome });
+    },
+
     chat: (messages: ChatTurn[], source: ChatSource = 'chat', reason?: MissReason) =>
       events(() => post('/coach/chat', { messages, source, reason })),
 

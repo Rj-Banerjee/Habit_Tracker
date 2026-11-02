@@ -121,13 +121,16 @@ def load_habits(conn, user_id) -> list[dict]:
     ).fetchall()
 
 
-def noon(conn, user_id, date):
+def usual_time(conn, user_id, date, habit):
+    """Each habit has its own usual hour, so peak hours have something to show."""
+    usual = random.Random(f"{SEED}{habit['title']}").choice([7, 8, 13, 18, 19, 20])
+    hour = usual + random.Random(f"{SEED}{habit['title']}{date}").choice([0, 0, 0, 1])
     row = conn.execute(
         """
-        select (%s::date + time '12:00') at time zone u.timezone as at
+        select (%s::date + make_time(%s, 15, 0)) at time zone u.timezone as at
         from public.users u where u.id = %s
         """,
-        (date, user_id),
+        (date, hour, user_id),
     ).fetchone()
     return row["at"]
 
@@ -147,8 +150,8 @@ def replay(conn, user_id, habits, dates) -> dict[str, int]:
     missed_last = {habit["id"]: False for habit in habits}
 
     for date in dates:
-        now = noon(conn, user_id, date)
         for habit in habits:
+            now = usual_time(conn, user_id, date, habit)
             scheduled = conn.execute(
                 "select tracker.is_scheduled(%s, %s) as yes", (habit["id"], date)
             ).fetchone()

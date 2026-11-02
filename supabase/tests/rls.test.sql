@@ -1,5 +1,5 @@
 begin;
-select plan(39);
+select plan(43);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('11111111-1111-4111-8111-111111111111', 'a@example.test', '{"timezone": "Asia/Kolkata"}'),
@@ -123,6 +123,10 @@ reset role;
 -- AI service counters and coach events are for the secret key only.
 set local role authenticated;
 select throws_ok(
+  $$ select public.ai_spend('user:x:tokens', 100, 86400) $$,
+  '42501', null, 'app users cannot touch the AI allowance'
+);
+select throws_ok(
   $$ select public.ai_take_slot('user:x:chat', 100, 3600) $$,
   '42501', null, 'app users cannot touch the AI counters'
 );
@@ -138,6 +142,9 @@ select throws_ok(
 );
 reset role;
 set local role service_role;
+select is(public.ai_spend('t:tokens', 100, 86400), 100, 'spending starts a running total');
+select is(public.ai_spend('t:tokens', 50, 86400), 150, 'and adds to it');
+select is(public.ai_spend('t:tokens', 0, 86400), 150, 'an amount of 0 just reads it');
 select is(public.ai_take_slot('t:scope', 2, 3600), 0, 'the first slot is granted');
 select is(public.ai_take_slot('t:scope', 2, 3600), 0, 'and the second, up to the limit');
 select cmp_ok(public.ai_take_slot('t:scope', 2, 3600), '>', 0, 'the next one is told how long to wait');

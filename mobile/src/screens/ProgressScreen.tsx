@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
+import { habitPatterns, heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
 import { Button, Chip, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
 import { useProgress } from '../hooks/useProgress';
 import { Forecaster } from '../progress/Forecaster';
@@ -98,6 +98,14 @@ export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
             />
           ))}
         </View>
+
+        {habitPatterns(days, habit).length > 0 ? (
+          <Section title="Your pattern">
+            {habitPatterns(days, habit).map((line) => (
+              <Text key={line}>{line}</Text>
+            ))}
+          </Section>
+        ) : null}
 
         <Section title="The last year">
           <Heatmap data={heatmap(days, habit.id, today)} identity={habit.identities.colour_token} />

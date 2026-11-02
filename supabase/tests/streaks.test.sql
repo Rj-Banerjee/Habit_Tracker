@@ -997,6 +997,9 @@ insert into tracker.habit_versions (habit_id, effective_from, schedule_days, tar
 values (t.h(191), '2026-10-10', '{1,4}', 20, null, '[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]');
 select set_config('request.jwt.claims', json_build_object('sub', t.u(91), 'role', 'authenticated')::text, true);
 select is(jsonb_array_length(public.get_habit_days('2026-10-05', '2026-10-12')), 3, 'only scheduled days come back');
+select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'logged_hour')::int, 12, 'with the local hour it was logged');
+select tracker.log_habit(t.u(91), t.h(191), '2026-10-08', 'full', 10, 'tap', t.noon(91, '2026-10-09'));
+select is(public.get_habit_days('2026-10-05', '2026-10-12') -> 1 ->> 'logged_hour', null, 'a back-log has no hour, because it says nothing about when it was done');
 select is(public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'level_done', 'minimum', 'with the level done');
 select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'amount')::numeric, 3::numeric, 'and the amount');
 select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 1 ->> 'target')::numeric, 10::numeric, 'with the target that applied before an edit');

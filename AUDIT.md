@@ -1071,3 +1071,20 @@ PLAN.md only names these, so the details below are decisions, not spec.
 
 A terminal screenshot from the phone test settled it. On Android in Expo Go, `setNotificationChannelAsync` is rejected with a NullPointerException, and it ran before the permission request, so the prompt and the schedule were never reached. A public report describes the same failure in Expo Go. A failed channel no longer stops anything: the reminder carries on without a channel id, and Android uses Expo's fallback channel. A development build gets the real high-importance channel.
 
+### Peak hours, nudges and AI cost limits (2 Nov 2026)
+
+**Changed**
+
+- Peak hours and hard weekdays per habit show in Progress, and the coach now reads `user_patterns`, which nothing used before. `get_habit_days` adds the local hour of a same-day log.
+- Preemptive nudges follow the rules now in PLAN.md. They're local notifications, cancelled if the habit is logged first, and You can turn them off. Text is written on the phone, so they use no AI. The daily reminder and a nudge have separate ids, so neither can cancel the other.
+- A daily per-person allowance covers chat, voice and letters, estimated from text length so it works for any provider. It's checked before a call, and 0 turns it off. `AI_USER_DAILY_TOKENS` defaults to 100,000.
+
+**Checked**
+
+- Tests: core, mobile, AI service and database all pass. Progress was checked in a browser on seeded data.
+- Live push followed the usual procedure, and the +test account's history was re-seeded so its logs have realistic hours.
+
+**Not checked:** a nudge firing on a real phone. The allowance is an estimate and doesn't count Gemini's thinking.
+
+**Phase 2 is now complete, apart from the gate:** "Coach nudges lead to a log more often than plain reminders" needs real use to measure, and plain reminders aren't recorded yet.
+

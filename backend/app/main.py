@@ -16,6 +16,7 @@ from .config import Settings, get_settings
 from .data_policy import may_reach_provider
 from .llm import build_provider
 from .llm.base import LLMError, LLMProvider, Message, RateLimited, Refused
+from .llm.metered import MeteredProvider
 from .service_db import ServiceDb
 from .tracker import Tracker, TrackerUnavailable
 
@@ -28,7 +29,9 @@ REFUSED = "Coach can't help with that one. Try asking another way."
 TEST_ONLY = "Coach is only open to test accounts for now."
 TOO_MANY = "That's a lot of questions for one hour. Try again a bit later."
 ONE_LETTER = "You've had this week's letter. There'll be a new one next week."
+OUT_OF_ALLOWANCE = "You've used today's coach allowance. It'll be back tomorrow."
 WEEK = 7 * 24 * 3600
+DAY = 24 * 3600
 
 
 def describe(error: LLMError) -> tuple[int, str, str, int | None]:
@@ -100,6 +103,10 @@ async def on_tracker_error(_: Request, __: TrackerUnavailable) -> JSONResponse:
     return problem(503, "unavailable", UNAVAILABLE)
 
 
+def allowance_scope(user: CurrentUser) -> str:
+    return f"user:{user.id}:tokens"
+
+
 async def admit(
     request: Request,
     user: CurrentUser,
@@ -114,6 +121,11 @@ async def admit(
     wait = await request.app.state.db.take_slot(f"user:{user.id}:{action}", limit, seconds)
     if wait:
         raise Denied(429, "too_many", refused, round(wait))
+    allowance = settings.ai_user_daily_tokens
+    if allowance > 0:
+        used = await request.app.state.db.spend(allowance_scope(user), 0, DAY)
+        if used >= allowance:
+            raise Denied(429, "out_of_allowance", OUT_OF_ALLOWANCE)
 
 
 class Turn(BaseModel):
@@ -172,6 +184,10 @@ async def coach_chat(
 
     db: ServiceDb = request.app.state.db
     miss_review = body.source == "miss_review"
+    metered = MeteredProvider(provider)
+
+    async def settle() -> None:
+        await db.spend(allowance_scope(user), metered.tokens, DAY)
 
     async def record(outcome: str) -> None:
         payload = {"source": body.source, "turns": len(body.messages)}
@@ -186,18 +202,20 @@ async def coach_chat(
     try:
         messages = [Message(turn.role, turn.text) for turn in body.messages]
         if not miss_review:
-            decision = await voice.for_chat(provider, tracker, messages)
+            decision = await voice.for_chat(metered, tracker, messages)
             if should_act(decision):
                 await record("acted")
+                await settle()
                 return StreamingResponse(
                     iter([sse({"type": "actions", **decision}), sse({"type": "done"})]),
                     media_type="text/event-stream",
                 )
-        stream = await coach.reply(provider, settings, tracker, messages, miss_review)
+        stream = await coach.reply(metered, settings, tracker, messages, miss_review)
         # Wait for the first words, so a failure can still be a normal error response.
         first = await anext(stream, None)
     except LLMError:
         await record("failed")
+        await settle()
         raise
     finally:
         await tracker.close()
@@ -211,9 +229,11 @@ async def coach_chat(
         except LLMError as error:
             _, code, message, retry_after = describe(error)
             await record("failed")
+            await settle()
             yield sse({"type": "error", "code": code, "message": message, "retry_after": retry_after})
             return
         await record("replied")
+        await settle()
         yield sse({"type": "done"})
 
     return StreamingResponse(events(), media_type="text/event-stream")
@@ -229,10 +249,11 @@ async def future_letter(
 ):
     await admit(request, user, settings, "letter", 1, WEEK, ONE_LETTER)
     db: ServiceDb = request.app.state.db
+    metered = MeteredProvider(provider)
 
     tracker = Tracker(settings, user)
     try:
-        stream = await coach.letter(provider, tracker, body.wins, body.mood)
+        stream = await coach.letter(metered, tracker, body.wins, body.mood)
         first = await anext(stream, None)
     finally:
         await tracker.close()
@@ -252,6 +273,7 @@ async def future_letter(
         # Kept, unlike chats: it's something they'll want to read again.
         payload = {"week_start": body.week_start.isoformat(), "text": text}
         await db.record_coach_event(user.id, "letter", payload, "written")
+        await db.spend(allowance_scope(user), metered.tokens, DAY)
         yield sse({"type": "done"})
 
     return StreamingResponse(events(), media_type="text/event-stream")
@@ -267,7 +289,35 @@ async def voice_parse(
 ) -> dict:
     await admit(request, user, settings, "voice", settings.ai_user_voice_per_hour)
     tracker = Tracker(settings, user)
+    metered = MeteredProvider(provider)
     try:
-        return await voice.parse(provider, tracker, body.transcript)
+        return await voice.parse(metered, tracker, body.transcript)
     finally:
         await tracker.close()
+        await request.app.state.db.spend(allowance_scope(user), metered.tokens, DAY)
+
+
+class NudgeOutcome(BaseModel):
+    habit_id: str = Field(max_length=64)
+    date: date
+    outcome: Literal["logged", "ignored"]
+
+
+@app.post("/coach/nudge-outcome", status_code=204)
+async def nudge_outcome(
+    body: NudgeOutcome,
+    request: Request,
+    user: CurrentUser = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """Nudges are written on the phone, so no AI is involved and no test-account gate
+    applies. Whether one helped decides if that habit gets another."""
+    tracker = Tracker(settings, user)
+    try:
+        habits = await tracker.habits()
+    finally:
+        await tracker.close()
+    if body.habit_id not in {habit["id"] for habit in habits}:
+        raise HTTPException(404, "Habit not found")
+    payload = {"habit_id": body.habit_id, "date": body.date.isoformat()}
+    await request.app.state.db.record_coach_event(user.id, "nudge", payload, body.outcome)

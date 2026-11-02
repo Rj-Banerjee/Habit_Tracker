@@ -63,6 +63,12 @@ class Tracker:
             },
         )
 
+    async def patterns(self) -> dict[str, Any]:
+        rows = await self._get(
+            "/user_patterns", {"select": "best_hours,weak_weekdays,common_skip_reasons"}
+        )
+        return rows[0] if rows else {}
+
     async def identities(self) -> list[dict[str, Any]]:
         return await self._get("/identities", {"select": "name,why_text"})
 

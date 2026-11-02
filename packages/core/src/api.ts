@@ -110,6 +110,8 @@ export interface ProgressDay {
   level_done: HabitLevel | null;
   amount: number | null;
   target: number | null;
+  // Null for a back-log, which says when they caught up, not when they did it.
+  logged_hour?: number | null;
 }
 
 export interface FutureLetter {
@@ -309,6 +311,19 @@ export function createTrackerApi(client: SupabaseClient) {
           .limit(1)
       );
       return rows[0]?.payload ?? null;
+    },
+
+    // Newest first, for deciding whether a habit should get another nudge.
+    listNudgeHistory: async () => {
+      const rows = await select<{ payload: { habit_id: string }; outcome: 'logged' | 'ignored' }[]>(
+        client
+          .from('coach_events')
+          .select('payload, outcome')
+          .eq('kind', 'nudge')
+          .order('sent_at', { ascending: false })
+          .limit(30)
+      );
+      return rows.map((row) => ({ habit_id: row.payload.habit_id, outcome: row.outcome }));
     },
 
     listHabitsInRange: (from: string, to: string) =>

@@ -22,7 +22,7 @@ const CHANNEL = 'daily-reminder-high';
 
 // Loaded here and not at the top of the file: this package does work when it's imported,
 // and that shouldn't be able to stop the app from opening.
-function loadNotifications() {
+export function loadNotifications() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const notifications = require('expo-notifications') as typeof import('expo-notifications');
   // Without this, a reminder that fires with the app open is never shown.
@@ -37,7 +37,10 @@ function loadNotifications() {
   return notifications;
 }
 
-type Notifications = ReturnType<typeof loadNotifications>;
+export type Notifications = ReturnType<typeof loadNotifications>;
+
+// Named, so the daily reminder and a nudge can each be replaced without touching the other.
+const DAILY_ID = 'daily-reminder';
 
 const failed = (error: unknown): ReminderResult => {
   const detail = error instanceof Error ? error.message : String(error);
@@ -48,7 +51,7 @@ const failed = (error: unknown): ReminderResult => {
 // Android 13 won't ask for permission until a channel exists, so this comes first. It
 // fails inside Expo Go, which is missing part of the module. That can't be allowed to
 // stop everything after it: without a channel id, Android uses Expo's fallback channel.
-async function prepareChannel(notifications: Notifications) {
+export async function prepareChannel(notifications: Notifications) {
   if (Platform.OS !== 'android') return undefined;
   try {
     await notifications.setNotificationChannelAsync(CHANNEL, {
@@ -77,8 +80,9 @@ async function scheduleDaily(
   time: ReminderTime,
   channelId: string | undefined
 ) {
-  await notifications.cancelAllScheduledNotificationsAsync();
+  await notifications.cancelScheduledNotificationAsync(DAILY_ID).catch(() => {});
   await notifications.scheduleNotificationAsync({
+    identifier: DAILY_ID,
     content: { title: REMINDER_TITLE, body: REMINDER_BODY },
     trigger: {
       type: notifications.SchedulableTriggerInputTypes.DAILY,
@@ -89,13 +93,16 @@ async function scheduleDaily(
   });
 }
 
+const isScheduled = (scheduled: { identifier: string }[]) =>
+  scheduled.some((item) => item.identifier === DAILY_ID);
+
 // Never throws: a reminder that can't be set must not stop anyone getting into the app.
 export async function setDailyReminder(time: string | null): Promise<ReminderResult> {
   if (Platform.OS === 'web') return { status: 'unavailable' };
   try {
     const notifications = loadNotifications();
     if (time === null) {
-      await notifications.cancelAllScheduledNotificationsAsync();
+      await notifications.cancelScheduledNotificationAsync(DAILY_ID);
       return { status: 'set' };
     }
     const parsed = parseReminderTime(time);
@@ -107,7 +114,7 @@ export async function setDailyReminder(time: string | null): Promise<ReminderRes
 
     await scheduleDaily(notifications, parsed, channelId);
     const scheduled = await notifications.getAllScheduledNotificationsAsync();
-    return scheduled.length > 0
+    return isScheduled(scheduled)
       ? { status: 'set' }
       : { status: 'unavailable', detail: 'The phone accepted the reminder but has none scheduled.' };
   } catch (error) {
@@ -148,7 +155,7 @@ export async function restoreDailyReminder(time: string | null) {
     const { granted } = await notifications.getPermissionsAsync();
     if (!parsed || !granted) return;
     const scheduled = await notifications.getAllScheduledNotificationsAsync();
-    if (scheduled.length === 0) {
+    if (!isScheduled(scheduled)) {
       await scheduleDaily(notifications, parsed, await prepareChannel(notifications));
     }
   } catch (error) {

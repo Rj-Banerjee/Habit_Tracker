@@ -13,6 +13,7 @@ import {
   useTheme,
 } from '@habit-tracker/ui';
 import { WhySection } from '../coach/WhySection';
+import { NudgeSetting } from '../components/NudgeSetting';
 import { ReminderPicker } from '../components/ReminderPicker';
 import {
   openPhoneSettings,
@@ -124,6 +125,7 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
             ) : null}
           </View>
         ) : null}
+        <NudgeSetting />
         <WhySection />
         {COMING_SOON.map((label) => (
           <View key={label} style={styles.group}>

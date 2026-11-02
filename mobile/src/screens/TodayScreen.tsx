@@ -33,6 +33,7 @@ import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
 import { useActions } from '../hooks/useActions';
 import { useCoach } from '../hooks/useCoach';
+import { useNudges } from '../hooks/useNudges';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
 import { checkOffTick } from '../services/haptics';
@@ -60,6 +61,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
+  useNudges(rows, loading);
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
