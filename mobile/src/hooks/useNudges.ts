@@ -16,7 +16,9 @@ export function useNudges(rows: TodayRow[], loading: boolean, refresh: () => Pro
     const listener = notifications.addNotificationResponseReceivedListener((response) => {
       handleNotificationResponse(response)
         .then(refresh)
-        .catch(() => {});
+        .catch((error) =>
+          console.warn('[notification action]', error instanceof Error ? error.message : error)
+        );
     });
     return () => listener.remove();
   }, [refresh]);

@@ -1,8 +1,11 @@
 import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 import {
+  isNotificationAction,
   NOTIFICATION_ACTIONS,
   NOTIFICATION_TASK,
+  NotificationContentData,
+  notificationHabitId,
   NUDGE_CATEGORY,
   runNotificationAction,
 } from '@habit-tracker/core';
@@ -11,16 +14,33 @@ import { refreshWidget } from './widget';
 
 interface ActionResponse {
   actionIdentifier: string;
-  notification: { request: { identifier: string; content: { data?: { habitId?: string } } } };
+  notification: { request: { identifier: string; content: NotificationContentData } };
+}
+
+// With the app alive but in the background, the task and the listener both get the same
+// tap. Notification ids repeat from day to day, so a repeat only counts for a short while.
+const REPEAT_MS = 60_000;
+const recentTaps = new Map<string, number>();
+
+function isRepeatTap(key: string) {
+  const now = Date.now();
+  const repeat = now - (recentTaps.get(key) ?? 0) < REPEAT_MS;
+  recentTaps.set(key, now);
+  return repeat;
 }
 
 // Shared by the background task and the listener used while the app is open.
 export async function handleNotificationResponse(response: ActionResponse) {
+  const { actionIdentifier } = response;
+  if (!isNotificationAction(actionIdentifier)) return;
   const { identifier, content } = response.notification.request;
-  const habitId = content.data?.habitId;
-  if (!habitId) return;
-  const acted = await runNotificationAction(offlineTracker, response.actionIdentifier, habitId);
-  if (!acted) return;
+  const habitId = notificationHabitId(content);
+  if (!habitId) {
+    console.warn('[notification action]', `${actionIdentifier} tapped with no habit`);
+    return;
+  }
+  if (isRepeatTap(`${identifier}:${actionIdentifier}:${habitId}`)) return;
+  await runNotificationAction(offlineTracker, actionIdentifier, habitId);
   await refreshWidget();
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const notifications = require('expo-notifications') as typeof import('expo-notifications');

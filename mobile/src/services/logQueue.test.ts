@@ -46,6 +46,12 @@ describe('offline logging', () => {
     });
   });
 
+  it('queues for today when a reminder has no date to give', async () => {
+    api.logHabit.mockRejectedValue(offline);
+    await expect(offlineTracker.logHabit('h1', null)).resolves.toBeNull();
+    expect(JSON.parse(mockStore.get('queued-logs') as string)[0]).toMatchObject({ date: today });
+  });
+
   it('still shows a rule the server refused', async () => {
     api.logHabit.mockRejectedValue(new Error('That day has not happened yet'));
     await expect(offlineTracker.logHabit('h1', today)).rejects.toThrow('not happened');

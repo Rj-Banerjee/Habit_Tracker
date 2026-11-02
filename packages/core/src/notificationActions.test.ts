@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TodayRow } from './api';
-import { runNotificationAction } from './notificationActions';
+import { notificationHabitId, runNotificationAction } from './notificationActions';
 
 const row = {
   habit_id: 'h1',
@@ -42,5 +42,25 @@ describe('runNotificationAction', () => {
     const tracker = api();
     await runNotificationAction(tracker, 'done', 'other');
     expect(tracker.logHabit).toHaveBeenCalledWith('other', null, 'full', null, 'notification');
+  });
+});
+
+describe('notificationHabitId', () => {
+  it('reads the data a listener gets', () => {
+    expect(notificationHabitId({ data: { habitId: 'h1' } })).toBe('h1');
+  });
+
+  it('reads the JSON string a background task gets', () => {
+    expect(notificationHabitId({ dataString: '{"habitId":"h1"}' })).toBe('h1');
+  });
+
+  it('reads the string when the data is empty', () => {
+    expect(notificationHabitId({ data: null, dataString: '{"habitId":"h1"}' })).toBe('h1');
+  });
+
+  it('finds nothing in a reminder with no habit or broken data', () => {
+    expect(notificationHabitId({})).toBeUndefined();
+    expect(notificationHabitId({ dataString: 'not json' })).toBeUndefined();
+    expect(notificationHabitId({ data: { habitId: 7 } })).toBeUndefined();
   });
 });

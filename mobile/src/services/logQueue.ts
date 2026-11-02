@@ -62,8 +62,10 @@ export const offlineTracker = {
     try {
       return await tracker.logHabit(habitId, date, level, amount, source);
     } catch (error) {
-      if (!isOfflineError(error) || !date) throw error;
-      await writeQueue(addToQueue(await readQueue(), { habitId, date, level, amount, source }));
+      if (!isOfflineError(error)) throw error;
+      // A reminder tapped before the app has opened today has no list to get a date from.
+      const day = date ?? today();
+      await writeQueue(addToQueue(await readQueue(), { habitId, date: day, level, amount, source }));
       return null;
     }
   },
