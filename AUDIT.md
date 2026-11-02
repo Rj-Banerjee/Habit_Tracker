@@ -1131,7 +1131,9 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Voice score:** 150 of 154 held out (97%), and 212 of 217 (98%) overall. Three of the four misses acted without asking. The harmful one, "on do gym" logging instead of undoing, is fixed and now asks first. These phrases are typed, not recorded, so the Phase 3 gate still needs real speech. Details are in `docs/voice-accuracy.md`.
 
-**Not checked yet:** the fix and the tile on the phone, which need new builds.
+**Checked on the phone:** Smaller version with the app killed logged the minimum, source `notification`, in about 4 seconds. Done with the app alive in the background made one `log_habit` call and cleared the notification.
+
+**Not checked yet:** the tile and rule cards on the phone, which need the next build.
 
 **Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
 
