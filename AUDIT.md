@@ -1067,3 +1067,7 @@ PLAN.md only names these, so the details below are decisions, not spec.
 
 **Not built from Phase 2:** preemptive nudges, peak hours, per-user AI cost limits, and a Sunday push. `why_image_url` isn't used.
 
+### Reminder cause found (2 Nov 2026)
+
+A terminal screenshot from the phone test settled it. On Android in Expo Go, `setNotificationChannelAsync` is rejected with a NullPointerException, and it ran before the permission request, so the prompt and the schedule were never reached. A public report describes the same failure in Expo Go. A failed channel no longer stops anything: the reminder carries on without a channel id, and Android uses Expo's fallback channel. A development build gets the real high-importance channel.
+

@@ -51,7 +51,7 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const show = (result: ReminderResult, success: string | null) => {
     setProblem(reminderMessage(result));
     setNote(result.status === 'set' ? success : null);
-    setBlocked(result.status === 'blocked');
+    setBlocked(result.status === 'blocked' || result.status === 'denied');
   };
 
   const changeReminder = async (time: string | null) => {

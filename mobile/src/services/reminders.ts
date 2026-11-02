@@ -45,15 +45,23 @@ const failed = (error: unknown): ReminderResult => {
   return { status: 'unavailable', detail };
 };
 
-async function allowed(notifications: Notifications): Promise<ReminderResult | null> {
-  // Android 13 won't ask for permission until a channel exists.
-  if (Platform.OS === 'android') {
+// Android 13 won't ask for permission until a channel exists, so this comes first. It
+// fails inside Expo Go, which is missing part of the module. That can't be allowed to
+// stop everything after it: without a channel id, Android uses Expo's fallback channel.
+async function prepareChannel(notifications: Notifications) {
+  if (Platform.OS !== 'android') return undefined;
+  try {
     await notifications.setNotificationChannelAsync(CHANNEL, {
       name: 'Daily reminder',
       importance: notifications.AndroidImportance.HIGH,
     });
+    return CHANNEL;
+  } catch {
+    return undefined;
   }
+}
 
+async function allowed(notifications: Notifications): Promise<ReminderResult | null> {
   const current = await notifications.getPermissionsAsync();
   const answer =
     current.granted || !current.canAskAgain
@@ -64,7 +72,11 @@ async function allowed(notifications: Notifications): Promise<ReminderResult | n
   return { status: answer.canAskAgain ? 'denied' : 'blocked' };
 }
 
-async function scheduleDaily(notifications: Notifications, time: ReminderTime) {
+async function scheduleDaily(
+  notifications: Notifications,
+  time: ReminderTime,
+  channelId: string | undefined
+) {
   await notifications.cancelAllScheduledNotificationsAsync();
   await notifications.scheduleNotificationAsync({
     content: { title: REMINDER_TITLE, body: REMINDER_BODY },
@@ -72,7 +84,7 @@ async function scheduleDaily(notifications: Notifications, time: ReminderTime) {
       type: notifications.SchedulableTriggerInputTypes.DAILY,
       hour: time.hour,
       minute: time.minute,
-      channelId: CHANNEL,
+      channelId,
     },
   });
 }
@@ -89,10 +101,11 @@ export async function setDailyReminder(time: string | null): Promise<ReminderRes
     const parsed = parseReminderTime(time);
     if (!parsed) return { status: 'unavailable', detail: `Not a time: ${time}` };
 
+    const channelId = await prepareChannel(notifications);
     const refused = await allowed(notifications);
     if (refused) return refused;
 
-    await scheduleDaily(notifications, parsed);
+    await scheduleDaily(notifications, parsed, channelId);
     const scheduled = await notifications.getAllScheduledNotificationsAsync();
     return scheduled.length > 0
       ? { status: 'set' }
@@ -107,6 +120,7 @@ export async function sendTestReminder(): Promise<ReminderResult> {
   if (Platform.OS === 'web') return { status: 'unavailable' };
   try {
     const notifications = loadNotifications();
+    const channelId = await prepareChannel(notifications);
     const refused = await allowed(notifications);
     if (refused) return refused;
 
@@ -115,7 +129,7 @@ export async function sendTestReminder(): Promise<ReminderResult> {
       trigger: {
         type: notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: TEST_DELAY_SECONDS,
-        channelId: CHANNEL,
+        channelId,
       },
     });
     return { status: 'set' };
@@ -134,7 +148,9 @@ export async function restoreDailyReminder(time: string | null) {
     const { granted } = await notifications.getPermissionsAsync();
     if (!parsed || !granted) return;
     const scheduled = await notifications.getAllScheduledNotificationsAsync();
-    if (scheduled.length === 0) await scheduleDaily(notifications, parsed);
+    if (scheduled.length === 0) {
+      await scheduleDaily(notifications, parsed, await prepareChannel(notifications));
+    }
   } catch (error) {
     failed(error);
   }
@@ -145,7 +161,7 @@ export const openPhoneSettings = () => Linking.openSettings();
 export function reminderMessage(result: ReminderResult): string | null {
   switch (result.status) {
     case 'denied':
-      return "Notifications aren't allowed, so reminders won't arrive.";
+      return "Notifications aren't allowed, so reminders won't arrive. Turn them on in your phone's settings.";
     case 'blocked':
       return "Notifications are turned off for this app. Turn them on in your phone's settings.";
     case 'unavailable':

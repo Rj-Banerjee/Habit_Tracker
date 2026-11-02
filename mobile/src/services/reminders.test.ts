@@ -30,6 +30,7 @@ describe('reminders', () => {
     api.requestPermissionsAsync.mockResolvedValue({ granted: true, canAskAgain: true } as never);
     api.getAllScheduledNotificationsAsync.mockResolvedValue([{}] as never);
     api.scheduleNotificationAsync.mockResolvedValue('id');
+    api.setNotificationChannelAsync.mockReset();
   });
 
   it('replaces any earlier reminder with a daily one', async () => {
@@ -66,6 +67,29 @@ describe('reminders', () => {
     expect(api.setNotificationChannelAsync.mock.calls[0][1]).toMatchObject({ importance: 4 });
     expect(api.setNotificationChannelAsync.mock.invocationCallOrder[0]).toBeLessThan(
       api.getPermissionsAsync.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('carries on when the channel fails, as it does in Expo Go on Android', async () => {
+    api.setNotificationChannelAsync.mockRejectedValue(new Error('NullPointerException'));
+    api.getPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: true } as never);
+    await expect(setDailyReminder('07:30')).resolves.toEqual({ status: 'set' });
+    expect(api.requestPermissionsAsync).toHaveBeenCalled();
+    const { trigger } = api.scheduleNotificationAsync.mock.calls[0][0];
+    expect(trigger).toMatchObject({ hour: 7, minute: 30 });
+    expect((trigger as { channelId?: string }).channelId).toBeUndefined();
+  });
+
+  it('sends a test even when the channel fails', async () => {
+    api.setNotificationChannelAsync.mockRejectedValue(new Error('NullPointerException'));
+    await expect(sendTestReminder()).resolves.toEqual({ status: 'set' });
+  });
+
+  it('uses its own channel when it can', async () => {
+    await setDailyReminder('07:30');
+    const { trigger } = api.scheduleNotificationAsync.mock.calls[0][0];
+    expect((trigger as { channelId?: string }).channelId).toBe(
+      onAndroid ? 'daily-reminder-high' : undefined
     );
   });
 
