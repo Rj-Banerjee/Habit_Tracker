@@ -11,8 +11,10 @@ import {
 } from '@expo-google-fonts/figtree';
 import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
+import { useNeedsOnboarding } from './src/hooks/useNeedsOnboarding';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { YouScreen } from './src/screens/YouScreen';
@@ -33,9 +35,6 @@ function ThemedStatusBar() {
 function Root() {
   const { colors } = useTheme();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
-  // No router yet. Null shows Today; otherwise the form, for a new habit or habitId.
-  const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
-  const [tab, setTab] = useState<Tab>('today');
 
   useEffect(() => {
     supabase.auth
@@ -48,13 +47,36 @@ function Root() {
 
   if (session === undefined) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: colors.canvas }}>
+      <View style={[styles.center, { backgroundColor: colors.canvas }]}>
         <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading" />
       </View>
     );
   }
 
   if (!session) return <AuthForm auth={supabase.auth} />;
+
+  // The key starts everything afresh for the next person to sign in.
+  return <SignedIn key={session.user.id} session={session} />;
+}
+
+function SignedIn({ session }: { session: Session }) {
+  const { colors } = useTheme();
+  const onboarding = useNeedsOnboarding();
+  // No router yet. Null shows the tabs; otherwise the form, for a new habit or habitId.
+  const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
+  const [tab, setTab] = useState<Tab>('today');
+
+  if (onboarding.needed === undefined) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.canvas }]}>
+        <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading" />
+      </View>
+    );
+  }
+
+  if (onboarding.needed) {
+    return <OnboardingScreen userId={session.user.id} onDone={onboarding.finished} />;
+  }
 
   if (habitForm) {
     return (
@@ -79,7 +101,11 @@ function Root() {
         <ProgressScreen active={tab === 'progress'} />
       </View>
       <View style={[styles.root, tab !== 'you' && styles.hidden]}>
-        <YouScreen email={session.user.email ?? ''} onSignedOut={() => setTab('today')} />
+        <YouScreen
+          userId={session.user.id}
+          email={session.user.email ?? ''}
+          onSignedOut={() => setTab('today')}
+        />
       </View>
       <TabBar active={tab} onChange={setTab} />
     </View>
@@ -109,5 +135,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center' },
   hidden: { display: 'none' },
 });

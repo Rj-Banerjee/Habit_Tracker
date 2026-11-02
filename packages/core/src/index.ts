@@ -1,5 +1,6 @@
 export * from './ai';
 export * from './coachCard';
+export * from './onboarding';
 export * from './progress';
 export * from './voice';
 export * from './api';

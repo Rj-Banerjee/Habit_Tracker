@@ -70,7 +70,12 @@ const open = async (active = true) => {
 describe('ProgressScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    api.getProfile.mockResolvedValue({ timezone: 'Asia/Kolkata', mode: 'grace' });
+    api.getProfile.mockResolvedValue({
+      timezone: 'Asia/Kolkata',
+      mode: 'grace',
+      onboarded_at: null,
+      reminder_time: null,
+    });
     api.listProgressHabits.mockResolvedValue([read, run]);
     api.getHabitDays.mockResolvedValue(days);
   });

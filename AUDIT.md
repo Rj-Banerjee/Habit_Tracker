@@ -1022,3 +1022,20 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - 13 browser checks with real Gemini and made-up data, covering "undi the read", "I did yoga", "I bought a red car", the coach logging and undoing with `ai_assisted`, and theme persistence. The Next theme was checked on the built site.
 - Live push followed the usual procedure.
 
+### Onboarding (2 Nov 2026)
+
+**Changed**
+
+- A new account goes through four steps before Today: pick or write an identity, create up to 3 habits with a minimum version, choose a reminder time, then a calm explanation of the streak rules.
+- Accounts that already have habits skip it, and if the check fails the app goes to Today, so nobody can be stuck at a welcome screen.
+- The identity and habits save one at a time, and a retry carries on from where it stopped, so a failed save can't make duplicates.
+- Reminders are real: a daily local notification through `expo-notifications`, which works in Expo Go. The module loads only when it's needed, and a failure never blocks anyone. You now has the same picker, so the time can be changed later. Web saves the time but sends nothing.
+- `users` gains `onboarded_at` and `reminder_time`, and existing accounts with habits were marked as onboarded.
+
+**Checked**
+
+- Unit tests for every step and failure, and 8 browser checks with a new account, at 390px light and 1200px dark, with screenshots viewed.
+- The migration was pushed with the phone test fixes, and owner-only access to these columns was verified live.
+
+**Not checked:** a notification actually arriving on a phone.
+

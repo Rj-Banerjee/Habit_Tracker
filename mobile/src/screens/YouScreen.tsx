@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { layout, space } from '@habit-tracker/core';
@@ -12,19 +12,46 @@ import {
   THEME_PREFERENCES,
   useTheme,
 } from '@habit-tracker/ui';
+import { ReminderPicker } from '../components/ReminderPicker';
+import { setDailyReminder } from '../services/reminders';
 import { supabase } from '../services/supabase';
+import { tracker } from '../services/tracker';
 
-const COMING_SOON = ['Reminders', 'Coach tone'];
+const COMING_SOON = ['Coach tone'];
 
 interface YouScreenProps {
+  userId: string;
   email: string;
   onSignedOut: () => void;
 }
 
-export function YouScreen({ email, onSignedOut }: YouScreenProps) {
+export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const { colors, preference, setPreference } = useTheme();
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // Undefined until loaded, so the picker doesn't flash a choice they didn't make.
+  const [reminder, setReminder] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    tracker
+      .getProfile()
+      .then((profile) => setReminder(profile.reminder_time?.slice(0, 5) ?? null))
+      .catch(() => setReminder(null));
+  }, []);
+
+  const changeReminder = async (time: string | null) => {
+    setReminder(time);
+    setProblem(null);
+    try {
+      await tracker.setReminderTime(userId, time);
+      const result = await setDailyReminder(time);
+      if (time && result === 'denied') {
+        setProblem("Notifications are off. You can turn them on in your phone's settings.");
+      }
+    } catch (err) {
+      setProblem((err as Error).message);
+    }
+  };
 
   const signOut = async () => {
     setConfirming(false);
@@ -63,6 +90,14 @@ export function YouScreen({ email, onSignedOut }: YouScreenProps) {
             onChange={setPreference}
           />
         </View>
+        {reminder !== undefined ? (
+          <View style={styles.group}>
+            <Text variant="small" muted>
+              Daily reminder
+            </Text>
+            <ReminderPicker value={reminder} onChange={(time) => void changeReminder(time)} />
+          </View>
+        ) : null}
         {COMING_SOON.map((label) => (
           <View key={label} style={styles.group}>
             <Text>{label}</Text>

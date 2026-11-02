@@ -2,12 +2,21 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@habit-tracker/ui';
+import { setDailyReminder } from '../services/reminders';
 import { supabase } from '../services/supabase';
+import { tracker } from '../services/tracker';
 import { YouScreen } from './YouScreen';
 
 jest.mock('../services/supabase', () => ({
   supabase: { auth: { signOut: jest.fn() } },
 }));
+jest.mock('../services/tracker', () => ({
+  tracker: {
+    getProfile: jest.fn(() => Promise.resolve({ reminder_time: '20:00:00' })),
+    setReminderTime: jest.fn(() => Promise.resolve()),
+  },
+}));
+jest.mock('../services/reminders', () => ({ setDailyReminder: jest.fn(() => Promise.resolve('set')) }));
 
 const signOut = supabase.auth.signOut as jest.Mock;
 const onSignedOut = jest.fn();
@@ -21,10 +30,11 @@ const open = async () => {
       }}
     >
       <ThemeProvider>
-        <YouScreen email="me+test@example.test" onSignedOut={onSignedOut} />
+        <YouScreen userId="u1" email="me+test@example.test" onSignedOut={onSignedOut} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
+  await act(async () => {});
 };
 
 const press = async (name: string) => {
@@ -48,6 +58,30 @@ describe('YouScreen', () => {
     expect(screen.getByRole('button', { name: 'System', selected: true })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Dark' }));
     expect(screen.getByRole('button', { name: 'Dark', selected: true })).toBeTruthy();
+  });
+
+  it('shows the saved reminder and changes it', async () => {
+    await open();
+    expect(screen.getByRole('button', { name: '20:00', selected: true })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
+    await act(async () => {});
+    expect(tracker.setReminderTime).toHaveBeenCalledWith('u1', '07:00');
+    expect(setDailyReminder).toHaveBeenCalledWith('07:00');
+  });
+
+  it('turns the reminder off', async () => {
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'No reminder' }));
+    await act(async () => {});
+    expect(setDailyReminder).toHaveBeenCalledWith(null);
+  });
+
+  it('says so when notifications are off', async () => {
+    (setDailyReminder as jest.Mock).mockResolvedValueOnce('denied');
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
+    await act(async () => {});
+    expect(screen.getByText(/Notifications are off/)).toBeTruthy();
   });
 
   it('asks before signing out', async () => {

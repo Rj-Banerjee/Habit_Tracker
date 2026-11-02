@@ -115,6 +115,8 @@ export interface ProgressDay {
 export interface Profile {
   timezone: string;
   mode: StreakMode;
+  onboarded_at: string | null;
+  reminder_time: string | null;
 }
 
 export interface Reflection {
@@ -325,7 +327,17 @@ export function createTrackerApi(client: SupabaseClient) {
       call<ProgressDay[]>('get_habit_days', { p_from: from, p_to: to }),
 
     getProfile: () =>
-      select<Profile>(client.from('users').select('timezone, mode').single()),
+      select<Profile>(
+        client.from('users').select('timezone, mode, onboarded_at, reminder_time').single()
+      ),
+
+    setReminderTime: (userId: string, time: string | null) =>
+      select(client.from('users').update({ reminder_time: time }).eq('id', userId)),
+
+    finishOnboarding: (userId: string) =>
+      select(
+        client.from('users').update({ onboarded_at: new Date().toISOString() }).eq('id', userId)
+      ),
 
     getReflection: async (weekStart: string) => {
       const rows = await select<Reflection[]>(
