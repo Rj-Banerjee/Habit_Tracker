@@ -1039,3 +1039,13 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** a notification actually arriving on a phone.
 
+### Reminder fix (2 Nov 2026)
+
+**Reported:** no permission prompt and no notification on a real phone.
+
+**Cause:** not confirmed, because Expo Go can't be run here. These faults were real, and all are fixed: every failure was swallowed and the screen ignored the result, the Android channel was created at default importance so it wouldn't pop up, and without a handler a reminder that fires with the app open isn't shown.
+
+**Changed:** results now reach the screen with the real reason. You has **Send a test reminder**, which fires in about 5 seconds, and **Open phone settings** once the phone won't ask again. The handler and a missing reminder are restored when the app opens.
+
+**Not checked:** a notification arriving on a real phone. This still needs the phone test.
+

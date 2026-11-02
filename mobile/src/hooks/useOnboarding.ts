@@ -10,7 +10,7 @@ import {
   OnboardingHabit,
   toHabitInput,
 } from '@habit-tracker/core';
-import { setDailyReminder } from '../services/reminders';
+import { reminderMessage, setDailyReminder } from '../services/reminders';
 import { tracker } from '../services/tracker';
 
 export type OnboardingStep = 'identity' | 'habits' | 'reminder' | 'rules';
@@ -114,11 +114,7 @@ export function useOnboarding(userId: string, onDone: () => void) {
     work(async () => {
       await tracker.setReminderTime(userId, reminder);
       const result = await setDailyReminder(reminder);
-      setReminderNote(
-        reminder && result === 'denied'
-          ? "Notifications are off, so reminders won't arrive. You can turn them on in your phone's settings."
-          : null
-      );
+      setReminderNote(reminder ? reminderMessage(result) : null);
       go('rules');
     });
 

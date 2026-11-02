@@ -18,7 +18,11 @@ jest.mock('../services/tracker', () => ({
     listProgressHabits: jest.fn(),
   },
 }));
-jest.mock('../services/reminders', () => ({ setDailyReminder: jest.fn() }));
+jest.mock('../services/reminders', () => ({
+  ...jest.requireActual('../services/reminders'),
+  setDailyReminder: jest.fn(),
+  restoreDailyReminder: jest.fn(),
+}));
 
 const api = tracker as jest.Mocked<typeof tracker>;
 const reminder = setDailyReminder as jest.Mock;
@@ -71,7 +75,7 @@ describe('OnboardingScreen', () => {
     api.getHabit.mockResolvedValue({ identity_id: 'i1' } as never);
     api.setReminderTime.mockResolvedValue(undefined as never);
     api.finishOnboarding.mockResolvedValue(undefined as never);
-    reminder.mockResolvedValue('set');
+    reminder.mockResolvedValue({ status: 'set' });
   });
 
   describe('identity', () => {
@@ -205,10 +209,10 @@ describe('OnboardingScreen', () => {
     });
 
     it('carries on, and says so, if notifications are refused', async () => {
-      reminder.mockResolvedValue('denied');
+      reminder.mockResolvedValue({ status: 'denied' });
       await toReminder();
       await press('Next');
-      expect(screen.getByText(/Notifications are off/)).toBeTruthy();
+      expect(screen.getByText(/aren't allowed/)).toBeTruthy();
       expect(screen.getByText('Step 4 of 4')).toBeTruthy();
     });
   });

@@ -13,7 +13,13 @@ import {
   useTheme,
 } from '@habit-tracker/ui';
 import { ReminderPicker } from '../components/ReminderPicker';
-import { setDailyReminder } from '../services/reminders';
+import {
+  openPhoneSettings,
+  reminderMessage,
+  ReminderResult,
+  sendTestReminder,
+  setDailyReminder,
+} from '../services/reminders';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 
@@ -31,6 +37,8 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const [problem, setProblem] = useState<string | null>(null);
   // Undefined until loaded, so the picker doesn't flash a choice they didn't make.
   const [reminder, setReminder] = useState<string | null | undefined>(undefined);
+  const [note, setNote] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     tracker
@@ -39,18 +47,26 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
       .catch(() => setReminder(null));
   }, []);
 
+  const show = (result: ReminderResult, success: string | null) => {
+    setProblem(reminderMessage(result));
+    setNote(result.status === 'set' ? success : null);
+    setBlocked(result.status === 'blocked');
+  };
+
   const changeReminder = async (time: string | null) => {
     setReminder(time);
     setProblem(null);
     try {
       await tracker.setReminderTime(userId, time);
-      const result = await setDailyReminder(time);
-      if (time && result === 'denied') {
-        setProblem("Notifications are off. You can turn them on in your phone's settings.");
-      }
+      show(await setDailyReminder(time), time ? `Reminder set for ${time}.` : null);
     } catch (err) {
       setProblem((err as Error).message);
     }
+  };
+
+  const test = async () => {
+    setNote(null);
+    show(await sendTestReminder(), 'A test reminder is on its way. It takes about 5 seconds.');
   };
 
   const signOut = async () => {
@@ -96,6 +112,15 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
               Daily reminder
             </Text>
             <ReminderPicker value={reminder} onChange={(time) => void changeReminder(time)} />
+            <Button label="Send a test reminder" quiet onPress={() => void test()} />
+            {note ? (
+              <Text variant="small" muted accessibilityLiveRegion="polite">
+                {note}
+              </Text>
+            ) : null}
+            {blocked ? (
+              <Button label="Open phone settings" quiet onPress={() => void openPhoneSettings()} />
+            ) : null}
           </View>
         ) : null}
         {COMING_SOON.map((label) => (

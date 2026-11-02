@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import {
   parseReminderTime,
   REMINDER_BODY,
@@ -6,37 +6,65 @@ import {
   ReminderTime,
 } from '@habit-tracker/core';
 
-export type ReminderResult = 'set' | 'denied' | 'unavailable';
+export type ReminderStatus = 'set' | 'denied' | 'blocked' | 'unavailable';
 
-const CHANNEL = 'daily-reminder';
+export interface ReminderResult {
+  status: ReminderStatus;
+  // Why it couldn't be set, in the words of whatever refused. Shown on screen.
+  detail?: string;
+}
+
+const TEST_DELAY_SECONDS = 5;
+
+// Android fixes a channel's importance when it's first made, so raising it needs a new
+// id. High is what makes a reminder pop up, not just sit in the tray.
+const CHANNEL = 'daily-reminder-high';
 
 // Loaded here and not at the top of the file: this package does work when it's imported,
 // and that shouldn't be able to stop the app from opening.
 function loadNotifications() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('expo-notifications') as typeof import('expo-notifications');
-  } catch {
-    return null;
-  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const notifications = require('expo-notifications') as typeof import('expo-notifications');
+  // Without this, a reminder that fires with the app open is never shown.
+  notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+  return notifications;
 }
 
-async function schedule(time: ReminderTime): Promise<ReminderResult> {
-  const notifications = loadNotifications();
-  if (!notifications) return 'unavailable';
+type Notifications = ReturnType<typeof loadNotifications>;
 
+const failed = (error: unknown): ReminderResult => {
+  const detail = error instanceof Error ? error.message : String(error);
+  console.warn('[reminders]', detail);
+  return { status: 'unavailable', detail };
+};
+
+async function allowed(notifications: Notifications): Promise<ReminderResult | null> {
   // Android 13 won't ask for permission until a channel exists.
   if (Platform.OS === 'android') {
     await notifications.setNotificationChannelAsync(CHANNEL, {
       name: 'Daily reminder',
-      importance: notifications.AndroidImportance.DEFAULT,
+      importance: notifications.AndroidImportance.HIGH,
     });
   }
 
   const current = await notifications.getPermissionsAsync();
-  const { granted } = current.granted ? current : await notifications.requestPermissionsAsync();
-  if (!granted) return 'denied';
+  const answer =
+    current.granted || !current.canAskAgain
+      ? current
+      : await notifications.requestPermissionsAsync();
+  if (answer.granted) return null;
+  // Once refused for good, the phone won't ask again, so only its settings can change it.
+  return { status: answer.canAskAgain ? 'denied' : 'blocked' };
+}
 
+async function scheduleDaily(notifications: Notifications, time: ReminderTime) {
   await notifications.cancelAllScheduledNotificationsAsync();
   await notifications.scheduleNotificationAsync({
     content: { title: REMINDER_TITLE, body: REMINDER_BODY },
@@ -47,20 +75,83 @@ async function schedule(time: ReminderTime): Promise<ReminderResult> {
       channelId: CHANNEL,
     },
   });
-  return 'set';
 }
 
 // Never throws: a reminder that can't be set must not stop anyone getting into the app.
 export async function setDailyReminder(time: string | null): Promise<ReminderResult> {
-  if (Platform.OS === 'web') return 'unavailable';
+  if (Platform.OS === 'web') return { status: 'unavailable' };
   try {
+    const notifications = loadNotifications();
     if (time === null) {
-      await loadNotifications()?.cancelAllScheduledNotificationsAsync();
-      return 'set';
+      await notifications.cancelAllScheduledNotificationsAsync();
+      return { status: 'set' };
     }
     const parsed = parseReminderTime(time);
-    return parsed ? await schedule(parsed) : 'unavailable';
-  } catch {
-    return 'unavailable';
+    if (!parsed) return { status: 'unavailable', detail: `Not a time: ${time}` };
+
+    const refused = await allowed(notifications);
+    if (refused) return refused;
+
+    await scheduleDaily(notifications, parsed);
+    const scheduled = await notifications.getAllScheduledNotificationsAsync();
+    return scheduled.length > 0
+      ? { status: 'set' }
+      : { status: 'unavailable', detail: 'The phone accepted the reminder but has none scheduled.' };
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+// Fires in a few seconds, so nobody has to wait to find out if reminders work.
+export async function sendTestReminder(): Promise<ReminderResult> {
+  if (Platform.OS === 'web') return { status: 'unavailable' };
+  try {
+    const notifications = loadNotifications();
+    const refused = await allowed(notifications);
+    if (refused) return refused;
+
+    await notifications.scheduleNotificationAsync({
+      content: { title: REMINDER_TITLE, body: REMINDER_BODY },
+      trigger: {
+        type: notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: TEST_DELAY_SECONDS,
+        channelId: CHANNEL,
+      },
+    });
+    return { status: 'set' };
+  } catch (error) {
+    return failed(error);
+  }
+}
+
+// On opening the app: restores the handler after a restart, and the reminder on a new
+// phone. Never asks for permission, because nobody is looking at a reminder setting.
+export async function restoreDailyReminder(time: string | null) {
+  if (Platform.OS === 'web' || !time) return;
+  try {
+    const notifications = loadNotifications();
+    const parsed = parseReminderTime(time);
+    const { granted } = await notifications.getPermissionsAsync();
+    if (!parsed || !granted) return;
+    const scheduled = await notifications.getAllScheduledNotificationsAsync();
+    if (scheduled.length === 0) await scheduleDaily(notifications, parsed);
+  } catch (error) {
+    failed(error);
+  }
+}
+
+export const openPhoneSettings = () => Linking.openSettings();
+
+export function reminderMessage(result: ReminderResult): string | null {
+  switch (result.status) {
+    case 'denied':
+      return "Notifications aren't allowed, so reminders won't arrive.";
+    case 'blocked':
+      return "Notifications are turned off for this app. Turn them on in your phone's settings.";
+    case 'unavailable':
+      if (Platform.OS === 'web') return 'Reminders only arrive on your phone.';
+      return `Reminders aren't working on this phone. ${result.detail ?? ''}`.trim();
+    default:
+      return null;
   }
 }

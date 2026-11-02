@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@habit-tracker/ui';
-import { setDailyReminder } from '../services/reminders';
+import { openPhoneSettings, sendTestReminder, setDailyReminder } from '../services/reminders';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import { YouScreen } from './YouScreen';
@@ -16,7 +16,12 @@ jest.mock('../services/tracker', () => ({
     setReminderTime: jest.fn(() => Promise.resolve()),
   },
 }));
-jest.mock('../services/reminders', () => ({ setDailyReminder: jest.fn(() => Promise.resolve('set')) }));
+jest.mock('../services/reminders', () => ({
+  ...jest.requireActual('../services/reminders'),
+  setDailyReminder: jest.fn(() => Promise.resolve({ status: 'set' })),
+  sendTestReminder: jest.fn(() => Promise.resolve({ status: 'set' })),
+  openPhoneSettings: jest.fn(),
+}));
 
 const signOut = supabase.auth.signOut as jest.Mock;
 const onSignedOut = jest.fn();
@@ -77,11 +82,45 @@ describe('YouScreen', () => {
   });
 
   it('says so when notifications are off', async () => {
-    (setDailyReminder as jest.Mock).mockResolvedValueOnce('denied');
+    (setDailyReminder as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
     await open();
     await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
     await act(async () => {});
-    expect(screen.getByText(/Notifications are off/)).toBeTruthy();
+    expect(screen.getByText(/aren't allowed/)).toBeTruthy();
+  });
+
+  it('confirms the time once the phone has it', async () => {
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
+    await act(async () => {});
+    expect(screen.getByText('Reminder set for 07:00.')).toBeTruthy();
+  });
+
+  it('shows the real reason when reminders fail', async () => {
+    (sendTestReminder as jest.Mock).mockResolvedValueOnce({
+      status: 'unavailable',
+      detail: 'Cannot find native module',
+    });
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Send a test reminder' }));
+    await act(async () => {});
+    expect(screen.getByText(/Cannot find native module/)).toBeTruthy();
+  });
+
+  it('sends a test and says so', async () => {
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Send a test reminder' }));
+    await act(async () => {});
+    expect(screen.getByText(/test reminder is on its way/)).toBeTruthy();
+  });
+
+  it("offers the phone's settings once it won't ask again", async () => {
+    (sendTestReminder as jest.Mock).mockResolvedValueOnce({ status: 'blocked' });
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Send a test reminder' }));
+    await act(async () => {});
+    await fireEvent.press(screen.getByRole('button', { name: 'Open phone settings' }));
+    expect(openPhoneSettings).toHaveBeenCalled();
   });
 
   it('asks before signing out', async () => {
