@@ -120,6 +120,9 @@ async def run(args) -> None:
 
     right = sum(s[0] for s in scores.values())
     total = sum(s[1] for s in scores.values())
+    failed = sum(1 for r in results if r["level"] == "error")
+    if failed:
+        print(f"\n{failed} phrases never reached the model, so this total is too low.")
     wrong = sum(1 for r in results if not r["good"] and r["level"] in ("high", "medium"))
     silent = sum(1 for r in results if not r["good"] and r["level"] == "high")
     print(f"\nTOTAL {right}/{total} = {right / total:.0%}")

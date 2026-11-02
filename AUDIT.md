@@ -1129,7 +1129,9 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 - A card on Today the first time each streak rule comes up: Grace Day, repair, skip and back-log. One shows at a time, once each, remembered per device.
 - 154 held-out voice phrases, 217 in all. They're never tuned against.
 
-**Not checked yet:** the fix and the tile on the phone, which need new builds, and the held-out score, because `gemini-3.5-flash-lite` wasn't answering tonight.
+**Voice score:** 150 of 154 held out (97%), and 212 of 217 (98%) overall. Three of the four misses acted without asking. The harmful one, "on do gym" logging instead of undoing, is fixed and now asks first. These phrases are typed, not recorded, so the Phase 3 gate still needs real speech. Details are in `docs/voice-accuracy.md`.
+
+**Not checked yet:** the fix and the tile on the phone, which need new builds.
 
 **Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
 

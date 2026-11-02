@@ -87,3 +87,15 @@ def test_the_set_has_enough_mishearings():
     misheard = [p for p in FIXTURE["phrases"] if p["group"] not in ("clean", "no_action")]
     assert len(misheard) >= 31
     assert any(p["heard"] == "anduda latest update" for p in misheard)
+
+
+@pytest.mark.parametrize("heard", ["on do gym", "and do my run", "un do the read"])
+def test_two_words_that_sound_like_undo(heard):
+    result = correct(heard, HABITS)
+    assert result.text.startswith("undo ")
+    assert result.changes[0].meant == "undo"
+
+
+@pytest.mark.parametrize("heard", ["run and do gym", "on do", "on the gym"])
+def test_leaves_other_uses_of_those_words(heard):
+    assert correct(heard, HABITS).changes == []

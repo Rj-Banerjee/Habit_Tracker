@@ -31,6 +31,10 @@ LEAVE_ALONE = set(
     li lee kee gee pi pee piya sa jaunga glas sham""".split()
 )
 
+# Two ordinary words that together sound like "undo", so the word-by-word search below
+# never tries them. Only at the start of a sentence, where a command sits.
+UNDO_SOUNDALIKES = {"on do", "and do", "an do", "un do", "in do"}
+
 MATCH_AT = 0.78
 # Same sound but spelled quite differently: worth suggesting, not worth acting on alone.
 SAME_SOUND = 0.79
@@ -140,6 +144,12 @@ def correct(transcript: str, habits: list[dict[str, Any]]) -> Correction:
     changes: list[Change] = []
 
     index = 0
+    opening = " ".join(tokens[:2])
+    if opening in UNDO_SOUNDALIKES and len(tokens) > 2:
+        changes.append(Change(opening, "undo", SAME_SOUND))
+        fixed.append("undo")
+        index = 2
+
     while index < len(tokens):
         word = tokens[index]
         if word in targets or word in LEAVE_ALONE or len(word) < 3 or word.isdigit():

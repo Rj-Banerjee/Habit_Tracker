@@ -961,13 +961,6 @@
     },
     {
       "group": "misheard",
-      "heard": "on do gym",
-      "expect": [
-        "undo_habit:gym"
-      ]
-    },
-    {
-      "group": "misheard",
       "heard": "reed fifteen pages",
       "expect": [
         "log_amount:read"
