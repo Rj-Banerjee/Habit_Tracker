@@ -52,6 +52,8 @@ export const dayName = (date: string) => format(date, { weekday: 'short' });
 export const dayNumber = (date: string) => toUtc(date).getUTCDate();
 export const dayLabel = (date: string) =>
   `${dayName(date)}, ${dayNumber(date)} ${format(date, { month: 'short' })}`;
+export const shortDate = (date: string) => format(date, { day: 'numeric', month: 'short' });
+
 export const weekLabel = (start: string) => `Week of ${format(start, { day: 'numeric', month: 'short' })}`;
 
 // A grid cell's card state. Null means nothing to show: unscheduled or still to come.

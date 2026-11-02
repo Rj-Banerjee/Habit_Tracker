@@ -10,7 +10,7 @@ From the repo root, with the phone on the same Wi-Fi as the Mac:
 npm run ai
 ```
 
-It installs the service on first run, writes this Mac's address to `EXPO_PUBLIC_AI_URL` in `mobile/.env`, and listens on port 8200. If the address changed, restart Expo with `npx expo start -c`.
+It installs the service on first run, writes this Mac's address to `EXPO_PUBLIC_AI_URL` in `mobile/.env`, and listens on port 8200. If the address changed, restart Expo. With the dev client installed, Expo Go needs `npx expo start --go -c`.
 
 On a free tier, only the user IDs in `AI_TEST_USER_IDS` get through. Everyone else gets `test_only`.
 

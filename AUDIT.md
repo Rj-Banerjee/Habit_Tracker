@@ -984,3 +984,25 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** the development build itself, which needs your Expo login, and hold-to-talk on a real phone.
 
+### Progress screen (2 Nov 2026)
+
+**Changed**
+
+- New migration `20261102000300_progress.sql` adds `get_habit_days`: one row per scheduled day with its status, level, amount and the target that applied that day. It returns one JSON value, because a year of rows would pass the API's 1,000-row limit.
+- `packages/core/src/progress.ts` holds the identity score, yearly heatmap, streak history, top habits and the Compound Forecaster, all pure functions with tests.
+- Mobile gets a Progress tab. Each kind of day has its own shape as well as colour, a miss is a quiet hollow ring, and there's no red. On wide screens the sections sit side by side.
+- `backend/scripts/seed_test_history.py` replays 60 days through the real logging rules with a backdated clock, so its repairs and protected days are genuine. It refuses any address without `+test`.
+
+**Decisions**
+
+- The score covers the 30 days up to the last finished day, so an unfinished today can't count for or against anyone.
+- A skipped day is due but not done, so it lowers the identity score. PLAN.md says "every due habit", and only days with nothing due are left out.
+- The forecast slider changes how often, not how much: the amount per completed day stays the same.
+- Forecasts need 7 settled days first.
+
+**Checked**
+
+- Typecheck, lint and the static build pass. Tests: core 211, web 26, mobile and UI 422, AI service 118, database 291.
+- In a browser on seeded local data, light and dark at 390px and 1200px: no sideways scrolling, and the screenshots were viewed. A year of data loads in 0.07 seconds locally.
+- Live push followed the usual procedure. 12 checks with temporary users passed, and those users were deleted. The +test account now has 60 days of history, including 10 repairs and 4 protected days, and no other account was touched.
+

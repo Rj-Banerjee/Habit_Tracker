@@ -988,6 +988,23 @@ select throws_like(
   '%full version and a minimum%', 'a habit cannot lose its ladder'
 );
 
+-- The Progress screen's days.
+select t.make_user(91);
+select t.make_habit(191, 91, '2026-10-05', '{1,4}', 'count', 10);
+insert into public.habit_levels (habit_id, level, description, target) values (t.h(191), 'full', 'Ten', 10), (t.h(191), 'minimum', 'One', 1);
+select tracker.log_habit(t.u(91), t.h(191), '2026-10-05', 'minimum', 3, 'tap', t.noon(91, '2026-10-05'));
+insert into tracker.habit_versions (habit_id, effective_from, schedule_days, target, unit, levels)
+values (t.h(191), '2026-10-10', '{1,4}', 20, null, '[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]');
+select set_config('request.jwt.claims', json_build_object('sub', t.u(91), 'role', 'authenticated')::text, true);
+select is(jsonb_array_length(public.get_habit_days('2026-10-05', '2026-10-12')), 3, 'only scheduled days come back');
+select is(public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'level_done', 'minimum', 'with the level done');
+select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'amount')::numeric, 3::numeric, 'and the amount');
+select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 1 ->> 'target')::numeric, 10::numeric, 'with the target that applied before an edit');
+select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 2 ->> 'target')::numeric, 20::numeric, 'and the new one after it');
+select is(public.get_habit_days('2026-09-01', '2026-09-05'), '[]'::jsonb, 'days before a habit started are left out');
+select throws_like($$ select public.get_habit_days('2025-01-01', '2026-11-05') $$, '%too long%', 'a range is capped');
+select set_config('request.jwt.claims', '', true);
+
 -- A voice log is marked as AI-assisted.
 select t.make_user(90);
 select t.make_habit(190, 90, '2026-11-02');

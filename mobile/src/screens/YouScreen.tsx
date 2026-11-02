@@ -5,7 +5,7 @@ import { layout, space } from '@habit-tracker/core';
 import { BottomSheet, Button, FormMessage, SheetOption, Text, useTheme } from '@habit-tracker/ui';
 import { supabase } from '../services/supabase';
 
-const COMING_SOON = ['Progress', 'Reminders', 'Coach tone'];
+const COMING_SOON = ['Reminders', 'Coach tone'];
 
 interface YouScreenProps {
   email: string;

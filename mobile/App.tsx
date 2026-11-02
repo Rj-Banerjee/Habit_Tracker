@@ -12,6 +12,7 @@ import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
+import { ProgressScreen } from './src/screens/ProgressScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { YouScreen } from './src/screens/YouScreen';
 import { supabase } from './src/services/supabase';
@@ -55,6 +56,9 @@ function Root() {
           onAddHabit={() => setHabitForm({})}
           onEditHabit={(habitId) => setHabitForm({ habitId })}
         />
+      </View>
+      <View style={[styles.root, tab !== 'progress' && styles.hidden]}>
+        <ProgressScreen active={tab === 'progress'} />
       </View>
       <View style={[styles.root, tab !== 'you' && styles.hidden]}>
         <YouScreen email={session.user.email ?? ''} onSignedOut={() => setTab('today')} />

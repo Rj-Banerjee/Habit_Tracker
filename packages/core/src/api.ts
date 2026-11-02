@@ -89,6 +89,29 @@ export interface RangeHabit {
   habit_logs: HabitLog[];
 }
 
+export interface ProgressHabit {
+  id: string;
+  identity_id: string;
+  title: string;
+  type: HabitType;
+  target: number | null;
+  unit: string | null;
+  schedule_days: number[];
+  milestone_amount: number | null;
+  milestone_label: string | null;
+  identities: { name: string; colour_token: IdentityToken };
+}
+
+// One scheduled day, with the target that applied on it.
+export interface ProgressDay {
+  habit_id: string;
+  date: string;
+  status: string;
+  level_done: HabitLevel | null;
+  amount: number | null;
+  target: number | null;
+}
+
 export interface Profile {
   timezone: string;
   mode: StreakMode;
@@ -286,6 +309,20 @@ export function createTrackerApi(client: SupabaseClient) {
       );
       return rows.flatMap((row) => [row.title, ...row.voice_aliases]);
     },
+
+    listProgressHabits: () =>
+      select<ProgressHabit[]>(
+        client
+          .from('habits')
+          .select(
+            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, identities(name, colour_token)'
+          )
+          .is('archived_at', null)
+          .order('created_at')
+      ),
+
+    getHabitDays: (from: string, to: string) =>
+      call<ProgressDay[]>('get_habit_days', { p_from: from, p_to: to }),
 
     getProfile: () =>
       select<Profile>(client.from('users').select('timezone, mode').single()),

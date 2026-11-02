@@ -4,10 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '@habit-tracker/core';
 import { PressableState, Text, useTheme } from '@habit-tracker/ui';
 
-export type Tab = 'today' | 'you';
+export type Tab = 'today' | 'progress' | 'you';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'today', label: 'Today' },
+  { key: 'progress', label: 'Progress' },
   { key: 'you', label: 'You' },
 ];
 
