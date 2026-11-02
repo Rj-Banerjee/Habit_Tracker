@@ -1,5 +1,6 @@
 export * from './ai';
 export * from './coachCard';
+export * from './notificationActions';
 export * from './onboarding';
 export * from './patterns';
 export * from './progress';

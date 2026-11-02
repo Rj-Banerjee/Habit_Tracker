@@ -4,6 +4,7 @@ import {
   addDays,
   isLogged,
   localDate,
+  NUDGE_CATEGORY,
   NudgePlan,
   planNudge,
   REMINDER_TITLE,
@@ -102,7 +103,12 @@ export async function syncNudge(rows: TodayRow[]) {
     const channelId = await prepareChannel(notifications);
     await notifications.scheduleNotificationAsync({
       identifier: NUDGE_ID,
-      content: { title: REMINDER_TITLE, body: plan.body },
+      content: {
+        title: REMINDER_TITLE,
+        body: plan.body,
+        categoryIdentifier: NUDGE_CATEGORY,
+        data: { habitId: plan.habitId },
+      },
       trigger: {
         type: notifications.SchedulableTriggerInputTypes.DATE,
         date: firesAt(plan),

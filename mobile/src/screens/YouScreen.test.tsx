@@ -23,6 +23,7 @@ jest.mock('../services/tracker', () => ({
       Promise.resolve([{ id: 'i1', name: 'The Reader', why_text: 'Calmer evenings' }])
     ),
     updateIdentityWhy: jest.fn(() => Promise.resolve()),
+    getToday: jest.fn(() => Promise.resolve([])),
   },
 }));
 jest.mock('../services/reminders', () => ({
@@ -121,6 +122,16 @@ describe('YouScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Send a test reminder' }));
     await act(async () => {});
     expect(screen.getByText(/test reminder is on its way/)).toBeTruthy();
+  });
+
+  it('puts an open habit on the test reminder, so its buttons can be tried', async () => {
+    (tracker.getToday as jest.Mock).mockResolvedValueOnce([
+      { habit_id: 'h1', title: 'Read', status: 'pending', is_today: true },
+    ]);
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Send a test reminder' }));
+    await act(async () => {});
+    expect(sendTestReminder).toHaveBeenCalledWith({ id: 'h1', title: 'Read' });
   });
 
   it("offers the phone's settings once it won't ask again", async () => {

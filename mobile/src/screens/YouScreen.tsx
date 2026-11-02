@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { layout, space } from '@habit-tracker/core';
+import { isLogged, layout, space } from '@habit-tracker/core';
 import {
   BottomSheet,
   Button,
@@ -68,7 +68,12 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
 
   const test = async () => {
     setNote(null);
-    show(await sendTestReminder(), 'A test reminder is on its way. It takes about 5 seconds.');
+    const rows = await tracker.getToday().catch(() => []);
+    const open = rows.find((row) => row.is_today && !isLogged(row));
+    show(
+      await sendTestReminder(open && { id: open.habit_id, title: open.title }),
+      'A test reminder is on its way. It takes about 5 seconds.'
+    );
   };
 
   const signOut = async () => {

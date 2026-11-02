@@ -1,5 +1,6 @@
 import { Linking, Platform } from 'react-native';
 import {
+  NUDGE_CATEGORY,
   parseReminderTime,
   REMINDER_BODY,
   REMINDER_TITLE,
@@ -122,8 +123,12 @@ export async function setDailyReminder(time: string | null): Promise<ReminderRes
   }
 }
 
-// Fires in a few seconds, so nobody has to wait to find out if reminders work.
-export async function sendTestReminder(): Promise<ReminderResult> {
+// Fires in a few seconds, so nobody has to wait to find out if reminders work. Given an
+// open habit, it carries the same buttons as a real nudge.
+export async function sendTestReminder(habit?: {
+  id: string;
+  title: string;
+}): Promise<ReminderResult> {
   if (Platform.OS === 'web') return { status: 'unavailable' };
   try {
     const notifications = loadNotifications();
@@ -132,7 +137,14 @@ export async function sendTestReminder(): Promise<ReminderResult> {
     if (refused) return refused;
 
     await notifications.scheduleNotificationAsync({
-      content: { title: REMINDER_TITLE, body: REMINDER_BODY },
+      content: habit
+        ? {
+            title: habit.title,
+            body: REMINDER_BODY,
+            categoryIdentifier: NUDGE_CATEGORY,
+            data: { habitId: habit.id },
+          }
+        : { title: REMINDER_TITLE, body: REMINDER_BODY },
       trigger: {
         type: notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: TEST_DELAY_SECONDS,
