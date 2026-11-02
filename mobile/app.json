@@ -67,7 +67,8 @@
             }
           ]
         }
-      ]
+      ],
+      "./plugins/withVoiceTile"
     ],
     "scheme": "habittracker",
     "extra": {
