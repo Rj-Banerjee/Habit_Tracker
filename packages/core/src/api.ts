@@ -114,6 +114,12 @@ export interface ProgressDay {
   logged_hour?: number | null;
 }
 
+export interface VoiceHabit {
+  id: string;
+  title: string;
+  voice_aliases: string[];
+}
+
 export interface FutureLetter {
   week_start: string;
   text: string;
@@ -178,11 +184,14 @@ const toNewIdentity = (identity: NewIdentityInput) => ({
   why_text: identity.whyText ?? null,
 });
 
+export const OFFLINE_MESSAGE = "Can't reach the server. Check your connection and try again.";
+export const isOfflineError = (error: unknown) =>
+  error instanceof Error && error.message === OFFLINE_MESSAGE;
+
 const OFFLINE = /Failed to fetch|Network request failed|NetworkError|Load failed/;
 
 // The network layer's own wording means nothing to the person using the app.
-const friendly = (message: string) =>
-  OFFLINE.test(message) ? "Can't reach the server. Check your connection and try again." : message;
+const friendly = (message: string) => (OFFLINE.test(message) ? OFFLINE_MESSAGE : message);
 
 export function createTrackerApi(client: SupabaseClient) {
   const call = async <T>(name: string, args?: Record<string, unknown>): Promise<T> => {
@@ -340,12 +349,10 @@ export function createTrackerApi(client: SupabaseClient) {
       ),
 
     // The words speech recognition should listen out for.
-    listVoiceNames: async () => {
-      const rows = await select<{ title: string; voice_aliases: string[] }[]>(
-        client.from('habits').select('title, voice_aliases').is('archived_at', null)
-      );
-      return rows.flatMap((row) => [row.title, ...row.voice_aliases]);
-    },
+    listVoiceHabits: () =>
+      select<VoiceHabit[]>(
+        client.from('habits').select('id, title, voice_aliases').is('archived_at', null)
+      ),
 
     listProgressHabits: () =>
       select<ProgressHabit[]>(

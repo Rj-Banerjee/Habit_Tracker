@@ -1,4 +1,4 @@
-import { TodayRow } from '@habit-tracker/core';
+import { localDate, OFFLINE_MESSAGE, TodayRow } from '@habit-tracker/core';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import { handleWidget } from './register';
@@ -19,10 +19,11 @@ jest.mock('../services/supabase', () => ({
   supabase: { auth: { getSession: jest.fn() } },
 }));
 jest.mock('../services/tracker', () => ({
-  tracker: { getToday: jest.fn(), logHabit: jest.fn(), undoLog: jest.fn() },
+  tracker: { getToday: jest.fn(), logHabit: jest.fn(), undoLog: jest.fn(), skipHabit: jest.fn() },
 }));
 
 const api = tracker as jest.Mocked<typeof tracker>;
+const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const session = supabase.auth.getSession as jest.Mock;
 
 const row = {
@@ -47,7 +48,9 @@ describe('the widget', () => {
     jest.clearAllMocks();
     mockStore.clear();
     session.mockResolvedValue({ data: { session: { access_token: 't' } } });
-    api.getToday.mockResolvedValue([row]);
+    api.getToday.mockReset();
+    api.logHabit.mockReset();
+    api.getToday.mockResolvedValue([{ ...row, day: localDate(zone) }]);
     api.logHabit.mockResolvedValue(null as never);
   });
 
@@ -62,15 +65,22 @@ describe('the widget', () => {
 
   it('shows the last list when offline, and says so', async () => {
     await loadWidget();
-    api.getToday.mockRejectedValue(new Error('offline'));
+    api.getToday.mockRejectedValue(new Error(OFFLINE_MESSAGE));
     const state = ready(await loadWidget());
     expect(state.model.items[0].title).toBe('Read');
-    expect(state.note).toBe("Couldn't update just now.");
+    expect(state.note).toBe("Offline. It'll sync when you're back.");
+  });
+
+  it('keeps a tap made offline, and shows it as done', async () => {
+    await loadWidget();
+    api.getToday.mockRejectedValue(new Error(OFFLINE_MESSAGE));
+    api.logHabit.mockRejectedValue(new Error(OFFLINE_MESSAGE));
+    expect(ready(await toggleAndLoad('h1')).model.items[0].done).toBe(true);
   });
 
   it('logs on a tap, marked as coming from the widget', async () => {
     await toggleAndLoad('h1');
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null, 'widget');
+    expect(api.logHabit).toHaveBeenCalledWith('h1', localDate(zone), 'full', null, 'widget');
   });
 
   it('says when a tap did not save', async () => {

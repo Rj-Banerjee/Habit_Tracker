@@ -1105,3 +1105,14 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Phone testing over adb (Realme RMX2189, Android 11):** first real-device checks by the agent. Confirmed: the widget draws, a tap logs with source `widget` and undo works, about 2 seconds warm and 5.5 from a frozen app, and the voice button opens the sheet. Found and fixed: Today stayed stale after a widget log because it only loaded on start, widget rows moved after a tap so a second tap could hit another habit, and bottom sheets sat under Android's navigation bar. A tap now shows at once and then confirms.
 
+### Offline logging and simple phrases (3 Nov 2026)
+
+**Changed**
+
+- With no connection, logs from taps, voice, the coach, the widget and notifications queue on the phone, show as done, and sync on the next load. Today falls back to its last list for the same day. A log the server refuses later, such as after the back-log window closes, is dropped and the person is told.
+- Plain phrases like "done with Read" match exact habit names on the phone, with no AI call. Anything less exact still goes to the parser, and two habits with the same name are never guessed between.
+
+**Not checked:** airplane mode on a real phone, because it would cut the wireless adb connection.
+
+**Not queued:** skips and repairs, which still need a connection.
+

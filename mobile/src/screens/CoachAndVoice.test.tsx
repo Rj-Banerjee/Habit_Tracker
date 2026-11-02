@@ -11,6 +11,9 @@ import { speechInput } from '../voice/speech';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
@@ -23,7 +26,9 @@ jest.mock('../services/tracker', () => ({
     skipHabit: jest.fn(() => Promise.resolve()),
     undoLog: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(() => Promise.resolve([])),
-    listVoiceNames: jest.fn(() => Promise.resolve(['Read', 'book'])),
+    listVoiceHabits: jest.fn(() =>
+      Promise.resolve([{ id: 'h1', title: 'Read', voice_aliases: ['book'] }])
+    ),
   },
 }));
 jest.mock('expo-haptics', () => ({
@@ -692,7 +697,7 @@ describe('voice', () => {
     await settle();
     await fireEvent.press(screen.getByRole('button', { name: /^Read,/ }));
     await settle();
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null, 'tap');
   });
 
   it('points to the keyboard mic when the phone has no speech recognition', async () => {

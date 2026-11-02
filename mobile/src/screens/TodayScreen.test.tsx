@@ -8,6 +8,9 @@ import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
@@ -15,7 +18,7 @@ jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
 jest.mock('../services/tracker', () => ({
   tracker: {
-    listVoiceNames: jest.fn(() => Promise.resolve([])),
+    listVoiceHabits: jest.fn(() => Promise.resolve([])),
     getToday: jest.fn(),
     getRepairs: jest.fn(() => Promise.resolve([])),
     logHabit: jest.fn(() => Promise.resolve()),
@@ -104,20 +107,20 @@ describe('TodayScreen', () => {
   it('logs the full version with one tap', async () => {
     await open([row()]);
     await fireEvent.press(screen.getByRole('button', { name: /^Run/ }));
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
   });
 
   it('undoes with a tap on a logged habit', async () => {
     await open([row({ status: 'done', level_done: 'full' })]);
     await fireEvent.press(screen.getByRole('button', { name: /^Run/ }));
-    expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-03');
+    expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-03', 'tap');
   });
 
   it('opens the Shrink sheet on long press and logs the chosen level', async () => {
     await open([row()]);
     await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
     await fireEvent.press(screen.getByRole('button', { name: 'Minimum version, Run 1 km' }));
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'minimum', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'minimum', null, 'tap');
   });
 
   it('offers a repair only when the server says it can happen', async () => {
@@ -158,7 +161,7 @@ describe('TodayScreen', () => {
     await open([row(), row({ day: '2026-11-02', is_today: false })]);
     expect(screen.getByText('Still open from yesterday')).toBeTruthy();
     await fireEvent.press(screen.getAllByRole('button', { name: /^Run/ })[1]);
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null, 'tap');
     afternoon.mockRestore();
   });
 

@@ -6,7 +6,7 @@ import {
   NUDGE_CATEGORY,
   runNotificationAction,
 } from '@habit-tracker/core';
-import { tracker } from './tracker';
+import { offlineTracker } from './logQueue';
 import { refreshWidget } from './widget';
 
 interface ActionResponse {
@@ -19,7 +19,7 @@ export async function handleNotificationResponse(response: ActionResponse) {
   const { identifier, content } = response.notification.request;
   const habitId = content.data?.habitId;
   if (!habitId) return;
-  const acted = await runNotificationAction(tracker, response.actionIdentifier, habitId);
+  const acted = await runNotificationAction(offlineTracker, response.actionIdentifier, habitId);
   if (!acted) return;
   await refreshWidget();
   // eslint-disable-next-line @typescript-eslint/no-require-imports

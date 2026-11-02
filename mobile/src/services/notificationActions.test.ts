@@ -1,13 +1,13 @@
 import * as Notifications from 'expo-notifications';
 import { handleNotificationResponse } from './notificationActions';
-import { tracker } from './tracker';
+import { offlineTracker as tracker } from './logQueue';
 import { refreshWidget } from './widget';
 
 jest.mock('expo-notifications', () => ({ dismissNotificationAsync: jest.fn(() => Promise.resolve()) }));
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
 jest.mock('./widget', () => ({ refreshWidget: jest.fn(() => Promise.resolve()) }));
-jest.mock('./tracker', () => ({
-  tracker: {
+jest.mock('./logQueue', () => ({
+  offlineTracker: {
     getToday: jest.fn(() => Promise.resolve([])),
     logHabit: jest.fn(() => Promise.resolve()),
   },

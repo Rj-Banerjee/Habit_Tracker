@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { HabitLevel, levelTarget, RepairRow, TodayRow } from '@habit-tracker/core';
+import { HabitLevel, levelTarget, OFFLINE_NOTE, RepairRow, TodayRow } from '@habit-tracker/core';
+import { loadToday, offlineTracker } from '../services/logQueue';
 import { tracker } from '../services/tracker';
 import { refreshWidget } from '../services/widget';
 
@@ -12,15 +13,20 @@ export function useToday() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
 
   const refresh = useCallback(
     () =>
-      Promise.all([tracker.getToday(), tracker.getRepairs()])
-        .then(([today, repairable]) => {
+      loadToday()
+        .then(async ({ rows: today, offline, note }) => {
           setRows(today);
-          setRepairs(repairable);
           setLoadFailed(false);
-          void refreshWidget();
+          setOffline(offline);
+          if (note) setMessage(note);
+          if (!offline) {
+            setRepairs(await tracker.getRepairs());
+            void refreshWidget();
+          }
         })
         .catch(() => setLoadFailed(true))
         .finally(() => setLoading(false)),
@@ -62,7 +68,7 @@ export function useToday() {
     return change(
       row,
       { status: 'done', level_done: level, amount, current_streak: row.current_streak + 1 },
-      () => tracker.logHabit(row.habit_id, row.day, level, amount)
+      () => offlineTracker.logHabit(row.habit_id, row.day, level, amount)
     );
   };
 
@@ -70,7 +76,7 @@ export function useToday() {
     change(
       row,
       { status: 'pending', level_done: null, amount: null, current_streak: Math.max(0, row.current_streak - 1) },
-      () => tracker.undoLog(row.habit_id, row.day)
+      () => offlineTracker.undoLog(row.habit_id, row.day)
     );
 
   const skip = (row: TodayRow, reason: string) =>
@@ -85,5 +91,16 @@ export function useToday() {
       () => tracker.repairHabit(row.habit_id, row.day, row.repair_amount)
     );
 
-  return { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair };
+  return {
+    rows,
+    repairs,
+    loading,
+    loadFailed,
+    message: message ?? (offline ? OFFLINE_NOTE : null),
+    refresh,
+    log,
+    undo,
+    skip,
+    repair,
+  };
 }
