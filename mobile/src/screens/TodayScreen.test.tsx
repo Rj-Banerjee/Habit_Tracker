@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { TodayRow } from '@habit-tracker/core';
+import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
@@ -246,5 +246,18 @@ describe('TodayScreen', () => {
     await open([row({ status: 'missed', current_streak: 0 })]);
     expect(screen.queryByText(/fail|broke|lost/i)).toBeNull();
     expect(screen.queryByText('0')).toBeNull();
+  });
+
+  it('explains a rule the first time it comes up, and only once', async () => {
+    const skipped = [row({ status: 'skipped', skip_reason: 'Sick' })];
+    await open(skipped);
+    expect(screen.getByText(RULE_CARDS.skip)).toBeTruthy();
+
+    await act(async () => fireEvent.press(screen.getByLabelText('Got it')));
+    expect(screen.queryByText(RULE_CARDS.skip)).toBeNull();
+
+    await screen.unmount();
+    await open(skipped);
+    expect(screen.queryByText(RULE_CARDS.skip)).toBeNull();
   });
 });

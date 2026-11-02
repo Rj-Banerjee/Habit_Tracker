@@ -1116,3 +1116,21 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Not queued:** skips and repairs, which still need a connection.
 
+### Notification buttons from a closed app, voice tile and rule cards (3 Nov 2026)
+
+**Fixed**
+
+- Done and Smaller version did nothing when the app had been closed. Android gives a background task the data as a JSON string, and the handler only read the unpacked form, so it exited without a word. The earlier pass had come from the in-app listener, not the task. Both forms are now read, a tap reaches the log once when both paths get it, and a button with no habit leaves a warning.
+- A reminder tapped offline, before the app had opened that day, was lost because it had no date. It now queues for today.
+
+**Added**
+
+- An Android Quick Settings tile, "Log by voice", which opens the voice sheet.
+- A card on Today the first time each streak rule comes up: Grace Day, repair, skip and back-log. One shows at a time, once each, remembered per device.
+- 154 held-out voice phrases, 217 in all. They're never tuned against.
+
+**Not checked yet:** the fix and the tile on the phone, which need new builds, and the held-out score, because `gemini-3.5-flash-lite` wasn't answering tonight.
+
+**Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
+
+**Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision.

@@ -32,9 +32,11 @@ import {
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
+import { RuleCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
 import { useCoach } from '../hooks/useCoach';
 import { useNudges } from '../hooks/useNudges';
+import { useRuleCard } from '../hooks/useRuleCard';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
 import { checkOffTick } from '../services/haptics';
@@ -63,6 +65,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
   useNudges(rows, loading, refresh);
+  const ruleCard = useRuleCard(rows, repairs, loading);
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
@@ -205,6 +208,8 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             }}
           />
         ) : null}
+
+        {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
 
         {message ? (
           <Text variant="small" muted accessibilityLiveRegion="polite">
