@@ -1133,7 +1133,9 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Checked on the phone:** Smaller version with the app killed logged the minimum, source `notification`, in about 4 seconds. Done with the app alive in the background made one `log_habit` call and cleared the notification.
 
-**Not checked yet:** the tile and rule cards on the phone, which need the next build.
+**Tile and rule cards on the phone:** a real tap on the tile started the closed app and opened the voice sheet. The Grace Day card showed, Got it brought up the next card, and the Grace Day card stayed gone after a restart. `cmd statusbar click-tile` did nothing on this phone, so it can't stand in for a tap. The phone test found the back-log card counting skipped and repaired days as forgotten, which is now fixed, with that fix covered by unit tests only.
+
+**Not checked:** the tile from a locked phone.
 
 **Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
 

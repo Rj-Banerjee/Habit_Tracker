@@ -1,5 +1,6 @@
 import { ProgressDay, RepairRow, TodayRow } from './api';
 import { addDays } from './dates';
+import { cardStatus } from './todayModel';
 
 export type StreakRule = 'grace' | 'repair' | 'skip' | 'backlog';
 
@@ -32,7 +33,7 @@ export function ruleToExplain(
     ['grace', days.some((day) => day.status === 'protected')],
     ['repair', repairs.length > 0 || rows.some((row) => row.can_repair)],
     ['skip', rows.some((row) => row.status === 'skipped')],
-    ['backlog', rows.some((row) => !row.is_today && row.status !== 'done')],
+    ['backlog', rows.some((row) => cardStatus(row) === 'open')],
   ];
   return happening.find(([rule, now]) => now && !seen.includes(rule))?.[0] ?? null;
 }

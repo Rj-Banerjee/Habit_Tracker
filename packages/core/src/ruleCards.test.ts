@@ -31,8 +31,8 @@ describe('ruleToExplain', () => {
     expect(ruleToExplain(rows, [repair], [protectedDay], ['grace', 'repair'])).toBe('skip');
   });
 
-  it("doesn't explain the back-log for a day already logged", () => {
-    expect(ruleToExplain([row({ is_today: false, status: 'done' })], [], [], [])).toBeNull();
+  it.each(['done', 'repaired', 'skipped'])("doesn't call a %s day forgotten", (status) => {
+    expect(ruleToExplain([row({ is_today: false, status })], [], [], ['skip'])).toBeNull();
   });
 });
 
