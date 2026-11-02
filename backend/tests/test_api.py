@@ -51,6 +51,9 @@ class FakeTracker:
     async def habits(self):
         return HABITS
 
+    async def identities(self):
+        return [{"name": "The Reader", "why_text": "Calmer evenings"}]
+
 
 @pytest.fixture
 def api(monkeypatch):
@@ -298,6 +301,78 @@ def test_an_action_is_recorded_as_a_coach_event(api):
     call = ToolCall("log_habit", {"habit": "h1", "confidence": "high"})
     chat_events(api, [call])
     assert app.state.db.events[0]["outcome"] == "acted"
+
+
+MISS = {
+    "messages": [{"role": "user", "text": "Run slipped. I was too tired."}],
+    "source": "miss_review",
+    "reason": "tired",
+}
+
+
+def test_a_miss_review_goes_straight_to_the_coach(api):
+    provider = use(FakeProvider(["Try a smaller run."]))
+    seen = events(api.post("/coach/chat", json=MISS))
+    assert seen[0]["text"] == "Try a smaller run."
+    assert len(provider.seen) == 1
+    assert "miss review" in provider.seen[0]["system"]
+
+
+def test_a_miss_review_keeps_the_reason_but_not_the_words(api):
+    use(FakeProvider(["ok"]))
+    api.post("/coach/chat", json=MISS)
+    event = app.state.db.events[0]
+    assert event["kind"] == "miss_review"
+    assert event["payload"]["reason"] == "tired"
+    assert "slipped" not in str(event)
+
+
+def test_a_reason_must_come_from_the_list(api):
+    use(FakeProvider(["ok"]))
+    assert api.post("/coach/chat", json={**MISS, "reason": "anything"}).status_code == 422
+
+
+LETTER = {"week_start": "2026-11-02", "wins": ["Read 3 days"], "mood": "Tired but good"}
+
+
+def test_the_letter_uses_their_real_details_and_the_stronger_model(api):
+    provider = use(FakeProvider(["Dear you,", " keep going."]))
+    seen = events(api.post("/coach/letter", json=LETTER))
+    assert seen[-1] == {"type": "done"}
+    call = provider.seen[0]
+    assert call["tier"].value == "strong"
+    for detail in ("Calmer evenings", "Read 3 days", "Tired but good", "Never invent"):
+        assert detail in call["system"]
+
+
+def test_the_letter_is_kept_to_read_again(api):
+    use(FakeProvider(["Dear you,", " keep going."]))
+    api.post("/coach/letter", json=LETTER)
+    event = app.state.db.events[0]
+    assert event["kind"] == "letter"
+    assert event["payload"] == {"week_start": "2026-11-02", "text": "Dear you, keep going."}
+
+
+def test_one_letter_a_week(api):
+    use(FakeProvider(["ok"]))
+    assert api.post("/coach/letter", json=LETTER).status_code == 200
+    response = api.post("/coach/letter", json=LETTER)
+    assert response.status_code == 429
+    assert "next week" in response.json()["message"]
+
+
+def test_a_failed_letter_saves_nothing(api):
+    use(FakeProvider(["Dear", Unavailable()]))
+    seen = events(api.post("/coach/letter", json=LETTER))
+    assert seen[-1]["type"] == "error"
+    assert app.state.db.events == []
+
+
+def test_the_letter_needs_a_test_account_on_a_free_tier(api):
+    provider = use(FakeProvider(["ok"]))
+    app.dependency_overrides[current_user] = lambda: CurrentUser("real-person", "token")
+    assert api.post("/coach/letter", json=LETTER).status_code == 403
+    assert provider.opened == 0
 
 
 def test_the_last_turn_must_be_the_user(api):

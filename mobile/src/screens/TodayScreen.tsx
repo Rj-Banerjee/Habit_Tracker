@@ -30,6 +30,7 @@ import {
 } from '@habit-tracker/ui';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
+import { MissReview } from '../coach/MissReview';
 import { useActions } from '../hooks/useActions';
 import { useCoach } from '../hooks/useCoach';
 import { useToday } from '../hooks/useToday';
@@ -46,16 +47,17 @@ const SHEET_CLOSE_MS = 400;
 interface TodayScreenProps {
   onAddHabit: (title?: string) => void;
   onEditHabit: (habitId: string) => void;
+  onOpenReview: () => void;
 }
 
-export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
+export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScreenProps) {
   const { colors } = useTheme();
   const { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair } =
     useToday();
   const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
-  const [panel, setPanel] = useState<'coach' | 'voice' | null>(null);
+  const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,8 +179,14 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
           <CoachCard
             text={card.text}
             onPress={() => {
-              setPanel('coach');
-              void coach.send(card.prompt, 'card');
+              if (card.opens === 'sunday') {
+                onOpenReview();
+              } else if (card.opens === 'miss') {
+                setPanel('miss');
+              } else {
+                setPanel('coach');
+                void coach.send(card.prompt, 'card');
+              }
             }}
           />
         ) : null}
@@ -253,6 +261,16 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
           if (skipRow) skip(skipRow, reason);
           setSkipRow(null);
         }}
+      />
+      <MissReview
+        visible={panel === 'miss'}
+        repair={repairs[0] ?? null}
+        onChoose={(reason, label) => {
+          switchTo('coach', () =>
+            void coach.send(`${repairs[0]?.title} slipped. ${label}.`, 'miss_review', reason)
+          );
+        }}
+        onClose={() => setPanel(null)}
       />
       <VoiceSheet
         visible={panel === 'voice'}

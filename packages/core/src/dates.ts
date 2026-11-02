@@ -29,6 +29,12 @@ export function weekStart(date: string): string {
   return addDays(date, 1 - isoDay);
 }
 
+// The week to look back on: this one on a Sunday, otherwise the last one that finished.
+export function reviewWeekStart(today: string): string {
+  const monday = weekStart(today);
+  return toUtc(today).getUTCDay() === 0 ? monday : addDays(monday, -7);
+}
+
 export const weekDates = (start: string) => Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
 export function monthDates(year: number, month: number): string[] {

@@ -60,7 +60,7 @@ const open = async (active = true) => {
       }}
     >
       <ThemeProvider forced="light">
-        <ProgressScreen active={active} />
+        <ProgressScreen active={active} onOpenReview={jest.fn()} />
       </ThemeProvider>
     </SafeAreaProvider>
   );

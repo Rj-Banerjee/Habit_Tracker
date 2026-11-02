@@ -78,3 +78,10 @@ export const STREAK_RULES = [
     body: "On the next scheduled day, do one and a half times the usual. For a yes or no habit, do the full version and the minimum. It's there if you want it.",
   },
 ];
+
+export const MISS_REASONS = [
+  { value: 'tired', label: 'Too tired' },
+  { value: 'forgot', label: 'I forgot' },
+  { value: 'no_time', label: 'No time' },
+  { value: 'too_big', label: 'It felt too big' },
+] as const;

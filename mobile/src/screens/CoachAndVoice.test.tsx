@@ -19,6 +19,7 @@ jest.mock('../services/tracker', () => ({
     logHabit: jest.fn(() => Promise.resolve()),
     skipHabit: jest.fn(() => Promise.resolve()),
     undoLog: jest.fn(() => Promise.resolve()),
+    listIdentities: jest.fn(() => Promise.resolve([])),
     listVoiceNames: jest.fn(() => Promise.resolve(['Read', 'book'])),
   },
 }));
@@ -77,7 +78,7 @@ const open = async () => {
       }}
     >
       <ThemeProvider forced="light">
-        <TodayScreen onAddHabit={onAddHabit} onEditHabit={jest.fn()} />
+        <TodayScreen onAddHabit={onAddHabit} onEditHabit={jest.fn()} onOpenReview={onOpenReview} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -85,6 +86,7 @@ const open = async () => {
 };
 
 const onAddHabit = jest.fn();
+const onOpenReview = jest.fn();
 const read = { habit_id: 'h1', habit_title: 'Read' };
 const parsed = (text: string, intents: VoiceIntent[], level?: VoiceLevel): VoiceParse => ({
   heard: text,
@@ -106,6 +108,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   speech.mockReturnValue(null);
   api.getToday.mockResolvedValue([row()]);
+  api.getRepairs.mockResolvedValue([]);
   coachApi.chat.mockImplementation(replies('Start ', 'small.'));
 });
 
@@ -116,7 +119,8 @@ describe('coach card', () => {
     await settle();
     expect(coachApi.chat).toHaveBeenCalledWith(
       [{ role: 'user', text: expect.any(String) }],
-      'card'
+      'card',
+      undefined
     );
     expect(screen.getByText('Start small.')).toBeTruthy();
   });
@@ -130,6 +134,70 @@ describe('coach card', () => {
     api.getToday.mockResolvedValue([]);
     await open();
     expect(screen.queryByRole('button', { name: /^Coach suggestion/ })).toBeNull();
+  });
+});
+
+describe('miss review', () => {
+  const slip = {
+    habit_id: 'h2',
+    identity_id: 'i1',
+    title: 'Run',
+    repair_on: '2026-11-03',
+    colour_token: 'identity-1',
+    current_streak: 0,
+  };
+
+  const openReview = async () => {
+    api.getRepairs.mockResolvedValue([slip] as never);
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: /^Coach suggestion/ }));
+    await settle();
+  };
+
+  it('asks what got in the way, kindly', async () => {
+    await openReview();
+    expect(screen.getByText('Run slipped')).toBeTruthy();
+    expect(screen.getByText('That happens. What got in the way?')).toBeTruthy();
+    expect(coachApi.chat).not.toHaveBeenCalled();
+  });
+
+  it('shows why it matters', async () => {
+    api.listIdentities.mockResolvedValue([
+      { id: 'i1', name: 'The Athlete', colour_token: 'identity-1', why_text: 'For my health' },
+    ]);
+    await openReview();
+    expect(screen.getByText('For my health')).toBeTruthy();
+  });
+
+  it('passes the one-tap reason to the coach', async () => {
+    jest.useFakeTimers();
+    await openReview();
+    await press('Too tired');
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+    jest.useRealTimers();
+    await settle();
+    expect(coachApi.chat).toHaveBeenCalledWith(
+      [{ role: 'user', text: 'Run slipped. Too tired.' }],
+      'miss_review',
+      'tired'
+    );
+  });
+
+  it('can be left alone', async () => {
+    await openReview();
+    await press('Not now');
+    expect(coachApi.chat).not.toHaveBeenCalled();
+  });
+});
+
+describe('Sunday card', () => {
+  it('opens the review on a Sunday', async () => {
+    api.getToday.mockResolvedValue([row({ day: '2026-11-08' })]);
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: /^Coach suggestion/ }));
+    expect(onOpenReview).toHaveBeenCalled();
   });
 });
 
@@ -163,7 +231,8 @@ describe('coach drawer', () => {
         { role: 'assistant', text: 'Start small.' },
         { role: 'user', text: 'Two' },
       ],
-      'chat'
+      'chat',
+      undefined
     );
   });
 
@@ -173,7 +242,8 @@ describe('coach drawer', () => {
     await press('I feel burned out');
     expect(coachApi.chat).toHaveBeenCalledWith(
       [{ role: 'user', text: 'I feel burned out' }],
-      'burned_out'
+      'burned_out',
+      undefined
     );
     expect(screen.queryByRole('button', { name: 'Quick log my day' })).toBeNull();
   });
@@ -232,7 +302,8 @@ describe('coach drawer', () => {
     await press('Try again');
     expect(coachApi.chat).toHaveBeenLastCalledWith(
       [{ role: 'user', text: 'I feel burned out' }],
-      'chat'
+      'chat',
+      undefined
     );
     expect(screen.getByText('Start small.')).toBeTruthy();
     expect(screen.queryByText('Half')).toBeNull();
@@ -582,7 +653,11 @@ describe('voice', () => {
     });
     jest.useRealTimers();
     await settle();
-    expect(coachApi.chat).toHaveBeenCalledWith([{ role: 'user', text: 'Why do I skip?' }], 'chat');
+    expect(coachApi.chat).toHaveBeenCalledWith(
+      [{ role: 'user', text: 'Why do I skip?' }],
+      'chat',
+      undefined
+    );
   });
 
   it('stays calm when the AI is down, and tapping still works', async () => {

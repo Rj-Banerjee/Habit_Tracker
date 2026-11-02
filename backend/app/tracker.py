@@ -63,6 +63,9 @@ class Tracker:
             },
         )
 
+    async def identities(self) -> list[dict[str, Any]]:
+        return await self._get("/identities", {"select": "name,why_text"})
+
     async def habits(self) -> list[dict[str, Any]]:
         return await self._get(
             "/habits",

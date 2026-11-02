@@ -6,6 +6,7 @@ import {
   CoachError,
   describeIntents,
   isVoiceAction,
+  MissReason,
   noHabitMessage,
   VoiceIntent,
   VoiceOption,
@@ -92,11 +93,11 @@ export function useCoach(actions: Actions) {
     }
   };
 
-  const ask = (history: ChatTurn[], source: ChatSource) =>
+  const ask = (history: ChatTurn[], source: ChatSource, reason?: MissReason) =>
     guarded(async () => {
       setTurns(history);
       let reply = '';
-      for await (const event of ai.chat(history, source)) {
+      for await (const event of ai.chat(history, source, reason)) {
         if (event.type === 'actions') {
           await decide(history, event);
         } else {
@@ -106,8 +107,8 @@ export function useCoach(actions: Actions) {
       }
     });
 
-  const send = (text: string, source: ChatSource = 'chat') =>
-    ask([...turns, { role: 'user', text }], source);
+  const send = (text: string, source: ChatSource = 'chat', reason?: MissReason) =>
+    ask([...turns, { role: 'user', text }], source, reason);
 
   // A reply cut off halfway is dropped, so the coach answers the question again.
   const retry = () => {

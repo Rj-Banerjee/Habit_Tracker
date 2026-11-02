@@ -945,7 +945,7 @@ describe('Today entry points', () => {
 
   const openToday = async (rows: TodayRow[]) => {
     api.getToday.mockResolvedValue(rows);
-    await render(inApp(<TodayScreen onAddHabit={onAddHabit} onEditHabit={onEditHabit} />));
+    await render(inApp(<TodayScreen onAddHabit={onAddHabit} onEditHabit={onEditHabit} onOpenReview={jest.fn()} />));
     await settle();
   };
 

@@ -112,6 +112,11 @@ export interface ProgressDay {
   target: number | null;
 }
 
+export interface FutureLetter {
+  week_start: string;
+  text: string;
+}
+
 export interface Profile {
   timezone: string;
   mode: StreakMode;
@@ -290,6 +295,21 @@ export function createTrackerApi(client: SupabaseClient) {
       select<Identity[]>(
         client.from('identities').select('id, name, colour_token, why_text').order('created_at')
       ),
+
+    updateIdentityWhy: (identityId: string, whyText: string | null) =>
+      select(client.from('identities').update({ why_text: whyText }).eq('id', identityId)),
+
+    getLatestLetter: async () => {
+      const rows = await select<{ payload: FutureLetter }[]>(
+        client
+          .from('coach_events')
+          .select('payload')
+          .eq('kind', 'letter')
+          .order('sent_at', { ascending: false })
+          .limit(1)
+      );
+      return rows[0]?.payload ?? null;
+    },
 
     listHabitsInRange: (from: string, to: string) =>
       select<RangeHabit[]>(

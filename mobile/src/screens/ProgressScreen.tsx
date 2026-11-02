@@ -20,7 +20,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function ProgressScreen({ active }: { active: boolean }) {
+interface ProgressScreenProps {
+  active: boolean;
+  onOpenReview: () => void;
+}
+
+export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
   const { colors, identity: identityColor } = useTheme();
   const size = useLayoutSize();
   const { habits, days, today, loading, loadFailed, load } = useProgress(active);
@@ -120,6 +125,7 @@ export function ProgressScreen({ active }: { active: boolean }) {
         <Text variant="title" accessibilityRole="header">
           Progress
         </Text>
+        <Button label="Sunday Review" quiet onPress={onOpenReview} />
         {body()}
       </ScrollView>
     </SafeAreaView>

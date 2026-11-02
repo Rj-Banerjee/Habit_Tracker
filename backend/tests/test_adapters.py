@@ -77,6 +77,12 @@ def test_gemini_timeout_is_temporary():
     assert isinstance(to_llm_error(TimeoutError()), Unavailable)
 
 
+def test_gemini_leaves_room_for_thinking_on_top_of_the_reply():
+    provider = GeminiProvider(get_settings())
+    request = provider._request(Tier.FAST, "s", HI, 500)
+    assert request["generation_config"]["max_output_tokens"] > 500 + 1000
+
+
 def test_gemini_turn_shape():
     assert to_input([Message("user", "a"), Message("assistant", "b")]) == [
         {"type": "user_input", "content": [{"type": "text", "text": "a"}]},

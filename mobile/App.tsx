@@ -16,6 +16,7 @@ import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
+import { SundayReviewScreen } from './src/screens/SundayReviewScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { YouScreen } from './src/screens/YouScreen';
 import { supabase } from './src/services/supabase';
@@ -65,6 +66,7 @@ function SignedIn({ session }: { session: Session }) {
   // No router yet. Null shows the tabs; otherwise the form, for a new habit or habitId.
   const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
   const [tab, setTab] = useState<Tab>('today');
+  const [reviewing, setReviewing] = useState(false);
 
   if (onboarding.needed === undefined) {
     return (
@@ -76,6 +78,10 @@ function SignedIn({ session }: { session: Session }) {
 
   if (onboarding.needed) {
     return <OnboardingScreen userId={session.user.id} onDone={onboarding.finished} />;
+  }
+
+  if (reviewing) {
+    return <SundayReviewScreen userId={session.user.id} onClose={() => setReviewing(false)} />;
   }
 
   if (habitForm) {
@@ -95,10 +101,11 @@ function SignedIn({ session }: { session: Session }) {
         <TodayScreen
           onAddHabit={(title) => setHabitForm({ title })}
           onEditHabit={(habitId) => setHabitForm({ habitId })}
+          onOpenReview={() => setReviewing(true)}
         />
       </View>
       <View style={[styles.root, tab !== 'progress' && styles.hidden]}>
-        <ProgressScreen active={tab === 'progress'} />
+        <ProgressScreen active={tab === 'progress'} onOpenReview={() => setReviewing(true)} />
       </View>
       <View style={[styles.root, tab !== 'you' && styles.hidden]}>
         <YouScreen

@@ -14,6 +14,10 @@ jest.mock('../services/tracker', () => ({
   tracker: {
     getProfile: jest.fn(() => Promise.resolve({ reminder_time: '20:00:00' })),
     setReminderTime: jest.fn(() => Promise.resolve()),
+    listIdentities: jest.fn(() =>
+      Promise.resolve([{ id: 'i1', name: 'The Reader', why_text: 'Calmer evenings' }])
+    ),
+    updateIdentityWhy: jest.fn(() => Promise.resolve()),
   },
 }));
 jest.mock('../services/reminders', () => ({
@@ -121,6 +125,16 @@ describe('YouScreen', () => {
     await act(async () => {});
     await fireEvent.press(screen.getByRole('button', { name: 'Open phone settings' }));
     expect(openPhoneSettings).toHaveBeenCalled();
+  });
+
+  it('shows and saves why an identity matters', async () => {
+    await open();
+    const field = screen.getByLabelText('Why The Reader matters');
+    expect(field.props.value).toBe('Calmer evenings');
+    await fireEvent.changeText(field, 'For my kids');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save why' }));
+    await act(async () => {});
+    expect(tracker.updateIdentityWhy).toHaveBeenCalledWith('i1', 'For my kids');
   });
 
   it('asks before signing out', async () => {

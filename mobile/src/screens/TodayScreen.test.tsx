@@ -65,7 +65,7 @@ const open = async (rows: TodayRow[]) => {
       }}
     >
       <ThemeProvider forced="light">
-        <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} />
+        <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} onOpenReview={jest.fn()} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -209,7 +209,7 @@ describe('TodayScreen', () => {
         }}
       >
         <ThemeProvider forced="light">
-          <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} />
+          <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} onOpenReview={jest.fn()} />
         </ThemeProvider>
       </SafeAreaProvider>
     );
