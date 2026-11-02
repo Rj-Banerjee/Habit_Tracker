@@ -34,10 +34,10 @@ export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps)
       <>
         <View style={styles.group}>
           <Text variant="small" muted accessibilityRole="header">
-            This week
+            {review.label}
           </Text>
           {review.week.length === 0 ? (
-            <Text muted>Nothing was due yet this week.</Text>
+            <Text muted>Nothing was due that week.</Text>
           ) : (
             review.week.map((habit) => (
               <View key={habit.habitId} style={styles.row}>
@@ -76,13 +76,11 @@ export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps)
         </View>
 
         <View style={styles.group}>
-          <Text variant="small" muted accessibilityRole="header">
-            A letter from you, a year from now
+          <Text variant="display" accessibilityRole="header">
+            A year from now
           </Text>
           {review.letter ? (
-            <Text variant="title" accessibilityLiveRegion="polite">
-              {review.letter}
-            </Text>
+            <Text accessibilityLiveRegion="polite">{review.letter}</Text>
           ) : (
             <Button
               label={review.writing ? 'Writing…' : 'Write my letter'}
@@ -109,7 +107,7 @@ export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps)
         >
           <View style={styles.header}>
             <Button label="Back" quiet onPress={onClose} />
-            <Text variant="display" accessibilityRole="header">
+            <Text variant="title" accessibilityRole="header">
               Sunday Review
             </Text>
           </View>

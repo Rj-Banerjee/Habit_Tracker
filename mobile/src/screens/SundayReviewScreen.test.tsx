@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { addDays, ChatEvent, CoachError, localDate, weekStart } from '@habit-tracker/core';
+import { addDays, ChatEvent, CoachError, localDate, reviewWeekStart, weekLabel } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { ai } from '../services/ai';
 import { tracker } from '../services/tracker';
@@ -22,7 +22,7 @@ jest.mock('../services/tracker', () => ({
 const api = tracker as jest.Mocked<typeof tracker>;
 const coach = ai as jest.Mocked<typeof ai>;
 const onClose = jest.fn();
-const monday = weekStart(localDate('Asia/Kolkata'));
+const monday = reviewWeekStart(localDate('Asia/Kolkata'));
 
 const writes = (...items: (string | Error)[]) =>
   async function* (): AsyncGenerator<ChatEvent> {
@@ -70,6 +70,12 @@ describe('SundayReviewScreen', () => {
   it('summarises the week', async () => {
     await open();
     expect(screen.getByText('1 of 1 day')).toBeTruthy();
+  });
+
+  it('reads the finished week, and names it', async () => {
+    await open();
+    expect(api.getHabitDays).toHaveBeenCalledWith(monday, addDays(monday, 6));
+    expect(screen.getByText(weekLabel(monday))).toBeTruthy();
   });
 
   it('saves wins and a mood line, leaving out blanks', async () => {

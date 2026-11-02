@@ -7,7 +7,8 @@ import {
   ProgressHabit,
   ProgressDay,
   Reflection,
-  weekStart,
+  reviewWeekStart,
+  weekLabel,
   weekSummary,
 } from '@habit-tracker/core';
 import { ai } from '../services/ai';
@@ -35,7 +36,7 @@ export function useSundayReview(userId: string) {
     tracker
       .getProfile()
       .then(async ({ timezone }) => {
-        const monday = weekStart(localDate(timezone));
+        const monday = reviewWeekStart(localDate(timezone));
         const [list, week, reflection, latest] = await Promise.all([
           tracker.listProgressHabits(),
           tracker.getHabitDays(monday, addDays(monday, 6)),
@@ -113,6 +114,7 @@ export function useSundayReview(userId: string) {
   return {
     status,
     retry,
+    label: start ? weekLabel(start) : '',
     // Nothing to count until the week has loaded.
     week: start ? weekSummary(habits, days, start) : [],
     wins,

@@ -1049,3 +1049,21 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** a notification arriving on a real phone. This still needs the phone test.
 
+### Miss review, Sunday Review, Future-Self letter and Why card (2 Nov 2026)
+
+PLAN.md only names these, so the details below are decisions, not spec.
+
+**Changed**
+
+- Miss review: the coach card for a slip opens a sheet with the person's Why and four one-tap reasons, then the coach replies. `coach_events` keeps the reason as `miss_review`, not the words.
+- Sunday Review: a finished week's numbers, three wins and a mood line, saved to `reflections`, the same table as the web weekly review. It opens from a Sunday card and from Progress. On any day but Sunday it shows the last finished week.
+- Future-Self letter: one a week, from the person a year from now, using only their real data. It's kept in `coach_events`, unlike chats, so it can be read again.
+- Why card: shown in the miss review, and editable in You.
+- Gemini's thinking spends from the same budget as the reply, which cut a letter off after one sentence. The adapter now adds room on top, so a token limit means the words people read.
+
+**Checked**
+
+- 6 browser checks with real Gemini and made-up data, covering the miss review, the review and the letter surviving a reload. The screenshots were viewed. No migration was needed.
+
+**Not built from Phase 2:** preemptive nudges, peak hours, per-user AI cost limits, and a Sunday push. `why_image_url` isn't used.
+
