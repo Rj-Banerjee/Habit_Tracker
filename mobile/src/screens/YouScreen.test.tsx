@@ -20,7 +20,7 @@ const open = async () => {
         insets: { top: 0, left: 0, right: 0, bottom: 0 },
       }}
     >
-      <ThemeProvider forced="light">
+      <ThemeProvider>
         <YouScreen email="me+test@example.test" onSignedOut={onSignedOut} />
       </ThemeProvider>
     </SafeAreaProvider>
@@ -41,6 +41,13 @@ describe('YouScreen', () => {
   it('shows the signed-in email', async () => {
     await open();
     expect(screen.getByText('me+test@example.test')).toBeTruthy();
+  });
+
+  it('offers System, Light and Dark, applied at once', async () => {
+    await open();
+    expect(screen.getByRole('button', { name: 'System', selected: true })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Dark' }));
+    expect(screen.getByRole('button', { name: 'Dark', selected: true })).toBeTruthy();
   });
 
   it('asks before signing out', async () => {

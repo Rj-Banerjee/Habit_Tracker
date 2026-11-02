@@ -1015,6 +1015,24 @@ select is(
   'a voice log is recorded as AI-assisted'
 );
 
+-- An undo records who asked for it.
+select tracker.log_habit(t.u(90), t.h(190), '2026-11-04', 'full', null, 'tap', t.noon(90, '2026-11-04'));
+select set_config('tracker.undo_source', 'coach', true);
+delete from public.habit_logs where habit_id = t.h(190) and date = '2026-11-04';
+select set_config('tracker.undo_source', '', true);
+select is(
+  (select actor::text from public.activity_events where user_id = t.u(90) and kind = 'log_removed'),
+  'ai_assisted',
+  'a coach undo of a tapped log is AI-assisted'
+);
+select tracker.log_habit(t.u(90), t.h(190), '2026-11-05', 'full', null, 'tap', t.noon(90, '2026-11-05'));
+delete from public.habit_logs where habit_id = t.h(190) and date = '2026-11-05';
+select is(
+  (select count(*)::int from public.activity_events where user_id = t.u(90) and kind = 'log_removed' and actor = 'user'),
+  1,
+  'an undo by tap stays the person''s own'
+);
+
 -- Moving a habit to another identity.
 select t.make_user(89);
 select t.make_habit(99, 89, '2026-11-02');

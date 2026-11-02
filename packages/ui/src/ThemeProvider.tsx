@@ -1,12 +1,30 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { colors, identityColors, IdentityToken, ThemeColors, ThemeName } from '@habit-tracker/core';
 
+export type ThemePreference = 'system' | ThemeName;
+
+export const THEME_PREFERENCES: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+// Each app brings its own: AsyncStorage on mobile, localStorage on the web.
+export interface ThemeStorage {
+  load: () => Promise<string | null> | string | null;
+  save: (value: ThemePreference) => unknown;
+}
+
+const isPreference = (value: unknown): value is ThemePreference =>
+  THEME_PREFERENCES.some((preference) => preference.value === value);
+
 interface ThemeContextValue {
   name: ThemeName;
+  preference: ThemePreference;
+  setPreference: (preference: ThemePreference) => void;
   colors: ThemeColors;
   identity: (token: IdentityToken) => (typeof identityColors)['light'][IdentityToken];
-  setOverride: (name: ThemeName | null) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -14,22 +32,45 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function ThemeProvider({
   children,
   forced,
+  storage,
 }: {
   children: React.ReactNode;
   forced?: ThemeName;
+  storage?: ThemeStorage;
 }) {
   const system = useColorScheme();
-  const [override, setOverride] = useState<ThemeName | null>(null);
-  const name: ThemeName = forced ?? override ?? (system === 'dark' ? 'dark' : 'light');
+  const [preference, setChoice] = useState<ThemePreference>('system');
+  const chosen = preference === 'system' ? system : preference;
+  const name: ThemeName = forced ?? (chosen === 'dark' ? 'dark' : 'light');
+
+  useEffect(() => {
+    let current = true;
+    // A blocked or failed read just means the default.
+    Promise.resolve()
+      .then(() => storage?.load())
+      .then((saved) => {
+        if (current && isPreference(saved)) setChoice(saved);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [storage]);
 
   const value = useMemo(
     () => ({
       name,
+      preference,
+      setPreference: (next: ThemePreference) => {
+        setChoice(next);
+        Promise.resolve()
+          .then(() => storage?.save(next))
+          .catch(() => {});
+      },
       colors: colors[name],
       identity: (token: IdentityToken) => identityColors[name][token],
-      setOverride,
     }),
-    [name]
+    [name, preference, storage]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

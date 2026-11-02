@@ -12,7 +12,7 @@ export interface VoiceOption {
 }
 
 export type VoiceAction =
-  | (VoiceOption & { intent: 'log_habit' | 'shrink_habit' })
+  | (VoiceOption & { intent: 'log_habit' | 'shrink_habit' | 'undo_habit' })
   | (VoiceOption & { intent: 'log_amount'; amount: number })
   | (VoiceOption & { intent: 'skip_habit'; reason: string });
 
@@ -31,9 +31,10 @@ export type VoiceIntent =
   | { intent: 'undo_last' }
   | { intent: 'ask_coach'; question: string };
 
-// How sure the parser is. high acts, medium asks first, low shows what it heard so they
-// can fix it, and none means it was clear but isn't one of their habits.
-export type VoiceLevel = 'high' | 'medium' | 'low' | 'none';
+// high acts, medium asks first, and low is probably misheard, so they can fix the text.
+// no_habit is a clear command for a habit they don't have, and off_topic isn't about
+// habits at all.
+export type VoiceLevel = 'high' | 'medium' | 'low' | 'no_habit' | 'off_topic';
 
 export interface VoiceParse {
   heard: string;
@@ -41,7 +42,10 @@ export interface VoiceParse {
   confidence: number;
   level: VoiceLevel;
   intents: VoiceIntent[];
+  missing_habit: string | null;
 }
+
+export type ChatEvent = { type: 'text'; text: string } | ({ type: 'actions' } & VoiceParse);
 
 // Where a conversation started. Recorded in coach_events, without the words.
 export type ChatSource = 'chat' | 'card' | 'burned_out';
@@ -93,8 +97,8 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
     parseVoice: async (transcript: string): Promise<VoiceParse> =>
       (await post('/voice/parse', { transcript })).json(),
 
-    // Yields the reply as it arrives.
-    async *chat(messages: ChatTurn[], source: ChatSource = 'chat'): AsyncGenerator<string> {
+    // Yields the reply as it arrives, or what the coach decided to do.
+    async *chat(messages: ChatTurn[], source: ChatSource = 'chat'): AsyncGenerator<ChatEvent> {
       const response = await post('/coach/chat', { messages, source });
       const reader = response.body?.getReader();
       if (!reader) throw new CoachError(UNAVAILABLE, 'unavailable');
@@ -110,7 +114,8 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const event = JSON.parse(line.slice(6));
-          if (event.type === 'delta') yield event.text;
+          if (event.type === 'delta') yield { type: 'text', text: event.text };
+          if (event.type === 'actions') yield event;
           if (event.type === 'error') {
             throw new CoachError(event.message, event.code, event.retry_after);
           }

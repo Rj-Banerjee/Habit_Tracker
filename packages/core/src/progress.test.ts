@@ -95,6 +95,24 @@ describe('identityScores', () => {
     expect(score([day(TODAY, 'done'), day('2026-11-01', 'done')]).total).toBe(2);
   });
 
+  it('treats an allowed skip as not due', () => {
+    const result = score(history(['done', 'skipped', 'done']));
+    expect(result.label).toBe('2 of 2 days');
+  });
+
+  it('leaves out a day where everything due was skipped', () => {
+    expect(score(history(['skipped'])).total).toBe(0);
+  });
+
+  it('still counts the other habits on a day with a skip', () => {
+    const days = [day('2026-11-01', 'skipped'), day('2026-11-01', 'done', { habit_id: 'h2' })];
+    expect(score(days, [habit(), habit({ id: 'h2' })]).label).toBe('1 of 1 day');
+  });
+
+  it('counts a skip past the allowance as a miss, as the server reports it', () => {
+    expect(score(history(['done', 'missed'])).label).toBe('1 of 2 days');
+  });
+
   it('stops at 30 days', () => {
     expect(score(history(repeat('done', 45))).total).toBe(30);
   });

@@ -1,7 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TodayRow } from './api';
 import { VoiceQuestion } from './ai';
-import { answerWhich, describeIntents, isUndoPhrase, isVoiceAction, runVoiceAction, whichQuestion } from './voice';
+import {
+  answerWhich,
+  describeIntents,
+  heardLine,
+  isUndoPhrase,
+  isVoiceAction,
+  noHabitMessage,
+  OFF_TOPIC_MESSAGE,
+  runVoiceAction,
+  runVoiceActions,
+  undoActions,
+  whichQuestion,
+} from './voice';
 
 const row = (patch: Partial<TodayRow> = {}) =>
   ({
@@ -23,6 +35,7 @@ const row = (patch: Partial<TodayRow> = {}) =>
 const api = (rows: TodayRow[]) => ({
   logHabit: vi.fn(async () => null),
   skipHabit: vi.fn(async () => null),
+  undoLog: vi.fn(async () => null),
   getToday: vi.fn(async () => rows),
 });
 
@@ -85,6 +98,82 @@ describe('runVoiceAction', () => {
     const tracker = api([]);
     await runVoiceAction(tracker, { intent: 'log_habit', ...read }, []);
     expect(tracker.logHabit).toHaveBeenCalledWith('h1', null, 'full', null, 'voice');
+  });
+});
+
+describe('undo a named habit', () => {
+  const done = row({ status: 'done', level_done: 'full' });
+
+  it("undoes that habit's log today", async () => {
+    const tracker = api([done]);
+    const result = await runVoiceAction(tracker, { intent: 'undo_habit', ...read }, [done]);
+    expect(tracker.undoLog).toHaveBeenCalledWith('h1', '2026-11-02', 'voice');
+    expect(result.say).toBe('Undid Read.');
+    expect(result.undo).toBeNull();
+  });
+
+  it('says so when it has no log today', async () => {
+    const tracker = api([row()]);
+    const result = await runVoiceAction(tracker, { intent: 'undo_habit', ...read }, [row()]);
+    expect(tracker.undoLog).not.toHaveBeenCalled();
+    expect(result.say).toBe("Read isn't logged today.");
+  });
+
+  it('says so for a habit not on Today', async () => {
+    const result = await runVoiceAction(api([]), { intent: 'undo_habit', ...read }, []);
+    expect(result.say).toBe("Read isn't logged today.");
+  });
+
+  it('can be confirmed by name', () => {
+    expect(describeIntents([{ intent: 'undo_habit', ...read }])).toBe('Undo Read');
+  });
+});
+
+describe('shared action code', () => {
+  it('marks where a log came from', async () => {
+    const tracker = api([row()]);
+    await runVoiceAction(tracker, { intent: 'log_habit', ...read }, [row()], 'coach');
+    expect(tracker.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', 30, 'coach');
+    await runVoiceAction(tracker, { intent: 'skip_habit', ...read, reason: 'Sick' }, [row()], 'coach');
+    expect(tracker.skipHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'Sick', 'coach');
+  });
+
+  it('marks a coach undo too', async () => {
+    const tracker = api([]);
+    await undoActions(tracker, [{ habitId: 'h1', date: '2026-11-02' }], 'coach');
+    expect(tracker.undoLog).toHaveBeenCalledWith('h1', '2026-11-02', 'coach');
+  });
+
+  it('collects what can be undone, and joins the words', async () => {
+    const tracker = api([row({ current_streak: 1 })]);
+    const done = await runVoiceActions(
+      tracker,
+      [
+        { intent: 'log_habit', ...read },
+        { intent: 'undo_habit', habit_id: 'h9', habit_title: 'Run' },
+      ],
+      [row()],
+      'coach'
+    );
+    expect(done.say).toBe("Logged Read. Run isn't logged today.");
+    expect(done.undos).toHaveLength(1);
+  });
+});
+
+describe('messages', () => {
+  it('shows a correction only when there was one', () => {
+    expect(heardLine('I read', 'I read', [])).toBe('Heard: I read');
+    expect(heardLine('undi the read', 'undo the read', [{ intent: 'undo_habit', ...read }])).toBe(
+      'Heard: undi the read → understood as: Undo Read'
+    );
+  });
+
+  it('names a missing habit', () => {
+    expect(noHabitMessage('Yoga')).toBe("You don't have a habit called Yoga.");
+  });
+
+  it('gives an example when it is off topic', () => {
+    expect(OFF_TOPIC_MESSAGE).toContain('I read 20 pages');
   });
 });
 

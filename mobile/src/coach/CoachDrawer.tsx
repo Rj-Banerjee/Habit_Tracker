@@ -9,14 +9,23 @@ interface CoachDrawerProps {
   visible: boolean;
   coach: Coach;
   onQuickLog: () => void;
+  onCreateHabit: (title: string) => void;
   onClose: () => void;
 }
 
-export function CoachDrawer({ visible, coach, onQuickLog, onClose }: CoachDrawerProps) {
+export function CoachDrawer({
+  visible,
+  coach,
+  onQuickLog,
+  onCreateHabit,
+  onClose,
+}: CoachDrawerProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
   const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
+
+  const { offer } = coach;
 
   const send = () => {
     const text = draft.trim();
@@ -84,6 +93,41 @@ export function CoachDrawer({ visible, coach, onQuickLog, onClose }: CoachDrawer
             <Text variant="small" muted accessibilityLiveRegion="polite">
               Thinking…
             </Text>
+          ) : null}
+
+          {offer && !coach.replying ? (
+            <View style={styles.chips}>
+              {offer.kind === 'undo' ? (
+                <Chip label="Undo" selected={false} onPress={() => void coach.undo()} />
+              ) : null}
+              {offer.kind === 'confirm' ? (
+                <>
+                  <Chip
+                    label="Yes"
+                    selected={false}
+                    onPress={() => void coach.confirm(offer.intents)}
+                  />
+                  <Chip label="No" selected={false} onPress={coach.reject} />
+                </>
+              ) : null}
+              {offer.kind === 'which'
+                ? offer.question.options.map((option) => (
+                    <Chip
+                      key={option.habit_id}
+                      label={option.habit_title}
+                      selected={false}
+                      onPress={() => void coach.answer(offer.question, option)}
+                    />
+                  ))
+                : null}
+              {offer.kind === 'create' ? (
+                <Chip
+                  label="Create it"
+                  selected={false}
+                  onPress={() => onCreateHabit(offer.name)}
+                />
+              ) : null}
+            </View>
           ) : null}
 
           {coach.notice ? (

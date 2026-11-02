@@ -58,8 +58,28 @@
     {"group": "clean", "heard": "undo that", "expect": ["undo_last"]},
     {"group": "clean", "heard": "why do I keep missing mornings", "expect": ["ask_coach"]},
 
-    {"group": "no_action", "heard": "I went swimming", "expect": []},
-    {"group": "no_action", "heard": "I bought a red car and went home", "expect": []},
-    {"group": "no_action", "heard": "the weather is lovely under the trees", "expect": []}
+    {"group": "undo_named", "heard": "undo the read", "expect": ["undo_habit:read"]},
+    {"group": "undo_named", "heard": "undi the read", "expect": ["undo_habit:read"]},
+    {"group": "undo_named", "heard": "undo my gym", "expect": ["undo_habit:gym"]},
+    {"group": "undo_named", "heard": "ando the jim", "expect": ["undo_habit:gym"]},
+    {"group": "undo_named", "heard": "undo morning run", "expect": ["undo_habit:run"]},
+    {"group": "undo_named", "heard": "read wapas kar do", "expect": ["undo_habit:read"]},
+
+    {"group": "named_action", "heard": "skip the read", "expect": ["skip_habit:read"]},
+    {"group": "named_action", "heard": "skeep the red", "expect": ["skip_habit:read"]},
+    {"group": "named_action", "heard": "shrink the read", "expect": ["shrink_habit:read"]},
+    {"group": "named_action", "heard": "shrnk my read", "expect": ["shrink_habit:read"]},
+    {"group": "named_action", "heard": "minimum for gym", "expect": ["shrink_habit:gym"]},
+
+    {"group": "no_habit", "heard": "I did yoga", "expect": [], "level": "no_habit"},
+    {"group": "no_habit", "heard": "finished my guitar practice", "expect": [], "level": "no_habit"},
+    {"group": "no_habit", "heard": "I went swimming", "expect": [], "level": "no_habit"},
+    {"group": "no_habit", "heard": "skip painting today", "expect": [], "level": "no_habit"},
+    {"group": "no_habit", "heard": "cricket ho gaya", "expect": [], "level": "no_habit"},
+
+    {"group": "off_topic", "heard": "I bought a red car", "expect": [], "level": "off_topic"},
+    {"group": "off_topic", "heard": "I bought a red car and went home", "expect": [], "level": "off_topic"},
+    {"group": "off_topic", "heard": "the weather is lovely under the trees", "expect": [], "level": "off_topic"},
+    {"group": "off_topic", "heard": "my sister called me yesterday", "expect": [], "level": "off_topic"}
   ]
 }

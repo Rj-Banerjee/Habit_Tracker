@@ -4,7 +4,7 @@ import { IdentityToken } from './tokens';
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
 export type LogStatus = 'done' | 'skipped' | 'repaired';
-export type LogSource = 'tap' | 'voice';
+export type LogSource = 'tap' | 'voice' | 'coach';
 export type StreakMode = 'strict' | 'grace';
 
 export interface LevelOption {
@@ -212,8 +212,8 @@ export function createTrackerApi(client: SupabaseClient) {
         p_source: source,
       }),
 
-    undoLog: (habitId: string, date: string | null) =>
-      call('undo_log', { p_habit_id: habitId, p_date: date }),
+    undoLog: (habitId: string, date: string | null, source: LogSource = 'tap') =>
+      call('undo_log', { p_habit_id: habitId, p_date: date, p_source: source }),
 
     skipHabit: (habitId: string, date: string | null, reason: string, source: LogSource = 'tap') =>
       call('skip_habit', {

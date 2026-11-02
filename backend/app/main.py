@@ -128,6 +128,16 @@ async def health(settings: Settings = Depends(get_settings)) -> dict[str, str]:
     return {"status": "ok", "provider": settings.ai_provider}
 
 
+def should_act(decision: dict) -> bool:
+    """Only a real request reaches the app. Anything else is left to the coach to talk
+    through, including asking what they meant."""
+    if decision["talk"]:
+        return False
+    return decision["level"] == "no_habit" or (
+        bool(decision["intents"]) and decision["level"] in ("high", "medium")
+    )
+
+
 def sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
@@ -153,6 +163,13 @@ async def coach_chat(
     tracker = Tracker(settings, user)
     try:
         messages = [Message(turn.role, turn.text) for turn in body.messages]
+        decision = await voice.for_chat(provider, tracker, messages)
+        if should_act(decision):
+            await record("acted")
+            return StreamingResponse(
+                iter([sse({"type": "actions", **decision}), sse({"type": "done"})]),
+                media_type="text/event-stream",
+            )
         stream = await coach.reply(provider, settings, tracker, messages)
         # Wait for the first words, so a failure can still be a normal error response.
         first = await anext(stream, None)

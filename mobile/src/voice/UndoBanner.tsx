@@ -31,11 +31,11 @@ export function UndoBanner({ banner, onUndo, onExpire }: UndoBannerProps) {
         </Text>
         {banner.heard ? (
           <Text variant="small" muted>
-            Heard: {banner.heard}
+            {banner.heard}
           </Text>
         ) : null}
       </View>
-      <Button label="Undo" quiet onPress={onUndo} />
+      {banner.canUndo ? <Button label="Undo" quiet onPress={onUndo} /> : null}
     </View>
   );
 }

@@ -2,20 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import {
   answerWhich,
   describeIntents,
+  heardLine,
   isUndoPhrase,
   isVoiceAction,
-  runVoiceAction,
   TodayRow,
-  VoiceAction,
   VoiceIntent,
   VoiceOption,
   VoiceQuestion,
-  VoiceUndo,
   whichQuestion,
 } from '@habit-tracker/core';
 import { ai } from '../services/ai';
 import { speak } from '../services/speak';
 import { tracker } from '../services/tracker';
+import { Actions } from './useActions';
 
 export type Voice = ReturnType<typeof useVoice>;
 
@@ -23,18 +22,27 @@ export interface VoiceBanner {
   id: number;
   text: string;
   heard: string | null;
+  canUndo: boolean;
 }
 
-type Phase = 'idle' | 'working' | 'asking' | 'confirming' | 'unclear' | 'noMatch';
+type Phase =
+  | 'idle'
+  | 'working'
+  | 'asking'
+  | 'confirming'
+  | 'unclear'
+  | 'noHabit'
+  | 'offTopic';
 
 interface VoiceOptions {
   rows: TodayRow[];
+  actions: Actions;
   refresh: () => Promise<unknown>;
   onClose: () => void;
   onAskCoach: (question: string) => void;
 }
 
-export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
+export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceOptions) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [problem, setProblem] = useState<string | null>(null);
   const [question, setQuestion] = useState<VoiceQuestion | null>(null);
@@ -43,11 +51,10 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
   const [heard, setHeard] = useState<string | null>(null);
   const [pending, setPending] = useState<VoiceIntent[]>([]);
   const [names, setNames] = useState<string[]>([]);
+  const [missingHabit, setMissingHabit] = useState<string | null>(null);
   // The banner is set in the same tick as the words arrive, before state catches up.
-  const latestHeard = useRef<string | null>(null);
+  const latestLine = useRef<string | null>(null);
   const [banner, setBanner] = useState<VoiceBanner | null>(null);
-  // Outlives the banner, so saying "undo that" works after the 10 seconds.
-  const lastLogged = useRef<VoiceUndo[]>([]);
   const nextBanner = useRef(1);
 
   // Only hints, so a failure here costs nothing.
@@ -65,44 +72,29 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
     setDraft('');
     setHeard(null);
     setPending([]);
+    setMissingHabit(null);
   };
 
-  const finish = (text: string) => {
+  const finish = (text: string, canUndo: boolean) => {
     speak(text);
-    setBanner({ id: nextBanner.current++, text, heard: latestHeard.current });
+    setBanner({ id: nextBanner.current++, text, heard: latestLine.current, canUndo });
     reset();
     onClose();
-    void refresh();
-  };
-
-  const runAll = async (actions: VoiceAction[]) => {
-    const outcomes = [];
-    for (const action of actions) outcomes.push(await runVoiceAction(tracker, action, rows));
-    lastLogged.current = outcomes.map((outcome) => outcome.undo);
-    return outcomes.map((outcome) => outcome.say).join(' ');
   };
 
   const undo = async () => {
-    const logged = lastLogged.current;
-    lastLogged.current = [];
     setBanner(null);
-    if (logged.length === 0) {
-      speak('Nothing to undo.');
-      return;
-    }
     try {
-      for (const { habitId, date } of logged) await tracker.undoLog(habitId, date);
-      speak('Undone.');
+      speak(await actions.undoLast('voice'));
     } catch {
       // The sheet may be closed by now, so this goes where it will be seen.
-      lastLogged.current = logged;
       setBanner({
         id: nextBanner.current++,
         text: "That couldn't be undone. Try again.",
         heard: null,
+        canUndo: true,
       });
     }
-    void refresh();
   };
 
   const fail = (err: unknown) => {
@@ -113,12 +105,11 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
   const run = async (intents: VoiceIntent[]) => {
     setPhase('working');
     try {
-      const actions = intents.filter(isVoiceAction);
-      const said = actions.length > 0 ? await runAll(actions) : '';
+      const steps = intents.filter(isVoiceAction);
+      const done = steps.length > 0 ? await actions.run(steps, 'voice') : null;
 
       const which = intents.find((intent) => intent.intent === 'ask_which');
       if (which) {
-        if (said) void refresh();
         setQuestion(which);
         setPhase('asking');
         speak(whichQuestion(which));
@@ -139,7 +130,7 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
         return;
       }
 
-      finish(said);
+      finish(done?.say ?? '', done?.canUndo ?? false);
     } catch (err) {
       fail(err);
     }
@@ -157,11 +148,15 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
     setPhase('working');
     setProblem(null);
     setHeard(text);
-    latestHeard.current = text;
+    latestLine.current = `Heard: ${text}`;
     try {
       const parsed = await ai.parseVoice(text);
-      if (parsed.level === 'none') {
-        setPhase('noMatch');
+      latestLine.current = heardLine(text, parsed.corrected, parsed.intents);
+      if (parsed.level === 'no_habit') {
+        setMissingHabit(parsed.missing_habit);
+        setPhase('noHabit');
+      } else if (parsed.level === 'off_topic') {
+        setPhase('offTopic');
       } else if (parsed.level === 'low' || parsed.intents.length === 0) {
         setDraft(text);
         setPhase('unclear');
@@ -192,7 +187,8 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
     if (!question) return;
     setPhase('working');
     try {
-      finish(await runAll([answerWhich(question, option)]));
+      const done = await actions.run([answerWhich(question, option)], 'voice');
+      finish(done.say, done.canUndo);
     } catch (err) {
       fail(err);
     }
@@ -206,6 +202,7 @@ export function useVoice({ rows, refresh, onClose, onAskCoach }: VoiceOptions) {
     setDraft,
     heard,
     pending,
+    missingHabit,
     names,
     banner,
     reset,

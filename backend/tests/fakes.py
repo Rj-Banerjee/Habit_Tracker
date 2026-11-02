@@ -34,6 +34,7 @@ class FakeProvider(LLMProvider):
     async def call_tools(self, tier, system, messages, tools, max_tokens) -> ToolResult:
         self.opened += 1
         self.seen.append({"tier": tier, "system": system, "messages": messages})
+        self.tool_seen = tools
         if self.script and isinstance(self.script[0], LLMError):
             raise self.script.pop(0)
         return ToolResult(calls=self.tool_calls)

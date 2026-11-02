@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { layout, space } from '@habit-tracker/core';
-import { BottomSheet, Button, FormMessage, SheetOption, Text, useTheme } from '@habit-tracker/ui';
+import {
+  BottomSheet,
+  Button,
+  FormMessage,
+  SegmentedControl,
+  SheetOption,
+  Text,
+  THEME_PREFERENCES,
+  useTheme,
+} from '@habit-tracker/ui';
 import { supabase } from '../services/supabase';
 
 const COMING_SOON = ['Reminders', 'Coach tone'];
@@ -13,7 +22,7 @@ interface YouScreenProps {
 }
 
 export function YouScreen({ email, onSignedOut }: YouScreenProps) {
-  const { colors } = useTheme();
+  const { colors, preference, setPreference } = useTheme();
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -43,6 +52,16 @@ export function YouScreen({ email, onSignedOut }: YouScreenProps) {
             Signed in as
           </Text>
           <Text>{email}</Text>
+        </View>
+        <View style={styles.group}>
+          <Text variant="small" muted>
+            Theme
+          </Text>
+          <SegmentedControl
+            options={THEME_PREFERENCES}
+            value={preference}
+            onChange={setPreference}
+          />
         </View>
         {COMING_SOON.map((label) => (
           <View key={label} style={styles.group}>

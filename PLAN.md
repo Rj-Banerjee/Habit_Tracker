@@ -159,7 +159,7 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 
 ### Progress definitions
 
-**Identity score:** out of the last 30 days, the number of days where every due habit in that identity was done at any Shrink level. Repaired counts; protected doesn't. It's shown as "23 of 30 days". Days with no due habits in that identity are left out of the total.
+**Identity score:** out of the last 30 days, the number of days where every due habit in that identity was done at any Shrink level. Repaired counts; protected doesn't. A skip with a reason, within the allowance of 2 a week, makes that habit not due that day; a 3rd skip counts as a miss. It's shown as "23 of 30 days". Days with no due habits in that identity are left out of the total.
 
 **Compound Forecaster:**
 

@@ -31,7 +31,8 @@ export interface IdentityScore {
 }
 
 // Out of the last 30 days, the days every due habit in the identity was done at any
-// level. Repaired counts, protected doesn't, and days with nothing due are left out.
+// level. Repaired counts, protected doesn't, and days with nothing due are left out. An
+// allowed skip makes that habit not due. A 3rd skip in a week comes back as missed.
 export function identityScores(
   habits: ProgressHabit[],
   days: ProgressDay[],
@@ -49,7 +50,7 @@ export function identityScores(
 
     const perDate = new Map<string, boolean>();
     for (const day of owned) {
-      if (day.date < from || day.date > end) continue;
+      if (day.date < from || day.date > end || day.status === 'skipped') continue;
       perDate.set(day.date, (perDate.get(day.date) ?? true) && isDone(day));
     }
     const done = [...perDate.values()].filter(Boolean).length;

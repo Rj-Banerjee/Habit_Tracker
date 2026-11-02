@@ -1,6 +1,6 @@
 import { HabitLevel, LogSource, TodayRow, TrackerApi } from './api';
 import { VoiceAction, VoiceIntent, VoiceOption, VoiceQuestion } from './ai';
-import { levelTarget } from './todayModel';
+import { isLogged, levelTarget } from './todayModel';
 
 export const VOICE_UNDO_SECONDS = 10;
 
@@ -17,7 +17,6 @@ export const VOICE_LANGUAGES = [
 export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number]['code'];
 
 const SKIP_WITHOUT_A_REASON = 'Not today';
-const SOURCE: LogSource = 'voice';
 
 export interface VoiceUndo {
   habitId: string;
@@ -26,10 +25,12 @@ export interface VoiceUndo {
 
 export interface VoiceOutcome {
   say: string;
-  undo: VoiceUndo;
+  // Null when there's nothing to take back.
+  undo: VoiceUndo | null;
 }
 
-type Api = Pick<TrackerApi, 'logHabit' | 'skipHabit' | 'getToday'>;
+// Voice and the coach both act through here, so they can't drift apart.
+export type ActionApi = Pick<TrackerApi, 'logHabit' | 'skipHabit' | 'undoLog' | 'getToday'>;
 
 // Undo must work when the AI doesn't, so these never leave the phone.
 export const isUndoPhrase = (text: string) =>
@@ -45,6 +46,39 @@ const withStreak = (text: string, streak?: number) =>
 export function whichQuestion(question: VoiceQuestion): string {
   const titles = question.options.map((option) => option.habit_title);
   return `${titles.slice(0, -1).join(', ')} or ${titles[titles.length - 1]}?`;
+}
+
+export interface ActionsDone {
+  say: string;
+  undos: VoiceUndo[];
+}
+
+export async function runVoiceActions(
+  api: ActionApi,
+  actions: VoiceAction[],
+  rows: TodayRow[],
+  source: LogSource
+): Promise<ActionsDone> {
+  const outcomes: VoiceOutcome[] = [];
+  for (const action of actions) outcomes.push(await runVoiceAction(api, action, rows, source));
+  return {
+    say: outcomes.map((outcome) => outcome.say).join(' '),
+    undos: outcomes.flatMap((outcome) => (outcome.undo ? [outcome.undo] : [])),
+  };
+}
+
+export async function undoActions(api: ActionApi, undos: VoiceUndo[], source: LogSource) {
+  for (const { habitId, date } of undos) await api.undoLog(habitId, date, source);
+}
+
+export const noHabitMessage = (name: string) => `You don't have a habit called ${name}.`;
+export const OFF_TOPIC_MESSAGE =
+  "That doesn't sound like a habit update. Try something like 'I read 20 pages'.";
+
+// "Heard: undi the read → understood as: Undo Read"
+export function heardLine(heard: string, corrected: string, intents: VoiceIntent[]) {
+  if (corrected.trim().toLowerCase() === heard.trim().toLowerCase()) return `Heard: ${heard}`;
+  return `Heard: ${heard} → understood as: ${describeIntents(intents)}`;
 }
 
 // Their answer to "which one?" turns the question into the action they asked for.
@@ -70,6 +104,8 @@ function describeIntent(intent: VoiceIntent): string {
       return `Log the minimum for ${intent.habit_title}`;
     case 'skip_habit':
       return `Skip ${intent.habit_title}`;
+    case 'undo_habit':
+      return `Undo ${intent.habit_title}`;
     case 'undo_last':
       return 'Undo the last log';
     case 'ask_coach':
@@ -84,27 +120,34 @@ export const describeIntents = (intents: VoiceIntent[]) =>
   intents.map(describeIntent).join(' and ');
 
 export const isVoiceAction = (intent: VoiceIntent): intent is VoiceAction =>
-  ['log_habit', 'log_amount', 'shrink_habit', 'skip_habit'].includes(intent.intent);
+  ['log_habit', 'log_amount', 'shrink_habit', 'skip_habit', 'undo_habit'].includes(intent.intent);
 
 // Logs through the same rule-checked functions as a tap.
 export async function runVoiceAction(
-  api: Api,
+  api: ActionApi,
   action: VoiceAction,
-  rows: TodayRow[]
+  rows: TodayRow[],
+  source: LogSource = 'voice'
 ): Promise<VoiceOutcome> {
   const row = todayRow(rows, action.habit_id);
   const date = row?.day ?? null;
   const undo = { habitId: action.habit_id, date };
   const title = action.habit_title;
 
+  if (action.intent === 'undo_habit') {
+    if (!row || !isLogged(row)) return { say: `${title} isn't logged today.`, undo: null };
+    await api.undoLog(action.habit_id, date, source);
+    return { say: `Undid ${title}.`, undo: null };
+  }
+
   if (action.intent === 'skip_habit') {
     const reason = action.reason.trim() || SKIP_WITHOUT_A_REASON;
-    await api.skipHabit(action.habit_id, date, reason, SOURCE);
+    await api.skipHabit(action.habit_id, date, reason, source);
     return { say: `Skipped ${title}.`, undo };
   }
 
   const log = async (level: HabitLevel, amount: number | null) => {
-    await api.logHabit(action.habit_id, date, level, amount, SOURCE);
+    await api.logHabit(action.habit_id, date, level, amount, source);
     return todayRow(await api.getToday(), action.habit_id)?.current_streak;
   };
 

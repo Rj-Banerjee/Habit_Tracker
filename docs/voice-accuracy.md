@@ -21,6 +21,8 @@ To repeat it, from `backend/`:
 | **Total** | **46** | **42 (91%)** | **45 (98%)** |
 | Wrong action taken | | 4 | 0 |
 
+**Latest run, 2 Nov 2026:** 62 of 63 (98%) with 0 wrong actions. It adds 17 phrases: undo by name (6 of 6), skip and shrink by name (5 of 5), a habit that doesn't exist (5 of 5), and off-topic (4 of 4). The table above is the first measurement, kept for the before and after.
+
 - **The miss:** "medication done" for Meditate. It's a real word that sounds different, so it falls through to "didn't match", which is the safe way to fail.
 - **Treat 98% with care.** I wrote these phrases and tuned the matcher against them, so a fresh set will score lower. PLAN.md's bar is 95% on 200+ real phrases, and that needs recordings of real speech.
 - **Why the total hid the problem.** The first version scored 91% too, but one of its errors logged Read for "I bought a red car". Count wrong actions, not only the total.

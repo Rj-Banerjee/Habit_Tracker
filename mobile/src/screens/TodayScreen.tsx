@@ -30,6 +30,7 @@ import {
 } from '@habit-tracker/ui';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
+import { useActions } from '../hooks/useActions';
 import { useCoach } from '../hooks/useCoach';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
@@ -43,7 +44,7 @@ import { VoiceSheet } from '../voice/VoiceSheet';
 const SHEET_CLOSE_MS = 400;
 
 interface TodayScreenProps {
-  onAddHabit: () => void;
+  onAddHabit: (title?: string) => void;
   onEditHabit: (habitId: string) => void;
 }
 
@@ -55,7 +56,8 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
   const [panel, setPanel] = useState<'coach' | 'voice' | null>(null);
-  const coach = useCoach();
+  const actions = useActions(rows, refresh);
+  const coach = useCoach(actions);
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
@@ -69,6 +71,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
 
   const voice = useVoice({
     rows,
+    actions,
     refresh,
     onClose: () => setPanel(null),
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
@@ -199,7 +202,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             <Text variant="small" muted>
               Habits you add will show up here on the days they&apos;re scheduled.
             </Text>
-            <Button label="Add habit" onPress={onAddHabit} />
+            <Button label="Add habit" onPress={() => onAddHabit()} />
           </View>
         ) : (
           <>
@@ -214,7 +217,7 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
             ))}
             {showYesterdayFirst(part) ? null : yesterdaySection}
             {repairSection}
-            <Button label="Add habit" quiet onPress={onAddHabit} />
+            <Button label="Add habit" quiet onPress={() => onAddHabit()} />
           </>
         )}
       </ScrollView>
@@ -251,16 +254,26 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
           setSkipRow(null);
         }}
       />
-      <VoiceSheet visible={panel === 'voice'} voice={voice} onAddHabit={() => {
-        setPanel(null);
-        onAddHabit();
-      }} onClose={() => setPanel(null)} />
+      <VoiceSheet
+        visible={panel === 'voice'}
+        voice={voice}
+        onAddHabit={(title) => {
+          setPanel(null);
+          voice.reset();
+          onAddHabit(title);
+        }}
+        onClose={() => setPanel(null)}
+      />
       <CoachDrawer
         visible={panel === 'coach'}
         coach={coach}
         onQuickLog={() => {
           voice.reset();
           switchTo('voice');
+        }}
+        onCreateHabit={(title) => {
+          setPanel(null);
+          onAddHabit(title);
         }}
         onClose={() => setPanel(null)}
       />

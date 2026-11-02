@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import {
   describeIntents,
   layout,
+  noHabitMessage,
+  OFF_TOPIC_MESSAGE,
   radius,
   space,
   VOICE_COMMAND_WORDS,
@@ -27,7 +29,7 @@ import { speechInput } from './speech';
 interface VoiceSheetProps {
   visible: boolean;
   voice: Voice;
-  onAddHabit: () => void;
+  onAddHabit: (title: string) => void;
   onClose: () => void;
 }
 
@@ -103,11 +105,19 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
           <Button label="Yes" onPress={() => void voice.confirm()} />
           <Button label="No" quiet onPress={voice.reject} />
         </>
-      ) : voice.phase === 'noMatch' ? (
+      ) : voice.phase === 'noHabit' ? (
         <>
           {heardLine}
-          <Text accessibilityLiveRegion="polite">That didn&apos;t match one of your habits.</Text>
-          <Button label="Add habit" onPress={onAddHabit} />
+          <Text accessibilityLiveRegion="polite">
+            {noHabitMessage(voice.missingHabit ?? '')}
+          </Text>
+          <Button label="Create it" onPress={() => onAddHabit(voice.missingHabit ?? '')} />
+          <Button label="Cancel" quiet onPress={close} />
+        </>
+      ) : voice.phase === 'offTopic' ? (
+        <>
+          {heardLine}
+          <Text accessibilityLiveRegion="polite">{OFF_TOPIC_MESSAGE}</Text>
           <Button label="Try again" quiet onPress={voice.reset} />
         </>
       ) : (

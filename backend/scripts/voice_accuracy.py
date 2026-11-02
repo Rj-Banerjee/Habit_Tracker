@@ -52,11 +52,13 @@ class Fixture:
         return self.rows
 
 
-def acted_rightly(expected: list[str], got: list[str], level: str) -> bool:
-    """Judges what the app would do: low and none change nothing, medium asks first."""
-    if level in ("low", "none"):
-        return not expected
-    return got == sorted(expected)
+def acted_rightly(phrase: dict, got: list[str], level: str) -> bool:
+    """Judges what the app would do. Only high and medium act, and medium asks first."""
+    if phrase.get("level"):
+        return level == phrase["level"]
+    if level in ("high", "medium"):
+        return got == sorted(phrase["expect"])
+    return not phrase["expect"]
 
 
 def summarise(intents) -> list[str]:
@@ -80,7 +82,7 @@ async def baseline(provider, tracker, heard) -> list[str]:
 
 
 async def current(provider, tracker, heard) -> tuple[list[str], str]:
-    parsed = await voice.parse(provider, tracker, heard)
+    parsed = await voice.parse(provider, tracker, heard)  # type: ignore[arg-type]
     return summarise(parsed["intents"]), parsed["level"]
 
 
@@ -99,7 +101,7 @@ async def run(args) -> None:
                 got, level = await current(provider, tracker, phrase["heard"])
         except LLMError as error:
             got, level = [f"ERROR {type(error).__name__}"], "error"
-        good = acted_rightly(phrase["expect"], got, level)
+        good = acted_rightly(phrase, got, level)
         scores[phrase["group"]][0] += good
         scores[phrase["group"]][1] += 1
         results.append({**phrase, "got": got, "level": level, "good": good})

@@ -11,6 +11,7 @@ import {
   FormMessage,
   SegmentedControl,
   Text,
+  THEME_PREFERENCES,
   useShortcut,
   useTheme,
 } from '@habit-tracker/ui';
@@ -29,7 +30,7 @@ const MODE_HELP: Record<StreakMode, string> = {
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { colors } = useTheme();
+  const { colors, preference, setPreference } = useTheme();
   const { session, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -103,6 +104,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Text variant="small" muted numberOfLines={1}>
           {session.user.email}
         </Text>
+        <Text>Theme</Text>
+        <SegmentedControl
+          value={preference}
+          onChange={setPreference}
+          options={THEME_PREFERENCES}
+        />
         <Text>Streak mode</Text>
         <SegmentedControl
           value={mode}

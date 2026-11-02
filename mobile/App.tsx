@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -18,11 +19,22 @@ import { YouScreen } from './src/screens/YouScreen';
 import { supabase } from './src/services/supabase';
 import { AuthForm, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
+const THEME_KEY = 'theme-preference';
+const themeStorage = {
+  load: () => AsyncStorage.getItem(THEME_KEY),
+  save: (value: string) => AsyncStorage.setItem(THEME_KEY, value),
+};
+
+function ThemedStatusBar() {
+  const { name } = useTheme();
+  return <StatusBar style={name === 'dark' ? 'light' : 'dark'} />;
+}
+
 function Root() {
   const { colors } = useTheme();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   // No router yet. Null shows Today; otherwise the form, for a new habit or habitId.
-  const [habitForm, setHabitForm] = useState<{ habitId?: string } | null>(null);
+  const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
   const [tab, setTab] = useState<Tab>('today');
 
   useEffect(() => {
@@ -45,7 +57,13 @@ function Root() {
   if (!session) return <AuthForm auth={supabase.auth} />;
 
   if (habitForm) {
-    return <HabitFormScreen habitId={habitForm.habitId} onClose={() => setHabitForm(null)} />;
+    return (
+      <HabitFormScreen
+        habitId={habitForm.habitId}
+        initialTitle={habitForm.title}
+        onClose={() => setHabitForm(null)}
+      />
+    );
   }
 
   // Both stay mounted, so a coach conversation survives a look at the You tab.
@@ -53,7 +71,7 @@ function Root() {
     <View style={[styles.root, { backgroundColor: colors.canvas }]}>
       <View style={[styles.root, tab !== 'today' && styles.hidden]}>
         <TodayScreen
-          onAddHabit={() => setHabitForm({})}
+          onAddHabit={(title) => setHabitForm({ title })}
           onEditHabit={(habitId) => setHabitForm({ habitId })}
         />
       </View>
@@ -81,8 +99,8 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <StatusBar style="auto" />
+      <ThemeProvider storage={themeStorage}>
+        <ThemedStatusBar />
         <Root />
       </ThemeProvider>
     </SafeAreaProvider>

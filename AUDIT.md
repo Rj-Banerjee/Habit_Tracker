@@ -1006,3 +1006,19 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 - In a browser on seeded local data, light and dark at 390px and 1200px: no sideways scrolling, and the screenshots were viewed. A year of data loads in 0.07 seconds locally.
 - Live push followed the usual procedure. 12 checks with temporary users passed, and those users were deleted. The +test account now has 60 days of history, including 10 repairs and 4 protected days, and no other account was touched.
 
+### Phone test fixes (2 Nov 2026)
+
+**Changed**
+
+- Voice now tells three cases apart. Misheard: high acts and shows "Heard: … → understood as: …", medium asks, and only then can the text be edited. A clear command for a habit that doesn't exist offers Create it and Cancel. Something unrelated gets an example and no edit box.
+- `undo_habit` undoes a named habit's log today. Skip and shrink by name are in the test set with typos.
+- The coach acts. The service decides with the fast model, and the app runs the result through the same core functions as voice, using the person's own login, so it can't reach another account. Clear requests are done with an Undo chip, and unclear ones ask. These are recorded as `ai_assisted`, and `undo_log` now takes a source so a coach undo of a tapped log reads the same.
+- You has Theme: System, Light, Dark. It applies at once, is remembered, and the Next site has it in Settings.
+- An allowed skip no longer lowers the identity score. PLAN.md updated.
+
+**Checked**
+
+- Voice set 62 of 63, with 0 wrong actions. Tests: core 226, mobile and UI 462, AI service 133, database 293.
+- 13 browser checks with real Gemini and made-up data, covering "undi the read", "I did yoga", "I bought a red car", the coach logging and undoing with `ai_assisted`, and theme persistence. The Next theme was checked on the built site.
+- Live push followed the usual procedure.
+
