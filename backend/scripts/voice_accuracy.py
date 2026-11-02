@@ -3,6 +3,9 @@ made-up habits only. Run from backend/:
 
     .venv/bin/python scripts/voice_accuracy.py --baseline
     .venv/bin/python scripts/voice_accuracy.py
+    .venv/bin/python scripts/voice_accuracy.py --set tests/voice_phrases_heldout.json
+
+The held-out set is for measuring only. Tuning against it would make its score mean nothing.
 """
 
 import argparse
@@ -20,6 +23,7 @@ from app.llm import build_provider  # noqa: E402
 from app.llm.base import LLMError, Message, Tier  # noqa: E402
 
 PAUSE_SECONDS = 4.5  # stays well inside the free tier's per-minute limit
+MAX_ERRORS_IN_A_ROW = 3  # the model being down isn't a score
 
 # The prompt before speech correction, kept so "before" stays measurable.
 BASELINE_SYSTEM = """You turn one spoken sentence into calls to the tools given. The sentence is \
@@ -88,10 +92,12 @@ async def current(provider, tracker, heard) -> tuple[list[str], str]:
 
 async def run(args) -> None:
     data = json.loads(Path("tests/voice_phrases.json").read_text())
+    data["phrases"] = json.loads(Path(args.set).read_text())["phrases"]
     provider = build_provider(get_settings(), Counters())
     tracker = Fixture(data["habits"])
     scores: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     results = []
+    errors_in_a_row = 0
     for phrase in data["phrases"]:
         level = "high"  # before this work, everything the parser returned was acted on
         try:
@@ -99,7 +105,11 @@ async def run(args) -> None:
                 got = await baseline(provider, tracker, phrase["heard"])
             else:
                 got, level = await current(provider, tracker, phrase["heard"])
+            errors_in_a_row = 0
         except LLMError as error:
+            errors_in_a_row += 1
+            if errors_in_a_row >= MAX_ERRORS_IN_A_ROW:
+                sys.exit(f"Stopped: the model failed {errors_in_a_row} times running. {error!r}")
             got, level = [f"ERROR {type(error).__name__}"], "error"
         good = acted_rightly(phrase, got, level)
         scores[phrase["group"]][0] += good
@@ -121,5 +131,6 @@ async def run(args) -> None:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--baseline", action="store_true")
+parser.add_argument("--set", default="tests/voice_phrases.json")
 parser.add_argument("--out", default="/tmp/voice_accuracy.json")
 asyncio.run(run(parser.parse_args()))
