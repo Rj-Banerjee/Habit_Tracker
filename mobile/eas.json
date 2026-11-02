@@ -7,8 +7,9 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "channel": "development"
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }

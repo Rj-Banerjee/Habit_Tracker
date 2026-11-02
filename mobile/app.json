@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Habit Tracker",
+    "slug": "habit-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -42,6 +42,7 @@
           "enableRemoteNotifications": false
         }
       ]
-    ]
+    ],
+    "scheme": "habittracker"
   }
 }

@@ -21,7 +21,9 @@ eas login
 eas init
 ```
 
-`eas init` adds a project ID to `app.json`. Commit that.
+`eas init` adds a project ID and owner to `app.json`. Commit that.
+
+The free Expo plan queues builds, so the first one can take a while. Only the native app is built: your code still loads from this Mac, so keep `npm run ai` and Expo running, and stay on the same Wi-Fi.
 
 ## Android
 
