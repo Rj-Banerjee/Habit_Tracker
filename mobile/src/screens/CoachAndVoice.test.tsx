@@ -751,7 +751,7 @@ describe('voice', () => {
       expect(options.hints).toEqual(expect.arrayContaining(['undo', 'Read', 'book']));
     });
 
-    it('sends nothing if nothing was heard', async () => {
+    it('sends nothing if nothing was heard, and says so', async () => {
       const { handlers } = recognizer();
       await open();
       await press('Log by voice');
@@ -759,6 +759,7 @@ describe('voice', () => {
       await settle();
       await act(async () => handlers.end?.());
       expect(coachApi.parseVoice).not.toHaveBeenCalled();
+      expect(screen.getByText("I didn't hear anything. Keep holding while you talk.")).toBeTruthy();
     });
 
     it('explains a refused microphone and leaves the text box', async () => {
