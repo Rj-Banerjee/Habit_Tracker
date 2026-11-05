@@ -249,8 +249,10 @@ describe('Tunnel Vision', () => {
     await open();
     await press('Start 25 minutes');
     await press('Pause');
+    await wait(2000);
+    // This phone takes a couple of seconds to lock.
     lock.isLocked.mockReturnValue(true);
-    await wait(1500);
+    await wait(600);
     lock.isLocked.mockReturnValue(false);
     expect(screen.getByText(/Pausing locked your phone/)).toBeTruthy();
     await press('Open settings');

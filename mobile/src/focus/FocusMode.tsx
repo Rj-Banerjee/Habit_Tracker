@@ -82,7 +82,8 @@ const detailOf = (row: TodayRow) =>
 
 // How long pinning gets to take hold before the app says it's off.
 const PIN_GRACE_MS = 8000;
-const UNPIN_LOCK_CHECK_MS = 1200;
+const UNPIN_LOCK_CHECK_MS = 4000;
+const UNPIN_LOCK_POLL_MS = 300;
 const UNPIN_LOCKS_KEY = 'focus-unpin-locks';
 const UNPIN_HINT_SEEN_KEY = 'focus-unpin-hint-seen';
 
@@ -214,17 +215,23 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   }, [state.phase]);
 
   // Some phones, Samsung's among them, lock whenever an app unpins. A pause that locked the
-  // phone is noticed once, so the screen can say how to turn that off.
+  // phone is noticed once, so the screen can say how to turn that off. The lock can take a
+  // couple of seconds to come down, so it's checked for a while.
   useEffect(() => {
     if (!FocusLock || state.phase !== 'paused') return undefined;
     const lockedBefore = FocusLock.isLocked();
-    const check = setTimeout(() => {
-      if (!lockedBefore && FocusLock!.isLocked()) {
+    if (lockedBefore) return undefined;
+    const started = Date.now();
+    const check = setInterval(() => {
+      if (FocusLock!.isLocked()) {
+        clearInterval(check);
         setUnpinLocks(true);
         storage()?.setItem(UNPIN_LOCKS_KEY, '1').catch(() => {});
+      } else if (Date.now() - started > UNPIN_LOCK_CHECK_MS) {
+        clearInterval(check);
       }
-    }, UNPIN_LOCK_CHECK_MS);
-    return () => clearTimeout(check);
+    }, UNPIN_LOCK_POLL_MS);
+    return () => clearInterval(check);
   }, [state.phase]);
 
   // The app's own notifications wait while focusing, and show once it ends.
