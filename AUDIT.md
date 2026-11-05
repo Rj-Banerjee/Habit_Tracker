@@ -1167,3 +1167,20 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Limit:** the server takes a repair only on its repair day and goes by its own clock, so a repair made offline that syncs the next day is refused, and the person is told.
 
 **Not checked:** on the phone, because airplane mode cuts the wireless adb connection.
+
+### Streak chain: fracture, weld and Grace Day moments (5 Nov 2026)
+
+**Added**
+
+- The streak chain: one node per scheduled day with the habit card's own marks, joined by links that crack, settle into a quiet gap, or carry the approved stitched seam. On each Today card (last 7 scheduled days), on a new habit detail screen (last 30, opened from the chain or the long-press sheet), and still on Progress (last 14). On Progress and the web grid, holding or hovering a seam says what the repair took, for example "Repaired on Thu with 45 pages".
+- Fracture, weld and Grace Day moments, timed as in the brief. They're drawn with `react-native-svg` and moved by Reanimated 4 on the UI thread, one timeline per moment. Each plays once and is remembered on the phone. A fresh install marks everything already there as seen. A miss whose repair day has passed settles quietly. Several at once become one Welcome back card instead.
+- Reduced motion only crossfades, in 150 ms. A tap, long press or opening the detail jumps a moment to its end. Sparks are skipped on phones under 3 GB of memory. Haptics: one light tap for a crack, a success haptic when a weld's halves meet, none for a Grace Day.
+- A weld glow token per identity colour, tested to be brighter than its accent, in the same hue, and not red, in both themes. The crack uses the existing warm grey `hollow` token.
+- A hidden Animation Playground in the design review build, with fracture, weld, protected and Welcome back buttons, 0.25x slow motion, reduced motion, dark and low-end toggles, and a frame-rate readout. The review build installs as its own app, "Habit Tracker Review", so it never replaces the real one.
+- PLAN.md now records the streak moments, the Welcome back card, and "Coach" as the placeholder name.
+
+**Fixed while testing:** the crack's even zigzag read as an arrow at chain size on the phone, and is now an uneven line. A past repaired day on the web grid was a disabled button, which can't be hovered, so it now stays hoverable while its taps do nothing.
+
+**Frame rate on the Realme RMX2189 (2.7 GB, so low-end, sparks off):** measured on the UI thread with Reanimated's frame callback, over three rounds after the first: fracture 58 to 59 fps, weld 53 to 59 fps, Grace Day 53 to 60 fps, with 0 to 3 long frames each. The first fracture after launch ran at 30 fps while it warmed up. Android's own frame stats for one weld: 82 frames, 6 that missed their deadline, 1 missed vsync, median 16 ms and 90th percentile 20 ms. Its headline "janky" figure of 40% is mostly flagged as high input latency, which is how adb's injected taps show up, not slow drawing.
+
+**Not checked:** a fracture or weld on the real app from real data. The first open marked existing cracks as seen, as designed, so the next real miss or repair is the first chance. The habit detail and Progress chains on the phone. Reduced motion with the phone's own setting, rather than the playground toggle.
