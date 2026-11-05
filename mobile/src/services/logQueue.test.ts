@@ -17,7 +17,10 @@ jest.mock('./tracker', () => ({
   },
 }));
 
+jest.mock('./analytics', () => ({ analytics: { enabled: true, track: jest.fn() } }));
+
 const api = tracker as jest.Mocked<typeof tracker>;
+const track = jest.requireMock('./analytics').analytics.track as jest.Mock;
 const today = localDate(Intl.DateTimeFormat().resolvedOptions().timeZone);
 const row = { habit_id: 'h1', day: today, is_today: true, status: 'pending' } as TodayRow;
 const offline = new Error(OFFLINE_MESSAGE);
@@ -139,5 +142,33 @@ describe('offline logging', () => {
     await offlineTracker.repairHabit('h1', '2026-11-02', 8);
     api.repairHabit.mockRejectedValueOnce(new Error('This day can no longer be repaired'));
     expect((await loadToday()).note).toContain("couldn't be saved");
+  });
+
+  it('counts every log with its source, and whether it waited offline', async () => {
+    await offlineTracker.logHabit('h1', today, 'minimum', null, 'widget');
+    expect(track).toHaveBeenLastCalledWith('habit_logged', {
+      source: 'widget',
+      level: 'minimum',
+      backlog: false,
+      offline: false,
+    });
+    api.logHabit.mockRejectedValueOnce(offline);
+    await offlineTracker.logHabit('h1', '2020-01-01', 'full', null, 'voice');
+    expect(track).toHaveBeenLastCalledWith('habit_logged', {
+      source: 'voice',
+      level: 'full',
+      backlog: true,
+      offline: true,
+    });
+  });
+
+  it('counts undos, skips and repairs, never the reason', async () => {
+    await offlineTracker.undoLog('h1', today, 'coach');
+    expect(track).toHaveBeenLastCalledWith('habit_undone', { source: 'coach', offline: false });
+    await offlineTracker.skipHabit('h1', today, 'Therapy appointment', 'tap');
+    expect(track).toHaveBeenLastCalledWith('habit_skipped', { source: 'tap', offline: false });
+    expect(JSON.stringify(track.mock.calls)).not.toContain('Therapy');
+    await offlineTracker.repairHabit('h1', '2026-11-02', 8);
+    expect(track).toHaveBeenLastCalledWith('habit_repaired', { source: 'tap', offline: false });
   });
 });

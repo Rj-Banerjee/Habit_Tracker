@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  AnalyticsProps,
   answerWhich,
   describeIntents,
   heardLine,
@@ -13,12 +14,19 @@ import {
   VoiceQuestion,
   whichQuestion,
 } from '@habit-tracker/core';
+import { analytics } from '../services/analytics';
 import { ai } from '../services/ai';
 import { speak } from '../services/speak';
 import { tracker } from '../services/tracker';
 import { Actions } from './useActions';
 
 export type Voice = ReturnType<typeof useVoice>;
+
+type VoiceOutcome = NonNullable<AnalyticsProps<'voice_used'>['outcome']>;
+export interface VoiceInput {
+  input: 'speech' | 'typed';
+  language: 'en-IN' | 'hi-IN';
+}
 
 export interface VoiceBanner {
   id: number;
@@ -138,9 +146,11 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
     }
   };
 
-  const submit = async (transcript: string) => {
+  // Only the kind of input and what happened are counted, never the words.
+  const submit = async (transcript: string, how: VoiceInput = { input: 'typed', language: 'en-IN' }) => {
     const text = transcript.trim();
     if (!text) return;
+    const counted = (outcome: VoiceOutcome) => analytics.track('voice_used', { ...how, outcome });
     if (isUndoPhrase(text)) {
       reset();
       onClose();
@@ -154,6 +164,7 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
 
     const simple = matchSimplePhrase(text, habits);
     if (simple) {
+      counted('on_phone');
       await run([simple]);
       return;
     }
@@ -162,22 +173,29 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
       const parsed = await ai.parseVoice(text);
       latestLine.current = heardLine(text, parsed.corrected, parsed.intents);
       if (parsed.level === 'no_habit') {
+        counted('no_habit');
         setMissingHabit(parsed.missing_habit);
         setPhase('noHabit');
       } else if (parsed.level === 'off_topic') {
+        counted('off_topic');
         setPhase('offTopic');
       } else if (parsed.level === 'low' || parsed.intents.length === 0) {
+        counted('unclear');
         setDraft(text);
         setPhase('unclear');
         speak("I didn't catch that.");
       } else if (parsed.level === 'medium') {
+        counted('confirm');
         setPending(parsed.intents);
         setPhase('confirming');
         speak(`Did you mean: ${describeIntents(parsed.intents)}?`);
       } else {
+        const kinds = parsed.intents.map((intent) => intent.intent);
+        counted(kinds.includes('ask_which') ? 'which' : kinds.includes('ask_coach') ? 'question' : 'logged');
         await run(parsed.intents);
       }
     } catch (err) {
+      counted('failed');
       setDraft(text);
       fail(err);
     }

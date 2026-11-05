@@ -46,9 +46,9 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
     onClose();
   };
 
-  const send = (said: string) => {
+  const send = (said: string, input: 'speech' | 'typed' = 'typed') => {
     voice.setDraft('');
-    void voice.submit(said);
+    void voice.submit(said, { input, language });
   };
 
   const startTalking = async () => {
@@ -65,7 +65,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
       },
       () => {
         setListening(false);
-        if (heard.trim()) send(heard);
+        if (heard.trim()) send(heard, 'speech');
         else setHeardNothing(true);
       }
     );

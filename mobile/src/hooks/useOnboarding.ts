@@ -11,6 +11,7 @@ import {
   toHabitInput,
 } from '@habit-tracker/core';
 import { reminderMessage, setDailyReminder } from '../services/reminders';
+import { analytics } from '../services/analytics';
 import { tracker } from '../services/tracker';
 
 export type OnboardingStep = 'identity' | 'habits' | 'reminder' | 'rules';
@@ -41,6 +42,8 @@ export function useOnboarding(userId: string, onDone: () => void) {
     setAttempted(false);
     setProblem(null);
     setStep(next);
+    // Which step someone reached, and how many habits they'd saved by then.
+    analytics.track('onboarding_step', { step: next, habits: saved.current.count });
   };
 
   const back = () => {
@@ -121,6 +124,7 @@ export function useOnboarding(userId: string, onDone: () => void) {
   const finish = () =>
     work(async () => {
       await tracker.finishOnboarding(userId);
+      analytics.track('onboarding_step', { step: 'finished', habits: saved.current.count });
       onDone();
     });
 

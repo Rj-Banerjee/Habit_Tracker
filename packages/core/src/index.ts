@@ -1,4 +1,5 @@
 export * from './ai';
+export * from './analytics';
 export * from './chain';
 export * from './coachCard';
 export * from './focus';

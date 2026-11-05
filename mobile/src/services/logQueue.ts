@@ -1,9 +1,10 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   addToQueue,
   droppedNote,
   flushQueue,
   HabitLevel,
+  isBacklog,
   isOfflineError,
   localDate,
   LogSource,
@@ -11,19 +12,19 @@ import {
   removeFromQueue,
   TodayRow,
   withQueued,
-} from "@habit-tracker/core";
-import { tracker } from "./tracker";
+} from '@habit-tracker/core';
+import { analytics } from './analytics';
+import { tracker } from './tracker';
 
-const QUEUE_KEY = "queued-logs";
-const ROWS_KEY = "today-rows";
+const QUEUE_KEY = 'queued-logs';
+const ROWS_KEY = 'today-rows';
 
 async function readQueue(): Promise<QueuedLog[]> {
   const saved = await AsyncStorage.getItem(QUEUE_KEY);
   return saved ? (JSON.parse(saved) as QueuedLog[]) : [];
 }
 
-const writeQueue = (queue: QueuedLog[]) =>
-  AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+const writeQueue = (queue: QueuedLog[]) => AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
 // Tomorrow's Today can't be built from today's list, so a stale one is only for today.
 const today = () => localDate(Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -40,11 +41,7 @@ export async function loadToday(): Promise<{
   offline: boolean;
   note?: string;
 }> {
-  const { remaining, dropped } = await flushQueue(
-    tracker,
-    await readQueue(),
-    isOfflineError,
-  );
+  const { remaining, dropped } = await flushQueue(tracker, await readQueue(), isOfflineError);
   await writeQueue(remaining);
   const note = dropped > 0 ? droppedNote(dropped) : undefined;
   try {
@@ -64,14 +61,18 @@ export const offlineTracker = {
   logHabit: async (
     habitId: string,
     date: string | null,
-    level: HabitLevel = "full",
+    level: HabitLevel = 'full',
     amount: number | null = null,
-    source: LogSource = "tap",
+    source: LogSource = 'tap'
   ) => {
+    const backlog = isBacklog(date, today());
     try {
-      return await tracker.logHabit(habitId, date, level, amount, source);
+      const saved = await tracker.logHabit(habitId, date, level, amount, source);
+      analytics.track('habit_logged', { source, level, backlog, offline: false });
+      return saved;
     } catch (error) {
       if (!isOfflineError(error)) throw error;
+      analytics.track('habit_logged', { source, level, backlog, offline: true });
       // A reminder tapped before the app has opened today has no list to get a date from.
       const day = date ?? today();
       await writeQueue(
@@ -81,41 +82,43 @@ export const offlineTracker = {
           level,
           amount,
           source,
-        }),
+        })
       );
       return null;
     }
   },
 
-  undoLog: async (
-    habitId: string,
-    date: string | null,
-    source: LogSource = "tap",
-  ) => {
+  undoLog: async (habitId: string, date: string | null, source: LogSource = 'tap') => {
     const queue = await readQueue();
     const left = removeFromQueue(queue, habitId, date);
     if (left.length !== queue.length) {
       await writeQueue(left);
+      analytics.track('habit_undone', { source, offline: true });
       return null;
     }
-    return tracker.undoLog(habitId, date, source);
+    const undone = await tracker.undoLog(habitId, date, source);
+    analytics.track('habit_undone', { source, offline: false });
+    return undone;
   },
 
   skipHabit: async (
     habitId: string,
     date: string | null,
     reason: string,
-    source: LogSource = "tap",
+    source: LogSource = 'tap'
   ) => {
     try {
-      return await tracker.skipHabit(habitId, date, reason, source);
+      const saved = await tracker.skipHabit(habitId, date, reason, source);
+      analytics.track('habit_skipped', { source, offline: false });
+      return saved;
     } catch (error) {
       if (!isOfflineError(error)) throw error;
+      analytics.track('habit_skipped', { source, offline: true });
       const item = {
-        kind: "skip" as const,
+        kind: 'skip' as const,
         habitId,
         date: date ?? today(),
-        level: "full" as const,
+        level: 'full' as const,
         amount: null,
         source,
         reason,
@@ -129,16 +132,19 @@ export const offlineTracker = {
   // and the person is told, like any other log it can't take.
   repairHabit: async (habitId: string, date: string, amount: number | null) => {
     try {
-      return await tracker.repairHabit(habitId, date, amount);
+      const saved = await tracker.repairHabit(habitId, date, amount);
+      analytics.track('habit_repaired', { source: 'tap', offline: false });
+      return saved;
     } catch (error) {
       if (!isOfflineError(error)) throw error;
+      analytics.track('habit_repaired', { source: 'tap', offline: true });
       const item = {
-        kind: "repair" as const,
+        kind: 'repair' as const,
         habitId,
         date,
-        level: "full" as const,
+        level: 'full' as const,
         amount,
-        source: "tap" as const,
+        source: 'tap' as const,
       };
       await writeQueue(addToQueue(await readQueue(), item));
       return null;

@@ -1238,3 +1238,12 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Checked locally:** 35 new database tests and 15 new service tests. Postgres called a local service through `pg_net` from Vault's URL, got HTTP 200, and the snapshot it wrote was in the database.
 
 **Checked live:** the dry run listed only the two job migrations. The three schedules are registered, Vault is empty so they do nothing, and both new tables have row-level security. With two temporary users, a push token could be saved only for oneself and read by nobody else, each person saw only their own pattern snapshot, and signed-in and signed-out callers were refused the job functions. Both users were deleted. The live rebuild during that check also wrote a pattern snapshot for each real account, which is what the nightly job does. The security advisor shows nothing new.
+
+### Analytics, off until the beta (5 Nov 2026)
+
+**Added**
+
+- `packages/core/src/analytics.ts`: a catalogue of events and a wrapper. It covers every log, undo, skip and repair with its source, whether it was a back-log and whether it waited offline; each onboarding step, with how many habits were saved by then; coach messages and their outcomes; voice use, with speech or typed, the language and the outcome; Tunnel Vision's start, finish and stop; and app opens, with days since the first open, for retention.
+- No personal data. Every property is a fixed choice, a capped number or a yes/no, and anything else is dropped, so a habit name, transcript, coach text or account id passed by mistake never leaves the phone. A test checks the catalogue has no free-text fields. People are counted under a random install id, never their account.
+- Off by default. It switches on only with `EXPO_PUBLIC_ANALYTICS=on` and a PostHog project key, and while off it stores and sends nothing. A PostHog sender is ready; no account has been made.
+- Logging is counted in one place, the offline-aware tracker, so taps, voice, the coach, the widget and notifications are all counted the same way.

@@ -33,6 +33,7 @@ import {
 } from '@habit-tracker/core';
 import { Button, HabitCard, PressableState, Text, TextField, useShortcut, useTheme } from '@habit-tracker/ui';
 import { FocusLock } from '../../modules/focus-lock';
+import { analytics } from '../services/analytics';
 import { checkOffTick } from '../services/haptics';
 import { holdNotifications, releaseNotifications } from '../services/focusHold';
 import { showHeldNotifications } from '../services/reminders';
@@ -151,7 +152,9 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   useEffect(() => {
     if (state.phase !== 'finished' || recorded.current) return;
     recorded.current = true;
-    void record(row, 'focus.completed', plannedSeconds(state), elapsedSeconds(state, Date.now()));
+    const elapsed = elapsedSeconds(state, Date.now());
+    void record(row, 'focus.completed', plannedSeconds(state), elapsed);
+    analytics.track('focus_completed', { minutes: state.minutes, early: elapsed < plannedSeconds(state) });
     if (!isLogged(row)) onLog(row, 'full');
     AccessibilityInfo.announceForAccessibility(`${row.title} done and logged.`);
   }, [state, row, onLog]);
@@ -169,6 +172,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   const start = () => {
     dispatch({ type: 'start', now: at() });
     void record(row, 'focus.started', plannedSeconds(state));
+    analytics.track('focus_started', { minutes: state.minutes });
   };
   const stop = () => dispatch({ type: 'stop', now: at() });
   const done = () => dispatch({ type: 'workDone', now: at() });
@@ -181,6 +185,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     if (!recorded.current) {
       recorded.current = true;
       void record(row, 'focus.stopped', plannedSeconds(state), elapsedSeconds(state, now));
+      analytics.track('focus_stopped', { minutes: state.minutes, logged_minimum: logMinimum });
     }
     if (logMinimum && !isLogged(row)) onLog(row, 'minimum');
     close();

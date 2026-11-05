@@ -14,6 +14,7 @@ import {
   VoiceQuestion,
   whichQuestion,
 } from '@habit-tracker/core';
+import { analytics } from '../services/analytics';
 import { ai } from '../services/ai';
 import { Actions } from './useActions';
 
@@ -85,6 +86,7 @@ export function useCoach(actions: Actions) {
     try {
       await work();
     } catch (err) {
+      analytics.track('coach_reply', { outcome: err instanceof CoachError ? (err.code as 'busy') : 'unavailable' });
       setNotice(err instanceof CoachError || err instanceof Error ? friendly(err) : FALLBACK);
       setCanRetry(!(err instanceof CoachError && err.code === 'test_only'));
     } finally {
@@ -97,6 +99,7 @@ export function useCoach(actions: Actions) {
     guarded(async () => {
       setTurns(history);
       let reply = '';
+      analytics.track('coach_message_sent', { from: source });
       for await (const event of ai.chat(history, source, reason)) {
         if (event.type === 'actions') {
           await decide(history, event);
@@ -105,6 +108,7 @@ export function useCoach(actions: Actions) {
           say(history, reply);
         }
       }
+      analytics.track('coach_reply', { outcome: 'replied' });
     });
 
   const send = (text: string, source: ChatSource = 'chat', reason?: MissReason) =>
