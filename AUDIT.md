@@ -1214,7 +1214,22 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Why this way:** an app that isn't the device owner can't truly freeze Android. Screen pinning needs no permissions, but it's off by default on many phones, a button gesture undoes it, and it can't carry on with the app closed. Usage access plus display over other apps is how screen-time apps keep you in, and it works when the app is closed. Play needs a clear disclosure for both permissions before release.
 
-**Not checked on a phone:** the EAS free plan ran out of Android builds for the month, so the build is now made on this Mac with `eas build --local`, using the same signing key. The Android SDK went in at `/opt/homebrew/share/android-commandlinetools`, about 3 GB.
+**Builds:** the EAS free plan ran out of Android builds for the month, so builds are now made on this Mac with `eas build --local`, using the same signing key, so they install over the existing app without losing the sign-in. The Android SDK is at `/opt/homebrew/share/android-commandlinetools`, about 3 GB. A first build took 52 minutes; with a warm cache about 23.
+
+**Checked on a Samsung Galaxy F23 (Android 14), with the review app's Tunnel Vision on a sample habit:**
+
+- The setup step showed the permissions, and **Allow usage access** opened Android's usage-access page. Start stayed disabled until they were granted. For the test they were granted over adb, for the review app only.
+- During a session, **Home** and opening **Settings** both bounced straight back to Tunnel Vision, and so did **Recents**, so the app can't be swiped away while focusing.
+- The foreground service ran with the countdown notification: "Focusing on Sample habit" with a live countdown, public on the lock screen.
+- With the phone locked, the time ran out: the service stopped itself, Tunnel Vision came to the front and asked "Time's up. Is Sample habit done?" without logging. Not yet led to "Focus again?", and Not now closed it. Afterwards Home worked normally, so the lock lifts.
+
+**Fixed from that test**
+
+- Android hid the countdown because the app had no notification permission. The setup step now asks for notifications too, with the other two.
+- The countdown's channel was low importance, which some phones hide on the lock screen as silent. It's now normal importance with no sound or vibration, on a new channel id.
+- "Start 1 minutes" and "Focus 1 more minutes" now say "minute".
+
+**Not checked:** the lock-screen countdown shown on screen, since I don't screenshot a lock screen with other notifications on it. Saying "done my work" out loud. A phone restart mid-session: the service doesn't come back by itself after a reboot, but the app picks the session up the next time it opens.
 
 ### Android install steps and the iPhone plan (5 Nov 2026)
 

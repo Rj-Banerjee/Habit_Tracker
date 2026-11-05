@@ -47,11 +47,12 @@ Open **Habit Tracker** and sign in. Use the `+test` account if you want the coac
 
 ## 6. Set up Tunnel Vision's phone lock
 
-The first time you tap **Focus**, the app asks for two permissions. Both open Android's settings:
+The first time you tap **Focus**, the app asks for three permissions:
 
 1. **Usage access:** find **Habit Tracker** in the list and turn it on. This lets the lock see when another app opens.
 2. **Display over other apps** (Samsung: **Appear on top**): turn it on for **Habit Tracker**. This lets it bring focus back to the front.
-3. Come back to the app. **Start** becomes available once both are on.
+3. **Notifications:** tap **Allow**. This shows the countdown in the notifications and on the lock screen.
+4. Come back to the app. **Start** becomes available once all three are on.
 
 While a focus timer runs, the countdown shows in the notifications and on the lock screen, and other apps bounce back to Tunnel Vision. Calls and emergency calls always get through. To finish early, tap **Done my work**, hold the mic and say "done my work", or tap **Stop**.
 
