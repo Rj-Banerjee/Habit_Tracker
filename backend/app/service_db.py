@@ -62,6 +62,18 @@ class ServiceDb:
         except httpx.HTTPError as error:
             log.warning("Coach event not saved: %s", type(error).__name__)
 
+    async def plan_of(self, user_id: str) -> str:
+        """The stored plan. If it can't be read, nothing is unlocked: the caller stops."""
+        try:
+            response = await self.client.get(
+                "/users", params={"select": "plan", "id": f"eq.{user_id}"}
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            raise Unavailable("Plan isn't readable") from error
+        rows = response.json()
+        return rows[0]["plan"] if rows else "free"
+
     async def close(self) -> None:
         await self.client.aclose()
 

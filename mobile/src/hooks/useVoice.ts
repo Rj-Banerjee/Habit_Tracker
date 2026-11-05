@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AnalyticsProps,
+  LOCKED_VOICE_HINT,
+  lockedMessage,
   answerWhich,
   describeIntents,
   heardLine,
@@ -45,6 +47,8 @@ type Phase =
   | 'offTopic';
 
 interface VoiceOptions {
+  // False on a plan without AI voice: only the phone's own simple phrases work.
+  canUseAi?: boolean;
   rows: TodayRow[];
   actions: Actions;
   refresh: () => Promise<unknown>;
@@ -52,7 +56,7 @@ interface VoiceOptions {
   onAskCoach: (question: string) => void;
 }
 
-export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceOptions) {
+export function useVoice({ rows, actions, refresh, onClose, onAskCoach, canUseAi = true }: VoiceOptions) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [problem, setProblem] = useState<string | null>(null);
   const [question, setQuestion] = useState<VoiceQuestion | null>(null);
@@ -166,6 +170,13 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
     if (simple) {
       counted('on_phone');
       await run([simple]);
+      return;
+    }
+
+    if (!canUseAi) {
+      setDraft(text);
+      setPhase('unclear');
+      setProblem(`${LOCKED_VOICE_HINT} Understanding anything else is ${lockedMessage('ai.voice').toLowerCase()}`);
       return;
     }
 

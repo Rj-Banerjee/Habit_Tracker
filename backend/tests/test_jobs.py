@@ -33,6 +33,7 @@ class FakeJobDb:
         self.reminders: list[dict] = []
         self.nudges: list[dict] = []
         self.tokens: dict[str, list[str]] = {}
+        self.plans: dict[str, str] = {"u1": "pro"}
 
     async def claim(self, job, key):
         if (job, key) in self.claims:
@@ -72,6 +73,9 @@ class FakeJobDb:
 
     async def take_slot(self, *_):
         return 0
+
+    async def plan_of(self, user_id):
+        return self.plans.get(user_id, "free")
 
     async def close(self):
         pass
@@ -134,6 +138,18 @@ def test_sunday_letter_is_written_from_their_own_review_and_kept(jobs):
     assert "Read every day" in system
     assert "Calmer evenings" in system
     assert db.spent["user:test-user:tokens"] > 0
+
+
+def test_no_scheduled_letter_or_nudge_on_free_but_the_reminder_still_goes(jobs):
+    db = app.state.db
+    db.letters = [{"user_id": "free-person", "week_start": "2026-11-02"}]
+    assert jobs.post("/jobs/sunday-letters", headers=SECRET).json()["skipped"] == 1
+    db.tokens = {"free-person": ["ExponentPushToken[f]"]}
+    db.reminders = [{"user_id": "free-person", "local_day": "2026-11-12"}]
+    db.nudges = [{"user_id": "free-person", "habit_id": "h1", "title": "Read", "local_day": "2026-11-12", "usual_hour": 19}]
+    result = jobs.post("/jobs/reminders-and-nudges", headers=SECRET).json()
+    assert result["reminders"] == 1
+    assert result["nudges"] == 0
 
 
 def test_a_second_run_writes_nothing_more(jobs):

@@ -1,8 +1,9 @@
 import React from 'react';
 import { ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { layout, space } from '@habit-tracker/core';
+import { layout, lockedMessage, space } from '@habit-tracker/core';
 import { Button, FormMessage, Text, TextField, useLayoutSize, useTheme } from '@habit-tracker/ui';
+import { useEntitlements } from '../hooks/useEntitlements';
 import { useSundayReview } from '../hooks/useSundayReview';
 
 const WIN_LIMIT = 200;
@@ -14,6 +15,7 @@ interface SundayReviewScreenProps {
 }
 
 export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps) {
+  const { can } = useEntitlements();
   const { colors } = useTheme();
   const size = useLayoutSize();
   const review = useSundayReview(userId);
@@ -81,6 +83,10 @@ export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps)
           </Text>
           {review.letter ? (
             <Text accessibilityLiveRegion="polite">{review.letter}</Text>
+          ) : !can('ai.coach') ? (
+            <Text variant="small" muted>
+              The Future-Self letter · {lockedMessage('ai.coach')}
+            </Text>
           ) : (
             <Button
               label={review.writing ? 'Writing…' : 'Write my letter'}

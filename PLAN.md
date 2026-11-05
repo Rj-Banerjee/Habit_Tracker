@@ -31,6 +31,23 @@ The launch release (v1) is the core tracker, the AI coach and voice logging. Eve
 | Focus | Tunnel Vision mode with a focus timer | Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
 | Social and game | — | Accountability pods | Gamification (RPG, rewards) |
 
+## Plans
+
+Pricing is still undecided, and these plans may change. Payments aren't built yet.
+
+| Plan | What it includes |
+| --- | --- |
+| **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. 10+ normal themes, each customizable (colours, fonts, accent per identity). |
+| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
+| **Ultra** | Everything in Pro, plus the AI-powered workspace (design not decided yet). Habits sync with the workspace: for example a "Work" habit updates automatically from work done in the workspace, via the activity log. |
+| **Enterprise** | Team workspaces and the features teams need: roles, a manager view of company work, audit history. Personal habits stay private from managers, always. |
+
+**Foundations built now** (the plan features themselves aren't):
+
+- **Entitlements:** `packages/core/src/entitlements.ts` maps each plan to its features (`tracker`, `voice.simple`, `themes.standard`, `ai.coach`, `ai.nudges`, `ai.voice`, `themes.game`, `social`, `workspace`, `team`). `users.plan` defaults to `free`, and only the server can change it. The AI service refuses AI calls without the entitlement, and its copy of the map is checked against the app's by a test. Screens ask one hook for a feature, never a plan name, and show locked features with a calm "Available on Pro." Test accounts get Pro.
+- **Themes as data:** a theme is a data file (light and dark colours, typography, radii, optional images and sounds), checked by `validateTheme` on load, including that text stays readable. The current look is the default theme, `packages/core/src/themes/default.ts`.
+- **Game progress:** `activity_events` has what XP and levels need: every log change with its Shrink level, status, amount, identity, source, actor and time; repairs; when each habit began, moved, was archived or restored; and focus sessions. Grace Days are worked out from the logs, as the streak rules already do.
+
 ## Tech stack and architecture
 
 One React Native codebase for iPhone and Android, a Next.js web app for desktop, and a backend on Supabase plus FastAPI — a stack you already work in.
@@ -300,6 +317,7 @@ We launch only after a closed beta proves people keep logging in week two. The t
 - Supabase Auth: turn Confirm email back on
 - Supabase Auth: leaked password protection on
 - Supabase Auth: custom email provider set up, so the built-in email limit can't block sign-ups
+- Subscriptions through Apple and Google in-app purchase, as the stores require for digital features. RevenueCat is worth considering to handle both stores, receipts and the server's view of each plan. The server sets `users.plan` only from verified purchases.
 
 | Metric | What it tells us | Starting target |
 | --- | --- | --- |

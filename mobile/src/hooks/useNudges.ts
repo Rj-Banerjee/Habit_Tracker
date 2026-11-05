@@ -5,7 +5,13 @@ import { TodayRow } from '@habit-tracker/core';
 import { handleNotificationResponse } from '../services/notificationActions';
 import { cancelIfLogged, syncNudge } from '../services/nudges';
 
-export function useNudges(rows: TodayRow[], loading: boolean, refresh: () => Promise<unknown>) {
+// `allowed` is false on a plan without nudges: none is planned.
+export function useNudges(
+  rows: TodayRow[],
+  loading: boolean,
+  refresh: () => Promise<unknown>,
+  allowed = true
+) {
   const planned = useRef(false);
 
   // While the app is open, a notification's buttons land here, not in the background task.
@@ -24,11 +30,11 @@ export function useNudges(rows: TodayRow[], loading: boolean, refresh: () => Pro
   }, [refresh]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !allowed) return;
     if (!planned.current) {
       planned.current = true;
       void syncNudge(rows);
     }
     void cancelIfLogged(rows);
-  }, [rows, loading]);
+  }, [rows, loading, allowed]);
 }

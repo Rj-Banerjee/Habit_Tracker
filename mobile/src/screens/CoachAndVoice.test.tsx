@@ -8,6 +8,7 @@ import { ai } from '../services/ai';
 import { speak } from '../services/speak';
 import { tracker } from '../services/tracker';
 import { speechInput } from '../voice/speech';
+import { EntitlementsProvider } from '../hooks/useEntitlements';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
@@ -28,8 +29,9 @@ jest.mock('../services/tracker', () => ({
     undoLog: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(() => Promise.resolve([])),
     listVoiceHabits: jest.fn(() =>
-      Promise.resolve([{ id: 'h1', title: 'Read', voice_aliases: ['book'] }])
+      Promise.resolve([{ id: 'h1', title: 'Read', voice_aliases: ['book'], type: 'count', unit: 'pages' }])
     ),
+    getPlan: jest.fn(() => Promise.resolve('pro')),
   },
 }));
 jest.mock('expo-haptics', () => ({
@@ -87,7 +89,9 @@ const open = async () => {
       }}
     >
       <ThemeProvider forced="light">
-        <TodayScreen onAddHabit={onAddHabit} onEditHabit={jest.fn()} onOpenReview={onOpenReview} />
+        <EntitlementsProvider>
+          <TodayScreen onAddHabit={onAddHabit} onEditHabit={jest.fn()} onOpenReview={onOpenReview} />
+        </EntitlementsProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -771,6 +775,37 @@ describe('voice', () => {
       await settle();
       expect(screen.getByText('Microphone access is off. You can still type it.')).toBeTruthy();
       expect(screen.getByLabelText('What did you do?')).toBeTruthy();
+    });
+  });
+
+  describe('on Free', () => {
+    beforeEach(() => api.getPlan.mockResolvedValue('free'));
+    afterEach(() => api.getPlan.mockResolvedValue('pro'));
+
+    it('shows the coach as available on Pro, calmly, and never opens it', async () => {
+      await open();
+      expect(screen.getByRole('button', { name: 'Ask coach' }).props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getAllByText('Coach · Available on Pro.').length).toBeGreaterThan(0);
+    });
+
+    it('logs simple phrases on the phone with no AI, and explains the rest', async () => {
+      await open();
+      await press('Log by voice');
+      await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'read 20 pages');
+      await press('Log it');
+      await settle();
+      expect(api.logHabit).toHaveBeenCalledWith('h1', expect.anything(), 'full', 20, 'voice');
+      expect(coachApi.parseVoice).not.toHaveBeenCalled();
+    });
+
+    it('never sends a free-form phrase to the AI', async () => {
+      await open();
+      await press('Log by voice');
+      await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'I got through some of my novel');
+      await press('Log it');
+      await settle();
+      expect(coachApi.parseVoice).not.toHaveBeenCalled();
+      expect(screen.getByText(/simple phrases like "done with Read"/)).toBeTruthy();
     });
   });
 });

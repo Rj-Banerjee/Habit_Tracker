@@ -11,6 +11,7 @@ from . import coach
 from .auth import CurrentUser
 from .config import Settings, get_settings
 from .data_policy import may_reach_provider
+from .entitlements import as_plan, effective_plan, has_feature
 from .llm.base import LLMError, LLMProvider
 from .llm.metered import MeteredProvider
 from .push import Push
@@ -73,8 +74,10 @@ async def sunday_letters(request: Request, settings: Settings = Depends(get_sett
     for candidate in await db.letter_candidates(settings.job_letter_hour):
         user = CurrentUser(candidate["user_id"], "")
         week = candidate["week_start"]
-        # On a free tier, only test accounts reach the provider, scheduled or not.
-        if not may_reach_provider(user, settings, provider):
+        plan = effective_plan(user, as_plan(await db.plan_of(user.id)), settings)
+        # The letter is part of the AI layer, and on a free AI tier only test accounts
+        # reach the provider, scheduled or not.
+        if not has_feature(plan, "ai.coach") or not may_reach_provider(user, settings, provider):
             skipped += 1
             continue
         key = f"{user.id}:{week}"
@@ -121,6 +124,10 @@ async def reminders_and_nudges(request: Request, settings: Settings = Depends(ge
             {"kind": "reminder"}, {"kind": "reminder", "payload": {"date": day}},
         )
     for due in await db.due_nudges():
+        # Nudges are part of the AI layer; the daily reminder is for everyone.
+        plan = effective_plan(CurrentUser(due["user_id"], ""), as_plan(await db.plan_of(due["user_id"])), settings)
+        if not has_feature(plan, "ai.nudges"):
+            continue
         day = due["local_day"]
         await deliver(
             "nudge", f"{due['user_id']}:{day}", due["user_id"], REMINDER_TITLE,

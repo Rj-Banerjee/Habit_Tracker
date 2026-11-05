@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
 import { IdentityToken } from './tokens';
 
@@ -123,6 +124,9 @@ export interface VoiceHabit {
   id: string;
   title: string;
   voice_aliases: string[];
+  // For "read 20 pages" on the phone: only count and duration habits take an amount.
+  type?: HabitType;
+  unit?: string | null;
 }
 
 export interface FutureLetter {
@@ -365,7 +369,7 @@ export function createTrackerApi(client: SupabaseClient) {
     // The words speech recognition should listen out for.
     listVoiceHabits: () =>
       select<VoiceHabit[]>(
-        client.from('habits').select('id, title, voice_aliases').is('archived_at', null)
+        client.from('habits').select('id, title, voice_aliases, type, unit').is('archived_at', null)
       ),
 
     listProgressHabits: () =>
@@ -381,6 +385,10 @@ export function createTrackerApi(client: SupabaseClient) {
 
     getHabitDays: (from: string, to: string) =>
       call<ProgressDay[]>('get_habit_days', { p_from: from, p_to: to }),
+
+    // Unknown or missing plans count as Free, so nothing unlocks by mistake.
+    getPlan: async () =>
+      asPlan((await select<{ plan: string }>(client.from('users').select('plan').single())).plan),
 
     getProfile: () =>
       select<Profile>(

@@ -46,10 +46,14 @@ class FakeProvider(LLMProvider):
 class FakeDb:
     """Stands in for ServiceDb. Scopes count up to their limit, then refuse."""
 
-    def __init__(self):
+    def __init__(self, plans: dict[str, str] | None = None):
+        self.plans = plans or {}
         self.used: dict[str, int] = {}
         self.events: list[dict] = []
         self.spent: dict[str, int] = {}
+
+    async def plan_of(self, user_id: str) -> str:
+        return self.plans.get(user_id, "free")
 
     async def take_slot(self, scope: str, limit: int, seconds: int) -> int:
         if limit <= 0:

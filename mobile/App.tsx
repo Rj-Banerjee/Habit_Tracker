@@ -11,6 +11,7 @@ import {
 } from '@expo-google-fonts/figtree';
 import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
+import { EntitlementsProvider } from './src/hooks/useEntitlements';
 import { useNeedsOnboarding } from './src/hooks/useNeedsOnboarding';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
@@ -67,7 +68,6 @@ function SheetInset({ children }: { children: React.ReactNode }) {
 }
 
 function SignedIn({ session }: { session: Session }) {
-  const { colors } = useTheme();
   // For retention: counted on open and on each return to the app, if analytics is on.
   useEffect(() => {
     void trackAppOpened();
@@ -75,6 +75,22 @@ function SignedIn({ session }: { session: Session }) {
     return () => sub.remove();
   }, []);
   const onboarding = useNeedsOnboarding();
+
+  return (
+    <EntitlementsProvider>
+      <SignedInScreens session={session} onboarding={onboarding} />
+    </EntitlementsProvider>
+  );
+}
+
+function SignedInScreens({
+  session,
+  onboarding,
+}: {
+  session: Session;
+  onboarding: ReturnType<typeof useNeedsOnboarding>;
+}) {
+  const { colors } = useTheme();
   // No router yet. Null shows the tabs; otherwise the form, for a new habit or habitId.
   const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
   const [tab, setTab] = useState<Tab>('today');

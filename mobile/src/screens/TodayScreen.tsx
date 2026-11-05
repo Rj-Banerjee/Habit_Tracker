@@ -10,6 +10,7 @@ import {
   groupByIdentity,
   HabitLevel,
   isLogged,
+  lockedMessage,
   layout,
   progressLabel,
   repairOnLabel,
@@ -40,6 +41,7 @@ import { RuleCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
 import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
+import { useEntitlements } from '../hooks/useEntitlements';
 import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
 import { useRuleCard } from '../hooks/useRuleCard';
@@ -71,7 +73,9 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
-  useNudges(rows, loading, refresh);
+  const { can } = useEntitlements();
+  const coachLocked = can('ai.coach') ? undefined : lockedMessage('ai.coach');
+  useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
   const { chains, ready: chainsReady } = useChains(rows);
   const moments = useMoments(chains, chainsReady && !loading);
@@ -126,6 +130,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     refresh,
     onClose: () => setPanel(null),
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
+    canUseAi: can('ai.voice'),
   });
 
   const resumeFocusRef = useRef(resumeFocus);
@@ -254,13 +259,19 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             />
           </View>
           <View style={styles.action}>
-            <Button label="Ask coach" quiet onPress={() => setPanel('coach')} />
+            <Button label="Ask coach" quiet disabled={Boolean(coachLocked)} onPress={() => setPanel('coach')} />
           </View>
         </View>
+        {coachLocked ? (
+          <Text variant="small" muted>
+            Coach · {coachLocked}
+          </Text>
+        ) : null}
 
         {card && !loading ? (
           <CoachCard
             text={card.text}
+            locked={coachLocked}
             onPress={() => {
               if (card.opens === 'sunday') {
                 onOpenReview();

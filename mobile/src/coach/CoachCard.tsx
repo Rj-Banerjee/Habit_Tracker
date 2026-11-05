@@ -1,15 +1,27 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { layout, radius, space } from '@habit-tracker/core';
 import { PressableState, Text, useTheme } from '@habit-tracker/ui';
 
 interface CoachCardProps {
   text: string;
   onPress: () => void;
+  // Set on a plan without the coach: the card still helps, it just can't open a chat.
+  locked?: string;
 }
 
-export function CoachCard({ text, onPress }: CoachCardProps) {
+export function CoachCard({ text, onPress, locked }: CoachCardProps) {
   const { colors } = useTheme();
+  if (locked) {
+    return (
+      <View style={[styles.card, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
+        <Text>{text}</Text>
+        <Text variant="small" muted>
+          Coach · {locked}
+        </Text>
+      </View>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"

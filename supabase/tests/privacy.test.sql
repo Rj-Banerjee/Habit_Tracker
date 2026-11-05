@@ -92,7 +92,11 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub": "55555555-5555-4555-8555-555555555555", "role": "authenticated"}';
 select is((select count(*)::int from public.habits), 1, 'the owner reads their habit');
 select is((select count(*)::int from public.habit_logs), 1, 'and their log');
-select is((select count(*)::int from public.activity_events), 1, 'and their activity event');
+select is(
+  (select array_agg(kind order by kind) from public.activity_events),
+  array['habit_created', 'log_created'],
+  'and their activity: the habit starting, and the log'
+);
 select is((select count(*)::int from public.reflections), 1, 'and their reflection');
 select is((select count(*)::int from public.coach_events), 1, 'and their coach event');
 reset role;
@@ -102,7 +106,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 select is(
   (select kind || '/' || (payload ->> 'status') || '/' || (payload ->> 'level') || '/' || source || '/' || actor
-   from public.activity_events where user_id = '55555555-5555-4555-8555-555555555555'),
+   from public.activity_events where user_id = '55555555-5555-4555-8555-555555555555' and kind = 'log_created'),
   'log_created/done/full/tap/user',
   'a log records what happened, where it came from and who did it'
 );
