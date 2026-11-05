@@ -1183,6 +1183,8 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Frame rate on the Realme RMX2189 (2.7 GB, so low-end, sparks off):** measured on the UI thread with Reanimated's frame callback, over three rounds after the first: fracture 58 to 59 fps, weld 53 to 59 fps, Grace Day 53 to 60 fps, with 0 to 3 long frames each. The first fracture after launch ran at 30 fps while it warmed up. Android's own frame stats for one weld: 82 frames, 6 that missed their deadline, 1 missed vsync, median 16 ms and 90th percentile 20 ms. Its headline "janky" figure of 40% is mostly flagged as high input latency, which is how adb's injected taps show up, not slow drawing.
 
+**Frame rate on a Samsung Galaxy F23 (SM-E236B, Android 14, 5.3 GB, sparks on):** three rounds on the UI thread: fracture 59 to 61 fps, weld 57 to 59 fps, Grace Day 61 fps, with 0 or 1 long frames and no missed vsync. Android's frame stats counted 3 to 8 frames per moment past their deadline.
+
 **Not checked:** a fracture or weld on the real app from real data. The first open marked existing cracks as seen, as designed, so the next real miss or repair is the first chance. The habit detail and Progress chains on the phone. Reduced motion with the phone's own setting, rather than the playground toggle.
 
 ### Tunnel Vision (5 Nov 2026)
