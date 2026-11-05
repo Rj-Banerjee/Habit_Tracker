@@ -80,6 +80,10 @@
     {"group": "off_topic", "heard": "I bought a red car", "expect": [], "level": "off_topic"},
     {"group": "off_topic", "heard": "I bought a red car and went home", "expect": [], "level": "off_topic"},
     {"group": "off_topic", "heard": "the weather is lovely under the trees", "expect": [], "level": "off_topic"},
-    {"group": "off_topic", "heard": "my sister called me yesterday", "expect": [], "level": "off_topic"}
+    {"group": "off_topic", "heard": "my sister called me yesterday", "expect": [], "level": "off_topic"},
+    {"group": "undo_named", "heard": "on do gym", "expect": ["undo_habit:gym"]},
+    {"group": "undo_named", "heard": "and do my run", "expect": ["undo_habit:run"]},
+    {"group": "undo_named", "heard": "on do the read", "expect": ["undo_habit:read"]},
+    {"group": "undo_named", "heard": "and do my evening walk today please", "expect": ["undo_habit:walk"]}
   ]
 }

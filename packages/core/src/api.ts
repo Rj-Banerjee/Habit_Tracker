@@ -4,7 +4,7 @@ import { IdentityToken } from './tokens';
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
 export type LogStatus = 'done' | 'skipped' | 'repaired';
-export type LogSource = 'tap' | 'voice' | 'coach';
+export type LogSource = 'tap' | 'voice' | 'coach' | 'widget' | 'notification';
 export type StreakMode = 'strict' | 'grace';
 
 export interface LevelOption {
@@ -110,6 +110,19 @@ export interface ProgressDay {
   level_done: HabitLevel | null;
   amount: number | null;
   target: number | null;
+  // Null for a back-log, which says when they caught up, not when they did it.
+  logged_hour?: number | null;
+}
+
+export interface VoiceHabit {
+  id: string;
+  title: string;
+  voice_aliases: string[];
+}
+
+export interface FutureLetter {
+  week_start: string;
+  text: string;
 }
 
 export interface Profile {
@@ -171,11 +184,14 @@ const toNewIdentity = (identity: NewIdentityInput) => ({
   why_text: identity.whyText ?? null,
 });
 
+export const OFFLINE_MESSAGE = "Can't reach the server. Check your connection and try again.";
+export const isOfflineError = (error: unknown) =>
+  error instanceof Error && error.message === OFFLINE_MESSAGE;
+
 const OFFLINE = /Failed to fetch|Network request failed|NetworkError|Load failed/;
 
 // The network layer's own wording means nothing to the person using the app.
-const friendly = (message: string) =>
-  OFFLINE.test(message) ? "Can't reach the server. Check your connection and try again." : message;
+const friendly = (message: string) => (OFFLINE.test(message) ? OFFLINE_MESSAGE : message);
 
 export function createTrackerApi(client: SupabaseClient) {
   const call = async <T>(name: string, args?: Record<string, unknown>): Promise<T> => {
@@ -291,6 +307,34 @@ export function createTrackerApi(client: SupabaseClient) {
         client.from('identities').select('id, name, colour_token, why_text').order('created_at')
       ),
 
+    updateIdentityWhy: (identityId: string, whyText: string | null) =>
+      select(client.from('identities').update({ why_text: whyText }).eq('id', identityId)),
+
+    getLatestLetter: async () => {
+      const rows = await select<{ payload: FutureLetter }[]>(
+        client
+          .from('coach_events')
+          .select('payload')
+          .eq('kind', 'letter')
+          .order('sent_at', { ascending: false })
+          .limit(1)
+      );
+      return rows[0]?.payload ?? null;
+    },
+
+    // Newest first, for deciding whether a habit should get another nudge.
+    listNudgeHistory: async () => {
+      const rows = await select<{ payload: { habit_id: string }; outcome: 'logged' | 'ignored' }[]>(
+        client
+          .from('coach_events')
+          .select('payload, outcome')
+          .eq('kind', 'nudge')
+          .order('sent_at', { ascending: false })
+          .limit(30)
+      );
+      return rows.map((row) => ({ habit_id: row.payload.habit_id, outcome: row.outcome }));
+    },
+
     listHabitsInRange: (from: string, to: string) =>
       select<RangeHabit[]>(
         client
@@ -305,12 +349,10 @@ export function createTrackerApi(client: SupabaseClient) {
       ),
 
     // The words speech recognition should listen out for.
-    listVoiceNames: async () => {
-      const rows = await select<{ title: string; voice_aliases: string[] }[]>(
-        client.from('habits').select('title, voice_aliases').is('archived_at', null)
-      );
-      return rows.flatMap((row) => [row.title, ...row.voice_aliases]);
-    },
+    listVoiceHabits: () =>
+      select<VoiceHabit[]>(
+        client.from('habits').select('id, title, voice_aliases').is('archived_at', null)
+      ),
 
     listProgressHabits: () =>
       select<ProgressHabit[]>(

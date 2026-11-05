@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChatEvent, CoachError, TodayRow, VoiceIntent, VoiceLevel, VoiceParse } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
@@ -10,6 +11,12 @@ import { speechInput } from '../voice/speech';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
+jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../services/live', () => ({ watchMyActivity: () => () => {} }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: jest.fn(() => null) }));
 jest.mock('../services/tracker', () => ({
@@ -19,7 +26,10 @@ jest.mock('../services/tracker', () => ({
     logHabit: jest.fn(() => Promise.resolve()),
     skipHabit: jest.fn(() => Promise.resolve()),
     undoLog: jest.fn(() => Promise.resolve()),
-    listVoiceNames: jest.fn(() => Promise.resolve(['Read', 'book'])),
+    listIdentities: jest.fn(() => Promise.resolve([])),
+    listVoiceHabits: jest.fn(() =>
+      Promise.resolve([{ id: 'h1', title: 'Read', voice_aliases: ['book'] }])
+    ),
   },
 }));
 jest.mock('expo-haptics', () => ({
@@ -77,7 +87,7 @@ const open = async () => {
       }}
     >
       <ThemeProvider forced="light">
-        <TodayScreen onAddHabit={onAddHabit} onEditHabit={jest.fn()} />
+        <TodayScreen onAddHabit={onAddHabit} onEditHabit={jest.fn()} onOpenReview={onOpenReview} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -85,6 +95,7 @@ const open = async () => {
 };
 
 const onAddHabit = jest.fn();
+const onOpenReview = jest.fn();
 const read = { habit_id: 'h1', habit_title: 'Read' };
 const parsed = (text: string, intents: VoiceIntent[], level?: VoiceLevel): VoiceParse => ({
   heard: text,
@@ -106,6 +117,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   speech.mockReturnValue(null);
   api.getToday.mockResolvedValue([row()]);
+  api.getRepairs.mockResolvedValue([]);
   coachApi.chat.mockImplementation(replies('Start ', 'small.'));
 });
 
@@ -116,7 +128,8 @@ describe('coach card', () => {
     await settle();
     expect(coachApi.chat).toHaveBeenCalledWith(
       [{ role: 'user', text: expect.any(String) }],
-      'card'
+      'card',
+      undefined
     );
     expect(screen.getByText('Start small.')).toBeTruthy();
   });
@@ -130,6 +143,86 @@ describe('coach card', () => {
     api.getToday.mockResolvedValue([]);
     await open();
     expect(screen.queryByRole('button', { name: /^Coach suggestion/ })).toBeNull();
+  });
+});
+
+describe('miss review', () => {
+  const slip = {
+    habit_id: 'h2',
+    identity_id: 'i1',
+    title: 'Run',
+    repair_on: '2026-11-03',
+    colour_token: 'identity-1',
+    current_streak: 0,
+  };
+
+  const openReview = async () => {
+    api.getRepairs.mockResolvedValue([slip] as never);
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: /^Coach suggestion/ }));
+    await settle();
+  };
+
+  it('asks what got in the way, kindly', async () => {
+    await openReview();
+    expect(screen.getByText('Run slipped')).toBeTruthy();
+    expect(screen.getByText('That happens. What got in the way?')).toBeTruthy();
+    expect(coachApi.chat).not.toHaveBeenCalled();
+  });
+
+  it('shows why it matters', async () => {
+    api.listIdentities.mockResolvedValue([
+      { id: 'i1', name: 'The Athlete', colour_token: 'identity-1', why_text: 'For my health' },
+    ]);
+    await openReview();
+    expect(screen.getByText('For my health')).toBeTruthy();
+  });
+
+  it('passes the one-tap reason to the coach', async () => {
+    jest.useFakeTimers();
+    await openReview();
+    await press('Too tired');
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+    jest.useRealTimers();
+    await settle();
+    expect(coachApi.chat).toHaveBeenCalledWith(
+      [{ role: 'user', text: 'Run slipped. Too tired.' }],
+      'miss_review',
+      'tired'
+    );
+  });
+
+  it('can be left alone', async () => {
+    await openReview();
+    await press('Not now');
+    expect(coachApi.chat).not.toHaveBeenCalled();
+  });
+});
+
+describe('the widget voice button', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('opens the voice sheet straight away', async () => {
+    jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('habittracker://voice');
+    await open();
+    expect(screen.getByLabelText('What did you do?')).toBeTruthy();
+  });
+
+  it('ignores other links', async () => {
+    jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('exp://192.168.1.2:8081');
+    await open();
+    expect(screen.queryByLabelText('What did you do?')).toBeNull();
+  });
+});
+
+describe('Sunday card', () => {
+  it('opens the review on a Sunday', async () => {
+    api.getToday.mockResolvedValue([row({ day: '2026-11-08' })]);
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: /^Coach suggestion/ }));
+    expect(onOpenReview).toHaveBeenCalled();
   });
 });
 
@@ -163,7 +256,8 @@ describe('coach drawer', () => {
         { role: 'assistant', text: 'Start small.' },
         { role: 'user', text: 'Two' },
       ],
-      'chat'
+      'chat',
+      undefined
     );
   });
 
@@ -173,7 +267,8 @@ describe('coach drawer', () => {
     await press('I feel burned out');
     expect(coachApi.chat).toHaveBeenCalledWith(
       [{ role: 'user', text: 'I feel burned out' }],
-      'burned_out'
+      'burned_out',
+      undefined
     );
     expect(screen.queryByRole('button', { name: 'Quick log my day' })).toBeNull();
   });
@@ -232,7 +327,8 @@ describe('coach drawer', () => {
     await press('Try again');
     expect(coachApi.chat).toHaveBeenLastCalledWith(
       [{ role: 'user', text: 'I feel burned out' }],
-      'chat'
+      'chat',
+      undefined
     );
     expect(screen.getByText('Start small.')).toBeTruthy();
     expect(screen.queryByText('Half')).toBeNull();
@@ -582,7 +678,11 @@ describe('voice', () => {
     });
     jest.useRealTimers();
     await settle();
-    expect(coachApi.chat).toHaveBeenCalledWith([{ role: 'user', text: 'Why do I skip?' }], 'chat');
+    expect(coachApi.chat).toHaveBeenCalledWith(
+      [{ role: 'user', text: 'Why do I skip?' }],
+      'chat',
+      undefined
+    );
   });
 
   it('stays calm when the AI is down, and tapping still works', async () => {
@@ -598,7 +698,7 @@ describe('voice', () => {
     await settle();
     await fireEvent.press(screen.getByRole('button', { name: /^Read,/ }));
     await settle();
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null, 'tap');
   });
 
   it('points to the keyboard mic when the phone has no speech recognition', async () => {
@@ -652,7 +752,7 @@ describe('voice', () => {
       expect(options.hints).toEqual(expect.arrayContaining(['undo', 'Read', 'book']));
     });
 
-    it('sends nothing if nothing was heard', async () => {
+    it('sends nothing if nothing was heard, and says so', async () => {
       const { handlers } = recognizer();
       await open();
       await press('Log by voice');
@@ -660,6 +760,7 @@ describe('voice', () => {
       await settle();
       await act(async () => handlers.end?.());
       expect(coachApi.parseVoice).not.toHaveBeenCalled();
+      expect(screen.getByText("I didn't hear anything. Keep holding while you talk.")).toBeTruthy();
     });
 
     it('explains a refused microphone and leaves the text box', async () => {

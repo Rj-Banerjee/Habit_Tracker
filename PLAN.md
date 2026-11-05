@@ -168,6 +168,10 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 - An optional milestone on a habit (for example, 300 pages = 1 book) lets the forecast say "about 24 books".
 - A slider lets the user try other consistency rates, from 50% to 100%.
 
+**Peak hours:** the hour a habit is most often logged, from 5 or more same-day logs. Back-logs are left out, because they say when someone caught up, not when they did it.
+
+**Preemptive nudges:** at most one a day, so with the daily reminder nobody gets more than two. It goes to the habit most at risk (under 90% over the last 14 days), 30 minutes before its usual time, and at least an hour from the reminder. It's cancelled if the habit is logged first. Each nudge is recorded as helped or ignored, and a habit stops getting them after 3 ignored in a row. For now they're local notifications with text written on the phone, so they only plan ahead when the app is opened. Server-sent nudges need remote push, which needs a development build.
+
 ### Scope decisions
 
 - Expo gets the new UI first. Next.js is limited to the desktop 31-day grid and the weekly review.

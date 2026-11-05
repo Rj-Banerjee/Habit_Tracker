@@ -51,6 +51,12 @@ class FakeTracker:
     async def habits(self):
         return HABITS
 
+    async def identities(self):
+        return [{"name": "The Reader", "why_text": "Calmer evenings"}]
+
+    async def patterns(self):
+        return {"best_hours": [19, 7], "weak_weekdays": [2], "common_skip_reasons": ["Sick"]}
+
 
 @pytest.fixture
 def api(monkeypatch):
@@ -298,6 +304,150 @@ def test_an_action_is_recorded_as_a_coach_event(api):
     call = ToolCall("log_habit", {"habit": "h1", "confidence": "high"})
     chat_events(api, [call])
     assert app.state.db.events[0]["outcome"] == "acted"
+
+
+MISS = {
+    "messages": [{"role": "user", "text": "Run slipped. I was too tired."}],
+    "source": "miss_review",
+    "reason": "tired",
+}
+
+
+def test_a_miss_review_goes_straight_to_the_coach(api):
+    provider = use(FakeProvider(["Try a smaller run."]))
+    seen = events(api.post("/coach/chat", json=MISS))
+    assert seen[0]["text"] == "Try a smaller run."
+    assert len(provider.seen) == 1
+    assert "miss review" in provider.seen[0]["system"]
+
+
+def test_a_miss_review_keeps_the_reason_but_not_the_words(api):
+    use(FakeProvider(["ok"]))
+    api.post("/coach/chat", json=MISS)
+    event = app.state.db.events[0]
+    assert event["kind"] == "miss_review"
+    assert event["payload"]["reason"] == "tired"
+    assert "slipped" not in str(event)
+
+
+def test_a_reason_must_come_from_the_list(api):
+    use(FakeProvider(["ok"]))
+    assert api.post("/coach/chat", json={**MISS, "reason": "anything"}).status_code == 422
+
+
+LETTER = {"week_start": "2026-11-02", "wins": ["Read 3 days"], "mood": "Tired but good"}
+
+
+def test_the_letter_uses_their_real_details_and_the_stronger_model(api):
+    provider = use(FakeProvider(["Dear you,", " keep going."]))
+    seen = events(api.post("/coach/letter", json=LETTER))
+    assert seen[-1] == {"type": "done"}
+    call = provider.seen[0]
+    assert call["tier"].value == "strong"
+    for detail in ("Calmer evenings", "Read 3 days", "Tired but good", "Never invent"):
+        assert detail in call["system"]
+
+
+def test_the_letter_is_kept_to_read_again(api):
+    use(FakeProvider(["Dear you,", " keep going."]))
+    api.post("/coach/letter", json=LETTER)
+    event = app.state.db.events[0]
+    assert event["kind"] == "letter"
+    assert event["payload"] == {"week_start": "2026-11-02", "text": "Dear you, keep going."}
+
+
+def test_one_letter_a_week(api):
+    use(FakeProvider(["ok"]))
+    assert api.post("/coach/letter", json=LETTER).status_code == 200
+    response = api.post("/coach/letter", json=LETTER)
+    assert response.status_code == 429
+    assert "next week" in response.json()["message"]
+
+
+def test_a_failed_letter_saves_nothing(api):
+    use(FakeProvider(["Dear", Unavailable()]))
+    seen = events(api.post("/coach/letter", json=LETTER))
+    assert seen[-1]["type"] == "error"
+    assert app.state.db.events == []
+
+
+def test_the_letter_needs_a_test_account_on_a_free_tier(api):
+    provider = use(FakeProvider(["ok"]))
+    app.dependency_overrides[current_user] = lambda: CurrentUser("real-person", "token")
+    assert api.post("/coach/letter", json=LETTER).status_code == 403
+    assert provider.opened == 0
+
+
+def test_the_coach_sees_their_patterns(api):
+    provider = use(FakeProvider(["ok"]))
+    api.post("/coach/chat", json=ASK)
+    system = provider.seen[-1]["system"]
+    assert "19:00, 7:00" in system
+    assert "Tuesday" in system
+    assert "Sick" in system
+
+
+def test_spending_is_counted_per_person(api):
+    use(FakeProvider(["A reply."]))
+    api.post("/coach/chat", json=ASK)
+    assert app.state.db.spent["user:test-user:tokens"] > 0
+
+
+def test_voice_counts_toward_the_allowance_too(api):
+    use(FakeProvider(calls=[]))
+    api.post("/voice/parse", json={"transcript": "I read"})
+    assert app.state.db.spent["user:test-user:tokens"] > 0
+
+
+def test_a_used_allowance_stops_the_call_before_it_costs_anything(api):
+    provider = use(FakeProvider(["ok"]))
+    limited = get_settings().model_copy(update={"ai_user_daily_tokens": 10})
+    app.dependency_overrides[get_settings] = lambda: limited
+    app.state.db.spent["user:test-user:tokens"] = 10
+    response = api.post("/coach/chat", json=ASK)
+    assert response.status_code == 429
+    assert response.json()["code"] == "out_of_allowance"
+    assert "tomorrow" in response.json()["message"]
+    assert provider.opened == 0
+
+
+def test_the_allowance_covers_voice_and_letters(api):
+    provider = use(FakeProvider(["ok"]))
+    limited = get_settings().model_copy(update={"ai_user_daily_tokens": 10})
+    app.dependency_overrides[get_settings] = lambda: limited
+    app.state.db.spent["user:test-user:tokens"] = 10
+    assert api.post("/voice/parse", json={"transcript": "I read"}).status_code == 429
+    assert api.post("/coach/letter", json=LETTER).status_code == 429
+    assert provider.opened == 0
+
+
+def test_an_allowance_of_zero_is_off(api):
+    use(FakeProvider(["ok"]))
+    unlimited = get_settings().model_copy(update={"ai_user_daily_tokens": 0})
+    app.dependency_overrides[get_settings] = lambda: unlimited
+    app.state.db.spent["user:test-user:tokens"] = 10**9
+    assert api.post("/coach/chat", json=ASK).status_code == 200
+
+
+NUDGE = {"habit_id": "uuid-read", "date": "2026-11-02", "outcome": "logged"}
+
+
+def test_a_nudge_outcome_is_recorded(api):
+    assert api.post("/coach/nudge-outcome", json=NUDGE).status_code == 204
+    event = app.state.db.events[0]
+    assert (event["kind"], event["outcome"]) == ("nudge", "logged")
+    assert event["payload"]["habit_id"] == "uuid-read"
+
+
+def test_a_nudge_outcome_only_works_on_your_own_habits(api):
+    body = {**NUDGE, "habit_id": "someone-elses"}
+    assert api.post("/coach/nudge-outcome", json=body).status_code == 404
+    assert app.state.db.events == []
+
+
+def test_a_nudge_outcome_needs_no_test_account(api):
+    app.dependency_overrides[current_user] = lambda: CurrentUser("real-person", "token")
+    assert api.post("/coach/nudge-outcome", json=NUDGE).status_code == 204
 
 
 def test_the_last_turn_must_be_the_user(api):

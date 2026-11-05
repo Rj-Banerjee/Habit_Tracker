@@ -49,6 +49,7 @@ class FakeDb:
     def __init__(self):
         self.used: dict[str, int] = {}
         self.events: list[dict] = []
+        self.spent: dict[str, int] = {}
 
     async def take_slot(self, scope: str, limit: int, seconds: int) -> int:
         if limit <= 0:
@@ -57,6 +58,10 @@ class FakeDb:
             return seconds
         self.used[scope] = self.used.get(scope, 0) + 1
         return 0
+
+    async def spend(self, scope: str, amount: int, seconds: int) -> int:
+        self.spent[scope] = self.spent.get(scope, 0) + amount
+        return self.spent[scope]
 
     async def record_coach_event(self, user_id, kind, payload, outcome) -> None:
         self.events.append({"user": user_id, "kind": kind, "payload": payload, "outcome": outcome})

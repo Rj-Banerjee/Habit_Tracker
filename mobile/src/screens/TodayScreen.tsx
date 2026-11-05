@@ -1,5 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   cardDetail,
@@ -18,6 +18,7 @@ import {
   showYesterdayFirst,
   space,
   TodayRow,
+  VOICE_LINK,
 } from '@habit-tracker/core';
 import {
   Button,
@@ -30,8 +31,12 @@ import {
 } from '@habit-tracker/ui';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
+import { MissReview } from '../coach/MissReview';
+import { RuleCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
 import { useCoach } from '../hooks/useCoach';
+import { useNudges } from '../hooks/useNudges';
+import { useRuleCard } from '../hooks/useRuleCard';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
 import { checkOffTick } from '../services/haptics';
@@ -46,18 +51,21 @@ const SHEET_CLOSE_MS = 400;
 interface TodayScreenProps {
   onAddHabit: (title?: string) => void;
   onEditHabit: (habitId: string) => void;
+  onOpenReview: () => void;
 }
 
-export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
+export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScreenProps) {
   const { colors } = useTheme();
   const { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair } =
     useToday();
   const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
-  const [panel, setPanel] = useState<'coach' | 'voice' | null>(null);
+  const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
+  useNudges(rows, loading, refresh);
+  const ruleCard = useRuleCard(rows, repairs, loading);
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
@@ -76,6 +84,18 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
     onClose: () => setPanel(null),
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
   });
+
+  // The widget's voice button opens straight to the sheet.
+  useEffect(() => {
+    const opened = (url: string | null | undefined) => {
+      if (url === VOICE_LINK) setPanel('voice');
+    };
+    Linking.getInitialURL()
+      .then(opened)
+      .catch(() => {});
+    const links = Linking.addEventListener('url', ({ url }) => opened(url));
+    return () => links.remove();
+  }, []);
 
   const part = dayPart(new Date().getHours());
   const today = rows.filter((row) => row.is_today);
@@ -177,11 +197,19 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
           <CoachCard
             text={card.text}
             onPress={() => {
-              setPanel('coach');
-              void coach.send(card.prompt, 'card');
+              if (card.opens === 'sunday') {
+                onOpenReview();
+              } else if (card.opens === 'miss') {
+                setPanel('miss');
+              } else {
+                setPanel('coach');
+                void coach.send(card.prompt, 'card');
+              }
             }}
           />
         ) : null}
+
+        {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
 
         {message ? (
           <Text variant="small" muted accessibilityLiveRegion="polite">
@@ -253,6 +281,16 @@ export function TodayScreen({ onAddHabit, onEditHabit }: TodayScreenProps) {
           if (skipRow) skip(skipRow, reason);
           setSkipRow(null);
         }}
+      />
+      <MissReview
+        visible={panel === 'miss'}
+        repair={repairs[0] ?? null}
+        onChoose={(reason, label) => {
+          switchTo('coach', () =>
+            void coach.send(`${repairs[0]?.title} slipped. ${label}.`, 'miss_review', reason)
+          );
+        }}
+        onClose={() => setPanel(null)}
       />
       <VoiceSheet
         visible={panel === 'voice'}

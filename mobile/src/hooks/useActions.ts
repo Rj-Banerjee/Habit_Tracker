@@ -7,7 +7,7 @@ import {
   VoiceAction,
   VoiceUndo,
 } from '@habit-tracker/core';
-import { tracker } from '../services/tracker';
+import { offlineTracker } from '../services/logQueue';
 
 export type Actions = ReturnType<typeof useActions>;
 
@@ -16,7 +16,7 @@ export function useActions(rows: TodayRow[], refresh: () => Promise<unknown>) {
   const lastLogged = useRef<VoiceUndo[]>([]);
 
   const run = async (actions: VoiceAction[], source: LogSource) => {
-    const { say, undos } = await runVoiceActions(tracker, actions, rows, source);
+    const { say, undos } = await runVoiceActions(offlineTracker, actions, rows, source);
     if (undos.length > 0) lastLogged.current = undos;
     void refresh();
     return { say, canUndo: undos.length > 0 };
@@ -26,7 +26,7 @@ export function useActions(rows: TodayRow[], refresh: () => Promise<unknown>) {
   const undoLast = async (source: LogSource) => {
     const logged = lastLogged.current;
     if (logged.length === 0) return 'Nothing to undo.';
-    await undoActions(tracker, logged, source);
+    await undoActions(offlineTracker, logged, source);
     lastLogged.current = [];
     void refresh();
     return 'Undone.';

@@ -37,6 +37,18 @@ class ServiceDb:
             raise Unavailable("Counters aren't reachable") from error
         return response.json()
 
+    async def spend(self, scope: str, amount: int, seconds: int) -> int:
+        """Adds to a running total and returns it."""
+        try:
+            response = await self.client.post(
+                "/rpc/ai_spend",
+                json={"p_scope": scope, "p_amount": amount, "p_seconds": seconds},
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            raise Unavailable("Counters aren't reachable") from error
+        return response.json()
+
     async def record_coach_event(
         self, user_id: str, kind: str, payload: dict[str, Any], outcome: str
     ) -> None:

@@ -21,7 +21,9 @@ eas login
 eas init
 ```
 
-`eas init` adds a project ID to `app.json`. Commit that.
+`eas init` adds a project ID and owner to `app.json`. Commit that.
+
+The free Expo plan queues builds, so the first one can take a while. Only the native app is built: your code still loads from this Mac, so keep `npm run ai` and Expo running, and stay on the same Wi-Fi.
 
 ## Android
 
@@ -45,3 +47,14 @@ Needs the paid Apple account.
 3. For Expo Go, use `npx expo start --go -c` instead.
 
 You only rebuild when native code changes. App code still loads from your Mac.
+
+## Preview build
+
+The development build loads its JavaScript from this Mac. A widget has to run with the app closed, so testing one needs the preview build, which carries its code inside. It has the same app ID, so installing one replaces the other.
+
+```
+npx eas-cli build --platform android --profile preview
+```
+
+Its settings come from the `preview` environment on EAS, not `mobile/.env`. `EXPO_PUBLIC_AI_URL` there is this Mac's address, so if that changes, update it and rebuild. The coach also needs `npm run ai` running. Logging, Today and the widget don't.
+

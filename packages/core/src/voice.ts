@@ -1,4 +1,4 @@
-import { HabitLevel, LogSource, TodayRow, TrackerApi } from './api';
+import { HabitLevel, LogSource, TodayRow, TrackerApi, VoiceHabit } from './api';
 import { VoiceAction, VoiceIntent, VoiceOption, VoiceQuestion } from './ai';
 import { isLogged, levelTarget } from './todayModel';
 
@@ -35,6 +35,28 @@ export type ActionApi = Pick<TrackerApi, 'logHabit' | 'skipHabit' | 'undoLog' | 
 // Undo must work when the AI doesn't, so these never leave the phone.
 export const isUndoPhrase = (text: string) =>
   /^(please )?(undo|take (that|it) back)( that| it| the last one)?( please)?[.!]?$/i.test(text.trim());
+
+const SAID_IT = [
+  /^(?:i )?(?:did|finished|completed|done with|just did|just finished)(?: my| the)? (.+)$/,
+  /^(?:my |the )?(.+?) (?:is )?(?:done|finished|complete|completed|ho gaya|kar liya)$/,
+];
+
+// "done with Read" works with no connection and costs nothing. Only an exact name counts:
+// anything less goes to the parser, which can ask.
+export function matchSimplePhrase(text: string, habits: VoiceHabit[]): VoiceAction | null {
+  const said = text.trim().toLowerCase().replace(/[.!]$/, '');
+  for (const pattern of SAID_IT) {
+    const name = pattern.exec(said)?.[1];
+    if (!name) continue;
+    const found = habits.filter((habit) =>
+      [habit.title, ...habit.voice_aliases].some((option) => option.toLowerCase() === name)
+    );
+    if (found.length === 1) {
+      return { intent: 'log_habit', habit_id: found[0].id, habit_title: found[0].title };
+    }
+  }
+  return null;
+}
 
 const todayRow = (rows: TodayRow[], habitId: string) =>
   rows.find((row) => row.habit_id === habitId && row.is_today) ??

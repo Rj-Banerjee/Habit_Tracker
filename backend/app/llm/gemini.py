@@ -28,6 +28,9 @@ from .base import (
 # flash models can take over 40 seconds with default thinking, and under 4 with low.
 STALL_SECONDS = 25.0
 THINKING_LEVEL = "low"
+# Thinking spends from the same budget as the reply. Without this a letter stopped after
+# one sentence, so max_tokens here means the words people actually read.
+THINKING_ALLOWANCE = 1500
 
 BLOCKED_CODES = {"safety", "recitation", "prohibited_content", "spii", "blocklist", "content_blocked"}
 ROLES = {"user": "user_input", "assistant": "model_output"}
@@ -87,7 +90,10 @@ class GeminiProvider(LLMProvider):
             "input": to_input(messages),
             "system_instruction": system,
             "store": False,
-            "generation_config": {"max_output_tokens": max_tokens, "thinking_level": THINKING_LEVEL},
+            "generation_config": {
+                "max_output_tokens": max_tokens + THINKING_ALLOWANCE,
+                "thinking_level": THINKING_LEVEL,
+            },
         }
 
     async def stream_chat(

@@ -1049,3 +1049,113 @@ The Next.js app builds to plain files in `frontend/out/` with `output: 'export'`
 
 **Not checked:** a notification arriving on a real phone. This still needs the phone test.
 
+### Miss review, Sunday Review, Future-Self letter and Why card (2 Nov 2026)
+
+PLAN.md only names these, so the details below are decisions, not spec.
+
+**Changed**
+
+- Miss review: the coach card for a slip opens a sheet with the person's Why and four one-tap reasons, then the coach replies. `coach_events` keeps the reason as `miss_review`, not the words.
+- Sunday Review: a finished week's numbers, three wins and a mood line, saved to `reflections`, the same table as the web weekly review. It opens from a Sunday card and from Progress. On any day but Sunday it shows the last finished week.
+- Future-Self letter: one a week, from the person a year from now, using only their real data. It's kept in `coach_events`, unlike chats, so it can be read again.
+- Why card: shown in the miss review, and editable in You.
+- Gemini's thinking spends from the same budget as the reply, which cut a letter off after one sentence. The adapter now adds room on top, so a token limit means the words people read.
+
+**Checked**
+
+- 6 browser checks with real Gemini and made-up data, covering the miss review, the review and the letter surviving a reload. The screenshots were viewed. No migration was needed.
+
+**Not built from Phase 2:** preemptive nudges, peak hours, per-user AI cost limits, and a Sunday push. `why_image_url` isn't used.
+
+### Reminder cause found (2 Nov 2026)
+
+A terminal screenshot from the phone test settled it. On Android in Expo Go, `setNotificationChannelAsync` is rejected with a NullPointerException, and it ran before the permission request, so the prompt and the schedule were never reached. A public report describes the same failure in Expo Go. A failed channel no longer stops anything: the reminder carries on without a channel id, and Android uses Expo's fallback channel. A development build gets the real high-importance channel.
+
+### Peak hours, nudges and AI cost limits (2 Nov 2026)
+
+**Changed**
+
+- Peak hours and hard weekdays per habit show in Progress, and the coach now reads `user_patterns`, which nothing used before. `get_habit_days` adds the local hour of a same-day log.
+- Preemptive nudges follow the rules now in PLAN.md. They're local notifications, cancelled if the habit is logged first, and You can turn them off. Text is written on the phone, so they use no AI. The daily reminder and a nudge have separate ids, so neither can cancel the other.
+- A daily per-person allowance covers chat, voice and letters, estimated from text length so it works for any provider. It's checked before a call, and 0 turns it off. `AI_USER_DAILY_TOKENS` defaults to 100,000.
+
+**Checked**
+
+- Tests: core, mobile, AI service and database all pass. Progress was checked in a browser on seeded data.
+- Live push followed the usual procedure, and the +test account's history was re-seeded so its logs have realistic hours.
+
+**Not checked:** a nudge firing on a real phone. The allowance is an estimate and doesn't count Gemini's thinking.
+
+**Phase 2 is now complete, apart from the gate:** "Coach nudges lead to a log more often than plain reminders" needs real use to measure, and plain reminders aren't recorded yet.
+
+### Android widget (2 Nov 2026)
+
+**Changed**
+
+- `react-native-android-widget` adds a home-screen Today widget, offered for the lock screen on Android versions that support it. It shows progress and up to 4 habits, open ones first. A tap logs the full version or takes it back, with the app closed, as source `widget`. "Log by voice" opens straight to the voice sheet.
+- The app redraws it after each change, and Android refreshes it about every 30 minutes. Offline it shows the last list and says so.
+- The native module is only loaded outside Expo Go, because importing it there throws.
+- A `preview` build profile bundles the code inside the APK, because a widget runs with the app closed.
+
+**Checked:** unit tests and generating the Android project. **Not checked:** the widget on a real phone, which needs the build.
+
+**Not built:** an iPhone widget, which needs the paid Apple account, and lock-screen notification actions.
+
+**Blank widget, found on a real phone:** the layout used a React Fragment, which `react-native-android-widget` can't read, so the build threw in the background and nothing was drawn. The tests had replaced the library with a stand-in, so they couldn't see it. A new test builds every widget state with the library's real tree builder, and a failure now draws "Open the app to see your habits" rather than nothing.
+
+**Phone testing over adb (Realme RMX2189, Android 11):** first real-device checks by the agent. Confirmed: the widget draws, a tap logs with source `widget` and undo works, about 2 seconds warm and 5.5 from a frozen app, and the voice button opens the sheet. Found and fixed: Today stayed stale after a widget log because it only loaded on start, widget rows moved after a tap so a second tap could hit another habit, and bottom sheets sat under Android's navigation bar. A tap now shows at once and then confirms.
+
+### Offline logging and simple phrases (3 Nov 2026)
+
+**Changed**
+
+- With no connection, logs from taps, voice, the coach, the widget and notifications queue on the phone, show as done, and sync on the next load. Today falls back to its last list for the same day. A log the server refuses later, such as after the back-log window closes, is dropped and the person is told.
+- Plain phrases like "done with Read" match exact habit names on the phone, with no AI call. Anything less exact still goes to the parser, and two habits with the same name are never guessed between.
+
+**Not checked:** airplane mode on a real phone, because it would cut the wireless adb connection.
+
+**Not queued:** skips and repairs, which still need a connection.
+
+### Notification buttons from a closed app, voice tile and rule cards (3 Nov 2026)
+
+**Fixed**
+
+- Done and Smaller version did nothing when the app had been closed. Android gives a background task the data as a JSON string, and the handler only read the unpacked form, so it exited without a word. The earlier pass had come from the in-app listener, not the task. Both forms are now read, a tap reaches the log once when both paths get it, and a button with no habit leaves a warning.
+- A reminder tapped offline, before the app had opened that day, was lost because it had no date. It now queues for today.
+
+**Added**
+
+- An Android Quick Settings tile, "Log by voice", which opens the voice sheet.
+- A card on Today the first time each streak rule comes up: Grace Day, repair, skip and back-log. One shows at a time, once each, remembered per device.
+- 154 held-out voice phrases, 217 in all. They're never tuned against.
+
+**Voice score:** 150 of 154 held out (97%), and 212 of 217 (98%) overall. Three of the four misses acted without asking. The harmful one, "on do gym" logging instead of undoing, is fixed and now asks first. These phrases are typed, not recorded, so the Phase 3 gate still needs real speech. Details are in `docs/voice-accuracy.md`.
+
+**Checked on the phone:** Smaller version with the app killed logged the minimum, source `notification`, in about 4 seconds. Done with the app alive in the background made one `log_habit` call and cleared the notification.
+
+**Tile and rule cards on the phone:** a real tap on the tile started the closed app and opened the voice sheet. The Grace Day card showed, Got it brought up the next card, and the Grace Day card stayed gone after a restart. `cmd statusbar click-tile` did nothing on this phone, so it can't stand in for a tap. The phone test found the back-log card counting skipped and repaired days as forgotten, which is now fixed, with that fix covered by unit tests only.
+
+**Not checked:** the tile from a locked phone.
+
+**Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
+
+**Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision.
+
+### Phone builds reach the AI service, and Realtime sync (5 Nov 2026)
+
+**Fixed**
+
+- Coach and voice failed on the preview build with "Coach isn't available right now". Release builds block plain `http`, and the AI service on the laptop is plain `http`. A config plugin now allows `http` to the one `EXPO_PUBLIC_AI_URL` host and adds nothing when that URL is `https`. Checked on the phone: a typed phrase got the AI's reply.
+- Holding the mic and saying nothing now says "I didn't hear anything" instead of going quiet. Checked on the phone.
+- Four streak tests started failing on 5 Nov. Writing Shrink levels directly stamps a settings version with the real date, and those tests ask about 2 to 4 Nov. A test helper now makes those settings cover the habit's whole life. App code is unchanged, because `create_habit` always starts a habit on the day it's made.
+
+**Added**
+
+- Realtime sync. A log from any device shows on an open Today screen, the widget and the web grid without a reload. The apps listen to `activity_events`, not `habit_logs`: Realtime checks inserts against the owner-only policy but sends deletes without it, which would show other people a row id. A burst of changes reloads once.
+- Migration `20261105000000_realtime_activity.sql` adds `activity_events` to the Realtime publication, with tests that it is the only public table there and keeps RLS on.
+
+**Found while testing:** supabase-js hands Realtime the sign-in token without waiting, so a channel opened just after sign-in joined as nobody and heard nothing. The token is now set before joining. Refreshed tokens still reach Realtime through supabase-js.
+
+**Checked live:** the migration pushed after the dry run listed only that file. Two temporary users were made: the first got one reload for its log, the second got none, and the second could read none of the first user's activity or habits with the publishable key. Both users were deleted. The security advisor shows nothing new.
+
+**Not checked:** Realtime on the phone, which needs the next build and a log from a second device.

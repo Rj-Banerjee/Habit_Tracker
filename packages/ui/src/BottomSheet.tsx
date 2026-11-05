@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from './ThemeProvider';
 import { radius, space } from '@habit-tracker/core';
 import { Text } from './Text';
+
+// How much of the screen's bottom edge is covered, such as Android's navigation bar. Apps
+// that draw edge to edge provide it.
+export const SheetInsetContext = createContext(0);
 
 interface BottomSheetProps {
   visible: boolean;
@@ -13,6 +17,7 @@ interface BottomSheetProps {
 
 export function BottomSheet({ visible, title, onClose, children }: BottomSheetProps) {
   const { colors } = useTheme();
+  const bottomInset = useContext(SheetInsetContext);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -25,7 +30,16 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
           accessibilityRole="button"
           accessibilityLabel="Close"
         />
-        <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: space.xl + bottomInset,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <Text variant="title" accessibilityRole="header">
             {title}
           </Text>

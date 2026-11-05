@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     # What one person can use.
     ai_user_chats_per_hour: int = 20
     ai_user_voice_per_hour: int = 60
+    # An estimate of tokens across everything one person uses in a day. 0 turns it off.
+    ai_user_daily_tokens: int = 100000
 
     # What the whole service may send, kept under the provider's own limits so
     # we can say "busy" without spending quota. 0 turns a check off.

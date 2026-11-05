@@ -1,0 +1,1069 @@
+{
+  "phrases": [
+    {
+      "group": "plan_examples",
+      "heard": "Read 15 pages",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "plan_examples",
+      "heard": "Did the minimum version of my run",
+      "expect": [
+        "shrink_habit:run"
+      ]
+    },
+    {
+      "group": "plan_examples",
+      "heard": "Skip meditation today, I'm sick",
+      "expect": [
+        "skip_habit:meditate"
+      ]
+    },
+    {
+      "group": "plan_examples",
+      "heard": "Undo that",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "just got back from the gym",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "gym is done for today",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "hit the gym this morning",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "I worked out",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "finished my workout",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "went for my morning run",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "morning run done",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "I went jogging before breakfast",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "completed my jog",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "I meditated",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "just finished meditating",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "meditation is done",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "took my evening walk",
+      "expect": [
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "back from my walk",
+      "expect": [
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "evening walk finished",
+      "expect": [
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "studied for the exam",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "I finished studying",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "study session is over",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "read my book",
+      "expect": [
+        "log_habit:read"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "I finished reading for today",
+      "expect": [
+        "log_habit:read"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "I got through some of my novel",
+      "expect": [
+        "log_habit:read"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "mark gym as done",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "tick off study",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "plain_log",
+      "heard": "check off my morning run",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "read twenty pages",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "I read 30 pages of my book",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "finished 12 pages",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "read five pages before bed",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "got through forty pages tonight",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "I read 8 pages of the novel",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "drank 3 glasses of water",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "had four glasses of water",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "two glasses of water",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "I've had 6 glasses so far",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "log 5 glasses of water",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "water, one glass",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "amount",
+      "heard": "eight glasses of water today",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "just the small version of gym",
+      "expect": [
+        "shrink_habit:gym"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "only did a little reading",
+      "expect": [
+        "shrink_habit:read"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "did the short version of my run",
+      "expect": [
+        "shrink_habit:run"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "minimum version of study today",
+      "expect": [
+        "shrink_habit:study"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "I only did the minimum at the gym",
+      "expect": [
+        "shrink_habit:gym"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "a quick version of meditate",
+      "expect": [
+        "shrink_habit:meditate"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "just a tiny walk tonight",
+      "expect": [
+        "shrink_habit:walk"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "do the minimum for reading",
+      "expect": [
+        "shrink_habit:read"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "small version of meditation",
+      "expect": [
+        "shrink_habit:meditate"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "smaller version of my evening walk",
+      "expect": [
+        "shrink_habit:walk"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "I only managed the minimum on my run",
+      "expect": [
+        "shrink_habit:run"
+      ]
+    },
+    {
+      "group": "shrink",
+      "heard": "barely studied, count it as the minimum",
+      "expect": [
+        "shrink_habit:study"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skip gym today",
+      "expect": [
+        "skip_habit:gym"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skipping my run, my knee hurts",
+      "expect": [
+        "skip_habit:run"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skip reading tonight",
+      "expect": [
+        "skip_habit:read"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "not doing the gym today, I'm travelling",
+      "expect": [
+        "skip_habit:gym"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "I'm skipping study, exam got cancelled",
+      "expect": [
+        "skip_habit:study"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "no walk today, it's raining",
+      "expect": [
+        "skip_habit:walk"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skip my evening walk",
+      "expect": [
+        "skip_habit:walk"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "I can't meditate today, skip it",
+      "expect": [
+        "skip_habit:meditate"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skip the run, it's raining",
+      "expect": [
+        "skip_habit:run"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "taking a rest day from gym",
+      "expect": [
+        "skip_habit:gym"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skip water today",
+      "expect": [
+        "skip_habit:water"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "skip study today I have a fever",
+      "expect": [
+        "skip_habit:study"
+      ]
+    },
+    {
+      "group": "skip",
+      "heard": "I'm too tired, skip reading",
+      "expect": [
+        "skip_habit:read"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "undo",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "undo the last one",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "take that back",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "that was a mistake, undo it",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "cancel the last log",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "remove the last entry",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "undo gym",
+      "expect": [
+        "undo_habit:gym"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "undo my run",
+      "expect": [
+        "undo_habit:run"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "I didn't actually read, undo it",
+      "expect": [
+        "undo_habit:read"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "take back meditate",
+      "expect": [
+        "undo_habit:meditate"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "remove my evening walk log",
+      "expect": [
+        "undo_habit:walk"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "undo study",
+      "expect": [
+        "undo_habit:study"
+      ]
+    },
+    {
+      "group": "undo",
+      "heard": "cancel the gym log",
+      "expect": [
+        "undo_habit:gym"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "I did gym and study",
+      "expect": [
+        "log_habit:gym",
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "finished my run and meditated",
+      "expect": [
+        "log_habit:run",
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "read and meditated this morning",
+      "expect": [
+        "log_habit:read",
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "gym done, walk done",
+      "expect": [
+        "log_habit:gym",
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "skip gym and skip my run",
+      "expect": [
+        "skip_habit:gym",
+        "skip_habit:run"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "I went for my walk and read 10 pages",
+      "expect": [
+        "log_amount:read",
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "several",
+      "heard": "meditated, then studied",
+      "expect": [
+        "log_habit:meditate",
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "why do I keep skipping gym",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "how can I read more consistently",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "what should I focus on this week",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "how am I doing",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "give me advice on my morning routine",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "should I make my run easier",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "coach",
+      "heard": "can you help me stop missing study",
+      "expect": [
+        "ask_coach"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "aaj gym kar liya",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "run kar liya subah",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "meditation ho gayi",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "padhai ho gayi",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "padhai kar li aaj",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "walk kar ke aaya",
+      "expect": [
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "book padh li",
+      "expect": [
+        "log_habit:read"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "do glass paani piya",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "teen glass paani pi liya",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "bees pages padhe",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "das pages padh liye",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "aaj gym skip kar do",
+      "expect": [
+        "skip_habit:gym"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "aaj run nahi hoga, skip karo",
+      "expect": [
+        "skip_habit:run"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "meditation skip kar do",
+      "expect": [
+        "skip_habit:meditate"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "padhai aaj nahi, skip",
+      "expect": [
+        "skip_habit:study"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "aaj sirf thoda sa padha",
+      "expect": [
+        "shrink_habit:read"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "gym ka chhota version kiya",
+      "expect": [
+        "shrink_habit:gym"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "undo kar do",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "galti se ho gaya, hata do",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "hinglish",
+      "heard": "gym wala hata do",
+      "expect": [
+        "undo_habit:gym"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "मैंने जिम कर लिया",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "आज दौड़ लगा ली",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "ध्यान कर लिया",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "पढ़ाई हो गई",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "शाम की सैर हो गई",
+      "expect": [
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "बीस पन्ने पढ़े",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "तीन गिलास पानी पिया",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "आज जिम छोड़ दो",
+      "expect": [
+        "skip_habit:gym"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "आखिरी वाला हटा दो",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "hindi",
+      "heard": "आज ध्यान नहीं होगा, मैं बीमार हूँ",
+      "expect": [
+        "skip_habit:meditate"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "jim done",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "Jim is done for today",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "I did my wok out",
+      "expect": [
+        "log_habit:gym"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "morning ran done",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "I finished my morning rum",
+      "expect": [
+        "log_habit:run"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "meditated tate done",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "I study done",
+      "expect": [
+        "log_habit:study"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "evening wok done",
+      "expect": [
+        "log_habit:walk"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "I read twenty pagers",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "drink water three classes",
+      "expect": [
+        "log_amount:water"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "skip jim today",
+      "expect": [
+        "skip_habit:gym"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "skip the morning rum",
+      "expect": [
+        "skip_habit:run"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "and do that last one",
+      "expect": [
+        "undo_last"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "reed fifteen pages",
+      "expect": [
+        "log_amount:read"
+      ]
+    },
+    {
+      "group": "misheard",
+      "heard": "meditation dun",
+      "expect": [
+        "log_habit:meditate"
+      ]
+    },
+    {
+      "group": "which",
+      "heard": "I did my cardio",
+      "expect": [
+        "ask_which"
+      ]
+    },
+    {
+      "group": "which",
+      "heard": "finished my evening and morning thing, one of them",
+      "expect": [
+        "ask_which"
+      ]
+    },
+    {
+      "group": "no_habit",
+      "heard": "I did my yoga session",
+      "expect": [],
+      "level": "no_habit"
+    },
+    {
+      "group": "no_habit",
+      "heard": "finished piano practice",
+      "expect": [],
+      "level": "no_habit"
+    },
+    {
+      "group": "no_habit",
+      "heard": "went cycling this morning",
+      "expect": [],
+      "level": "no_habit"
+    },
+    {
+      "group": "no_habit",
+      "heard": "skip dance class today",
+      "expect": [],
+      "level": "no_habit"
+    },
+    {
+      "group": "no_habit",
+      "heard": "journaling ho gaya",
+      "expect": [],
+      "level": "no_habit"
+    },
+    {
+      "group": "no_habit",
+      "heard": "I cooked dinner as my habit",
+      "expect": [],
+      "level": "no_habit"
+    },
+    {
+      "group": "off_topic",
+      "heard": "what time is it in London",
+      "expect": [],
+      "level": "off_topic"
+    },
+    {
+      "group": "off_topic",
+      "heard": "the bus was late again",
+      "expect": [],
+      "level": "off_topic"
+    },
+    {
+      "group": "off_topic",
+      "heard": "call my mother",
+      "expect": [],
+      "level": "off_topic"
+    },
+    {
+      "group": "off_topic",
+      "heard": "play some music",
+      "expect": [],
+      "level": "off_topic"
+    },
+    {
+      "group": "off_topic",
+      "heard": "I love this song",
+      "expect": [],
+      "level": "off_topic"
+    },
+    {
+      "group": "off_topic",
+      "heard": "my phone battery is low",
+      "expect": [],
+      "level": "off_topic"
+    },
+    {
+      "group": "off_topic",
+      "heard": "order a pizza",
+      "expect": [],
+      "level": "off_topic"
+    }
+  ]
+}

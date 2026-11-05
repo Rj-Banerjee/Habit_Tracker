@@ -23,6 +23,17 @@ To repeat it, from `backend/`:
 
 **Latest run, 2 Nov 2026:** 62 of 63 (98%) with 0 wrong actions. It adds 17 phrases: undo by name (6 of 6), skip and shrink by name (5 of 5), a habit that doesn't exist (5 of 5), and off-topic (4 of 4). The table above is the first measurement, kept for the before and after.
 
+**Held-out run, 3 Nov 2026:** 150 of 154 (97%) on phrases written before scoring and not tuned against, with `backend/tests/voice_phrases_heldout.json`. With the 63 above, that's 212 of 217 (98%), which passes PLAN.md's 95% bar on typed phrases. 13 phrases hit a model outage on the first pass and were rerun, so those were scored later on the same model.
+
+| Held-out miss | Heard as | Why it matters |
+| --- | --- | --- |
+| "on do gym" | Log Gym, without asking | The harmful one: it did the opposite. Fixed, so it now suggests undo and asks. Moved to the tuned set, leaving 153 held out |
+| "aaj sirf thoda sa padha" | Shrink Study, without asking | Expected Read. "Padha" fits both, so it should have asked which |
+| "I got through some of my novel" | Shrink Read, without asking | Right habit. Expected a full log, and the shrink is a fair reading |
+| "I did my cardio" | Offered to create a habit | Safe. Expected "which habit?" |
+
+After the fix, 9 of the 10 undo-by-name phrases pass with the live model. The miss is "and do my evening walk today please", which offers to log the walk but asks first.
+
 - **The miss:** "medication done" for Meditate. It's a real word that sounds different, so it falls through to "didn't match", which is the safe way to fail.
 - **Treat 98% with care.** I wrote these phrases and tuned the matcher against them, so a fresh set will score lower. PLAN.md's bar is 95% on 200+ real phrases, and that needs recordings of real speech.
 - **Why the total hid the problem.** The first version scored 91% too, but one of its errors logged Read for "I bought a red car". Count wrong actions, not only the total.

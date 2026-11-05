@@ -7,6 +7,7 @@ import {
   heardLine,
   isUndoPhrase,
   isVoiceAction,
+  matchSimplePhrase,
   noHabitMessage,
   OFF_TOPIC_MESSAGE,
   runVoiceAction,
@@ -192,6 +193,42 @@ describe('describeIntents', () => {
         { intent: 'log_habit', habit_id: 'h2', habit_title: 'Run' },
       ])
     ).toBe('Log Read and Log Run');
+  });
+});
+
+describe('matchSimplePhrase', () => {
+  const habits = [
+    { id: 'h1', title: 'Read', voice_aliases: ['book'] },
+    { id: 'h2', title: 'Morning run', voice_aliases: ['jog'] },
+    { id: 'h3', title: 'Evening jog', voice_aliases: ['jog'] },
+  ];
+
+  it.each([
+    ['done with Read', 'h1'],
+    ['I did my book', 'h1'],
+    ['finished the morning run', 'h2'],
+    ['Read done', 'h1'],
+    ['read ho gaya', 'h1'],
+    ['Morning run is done.', 'h2'],
+    ['I finished read', 'h1'],
+  ])('hears %s', (text, id) => {
+    expect(matchSimplePhrase(text, habits)?.habit_id).toBe(id);
+  });
+
+  it.each([
+    'I read 20 pages',
+    'why did I skip read',
+    'undo the read',
+    'skip read',
+    'I did yoga',
+    'read',
+    'just the minimum for read',
+  ])('leaves %s to the parser', (text) => {
+    expect(matchSimplePhrase(text, habits)).toBeNull();
+  });
+
+  it('never guesses between two habits with the same name', () => {
+    expect(matchSimplePhrase('I did my jog', habits)).toBeNull();
   });
 });
 

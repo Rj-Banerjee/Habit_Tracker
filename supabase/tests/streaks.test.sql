@@ -44,6 +44,13 @@ returns void language sql as $$
   where tracker.is_scheduled(t.h(n), g::date);
 $$;
 
+-- Writing to habit_levels directly stamps the change with the real clock, but these
+-- tests run on fixed dates. This makes a habit's current settings cover its whole life,
+-- as settings saved when a habit is created do.
+create function t.pin(n int) returns void language sql as $$
+  select tracker.record_habit_version(t.h(n), '2000-01-01 12:00+00');
+$$;
+
 create function t.skip(n int, d date, why text default 'sick') returns void language sql as
   $$ insert into public.habit_logs (habit_id, date, status, skip_reason) values (t.h(n), d, 'skipped', why) $$;
 
@@ -425,6 +432,7 @@ select is(t.streak(33, '2026-11-04', t.noon(31, '2026-11-04')), 3, 'one repair f
 select t.make_user(32);
 select t.make_habit(34, 32, '2026-11-02', '{1,2,3,4,5,6,7}', 'duration', 20);
 insert into public.habit_levels (habit_id, level, description, target) values (t.h(34), 'full', 'Long run', 30);
+select t.pin(34);
 select t.done(34, '2026-11-02', '2026-11-02');
 select throws_like(
   $$ select tracker.repair_habit(t.u(32), t.h(34), '2026-11-04', 30, false, 'tap', t.noon(32, '2026-11-04')) $$,
@@ -888,7 +896,7 @@ select lives_ok(
 );
 select is((select title from public.habits h join public.identities i on i.id = h.identity_id where i.user_id = t.u(85)), 'Run', 'its name is tidied');
 select is(
-  (select count(*)::int from tracker.habit_versions v join public.habits h on h.id = v.habit_id join public.identities i on i.id = h.identity_id where i.user_id = t.u(85)),
+  (select count(distinct (v.schedule_days, v.target, v.unit, v.levels))::int from tracker.habit_versions v join public.habits h on h.id = v.habit_id join public.identities i on i.id = h.identity_id where i.user_id = t.u(85)),
   1, 'settings made on creation are one version, not a change'
 );
 select is(
@@ -941,6 +949,7 @@ select throws_like(
 select t.make_user(87);
 select t.make_habit(97, 87, '2020-01-06', '{1}', 'count', 10);
 insert into public.habit_levels (habit_id, level, description, target) values (t.h(97), 'full', 'Ten', 10), (t.h(97), 'minimum', 'One', 1);
+select t.pin(97);
 select tracker.update_habit(t.u(87), t.h(97), '{"title":"New name","target":20,"levels":[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]}', now());
 select is((select title from public.habits where id = t.h(97)), 'New name', 'a habit can be edited');
 select is(tracker.target_on(t.h(97), tracker.local_date(t.u(87), now())), 20::numeric, 'the new target applies today');
@@ -953,6 +962,7 @@ select is(
 select t.make_user(88);
 select t.make_habit(98, 88, '2026-11-02', '{1,4}', 'count', 10);
 insert into public.habit_levels (habit_id, level, description, target) values (t.h(98), 'full', 'Ten', 10), (t.h(98), 'minimum', 'One', 1);
+select t.pin(98);
 update public.habits set unit = 'pages', milestone_amount = 300, milestone_label = 'book', voice_aliases = '{book}' where id = t.h(98);
 select tracker.update_habit(t.u(88), t.h(98), '{"title":"Renamed"}', now());
 select is(
@@ -992,11 +1002,15 @@ select throws_like(
 select t.make_user(91);
 select t.make_habit(191, 91, '2026-10-05', '{1,4}', 'count', 10);
 insert into public.habit_levels (habit_id, level, description, target) values (t.h(191), 'full', 'Ten', 10), (t.h(191), 'minimum', 'One', 1);
+select t.pin(191);
 select tracker.log_habit(t.u(91), t.h(191), '2026-10-05', 'minimum', 3, 'tap', t.noon(91, '2026-10-05'));
 insert into tracker.habit_versions (habit_id, effective_from, schedule_days, target, unit, levels)
 values (t.h(191), '2026-10-10', '{1,4}', 20, null, '[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Two","target":2}]');
 select set_config('request.jwt.claims', json_build_object('sub', t.u(91), 'role', 'authenticated')::text, true);
 select is(jsonb_array_length(public.get_habit_days('2026-10-05', '2026-10-12')), 3, 'only scheduled days come back');
+select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'logged_hour')::int, 12, 'with the local hour it was logged');
+select tracker.log_habit(t.u(91), t.h(191), '2026-10-08', 'full', 10, 'tap', t.noon(91, '2026-10-09'));
+select is(public.get_habit_days('2026-10-05', '2026-10-12') -> 1 ->> 'logged_hour', null, 'a back-log has no hour, because it says nothing about when it was done');
 select is(public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'level_done', 'minimum', 'with the level done');
 select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 0 ->> 'amount')::numeric, 3::numeric, 'and the amount');
 select is((public.get_habit_days('2026-10-05', '2026-10-12') -> 1 ->> 'target')::numeric, 10::numeric, 'with the target that applied before an edit');
@@ -1037,6 +1051,7 @@ select is(
 select t.make_user(89);
 select t.make_habit(99, 89, '2026-11-02');
 insert into public.habit_levels (habit_id, level, description) values (t.h(99), 'full', 'All'), (t.h(99), 'minimum', 'Some');
+select t.pin(99);
 select t.done(99, '2026-11-02', '2026-11-05');
 insert into public.identities (id, user_id, name) values ('cccccccc-0000-4000-8000-000000000089', t.u(89), 'Second');
 select tracker.settle(t.u(89), t.noon(89, '2026-11-05'));
@@ -1083,6 +1098,7 @@ insert into public.habit_levels (habit_id, level, description) values
   (t.h(60), 'full', 'Run 5 km'),
   (t.h(60), 'minimum', 'Run 1 km'),
   (t.h(60), 'setup', 'Put on shoes');
+select t.pin(60);
 select t.done(60, '2026-11-02', '2026-11-02', 'minimum');
 select t.done(62, '2026-11-03', '2026-11-03');
 

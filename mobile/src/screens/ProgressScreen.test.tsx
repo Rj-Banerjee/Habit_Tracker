@@ -49,6 +49,7 @@ const days: ProgressDay[] = Array.from({ length: 20 }, (_, index) => ({
   level_done: index === 3 ? null : 'full',
   amount: index === 3 ? null : 20,
   target: 20,
+  logged_hour: index === 3 ? null : 19,
 }));
 
 const open = async (active = true) => {
@@ -60,7 +61,7 @@ const open = async (active = true) => {
       }}
     >
       <ThemeProvider forced="light">
-        <ProgressScreen active={active} />
+        <ProgressScreen active={active} onOpenReview={jest.fn()} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -112,6 +113,11 @@ describe('ProgressScreen', () => {
   it('describes the heatmap in words for a screen reader', async () => {
     await open();
     expect(screen.getByLabelText(/In the last year: .*1 repaired.*1 not done/)).toBeTruthy();
+  });
+
+  it('shows the time they usually do it', async () => {
+    await open();
+    expect(screen.getByText('You usually do Read around 7pm.')).toBeTruthy();
   });
 
   it('switches habit', async () => {

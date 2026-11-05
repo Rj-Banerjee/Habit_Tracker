@@ -1,18 +1,26 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { TodayRow } from '@habit-tracker/core';
+import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
+import { watchMyActivity } from '../services/live';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
+jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
 jest.mock('../services/tracker', () => ({
   tracker: {
-    listVoiceNames: jest.fn(() => Promise.resolve([])),
+    listVoiceHabits: jest.fn(() => Promise.resolve([])),
     getToday: jest.fn(),
     getRepairs: jest.fn(() => Promise.resolve([])),
     logHabit: jest.fn(() => Promise.resolve()),
@@ -65,7 +73,7 @@ const open = async (rows: TodayRow[]) => {
       }}
     >
       <ThemeProvider forced="light">
-        <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} />
+        <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} onOpenReview={jest.fn()} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
@@ -73,6 +81,37 @@ const open = async (rows: TodayRow[]) => {
 };
 
 describe('TodayScreen', () => {
+  it('reloads when the app comes back, so a widget log shows up', async () => {
+    const listeners: ((state: string) => void)[] = [];
+    (AppState.addEventListener as jest.Mock).mockImplementationOnce((_, listener) => {
+      listeners.push(listener);
+      return { remove: jest.fn() };
+    });
+    await open([row()]);
+    api.getToday.mockClear();
+    await act(async () => listeners[0]('background'));
+    expect(api.getToday).not.toHaveBeenCalled();
+    await act(async () => listeners[0]('active'));
+    expect(api.getToday).toHaveBeenCalled();
+  });
+
+  it('reloads while open when a log happens on another device', async () => {
+    await open([row()]);
+    api.getToday.mockClear();
+    api.getToday.mockResolvedValue([row({ status: 'done', level_done: 'full' })]);
+    const [onChange] = (watchMyActivity as jest.Mock).mock.calls.at(-1);
+    await act(async () => onChange());
+    expect(api.getToday).toHaveBeenCalled();
+  });
+
+  it('stops listening when Today goes away', async () => {
+    const stop = jest.fn();
+    (watchMyActivity as jest.Mock).mockReturnValueOnce(stop);
+    await open([row()]);
+    await act(async () => screen.unmount());
+    expect(stop).toHaveBeenCalled();
+  });
+
   beforeEach(() => jest.clearAllMocks());
 
   it('groups habits by identity', async () => {
@@ -87,20 +126,20 @@ describe('TodayScreen', () => {
   it('logs the full version with one tap', async () => {
     await open([row()]);
     await fireEvent.press(screen.getByRole('button', { name: /^Run/ }));
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
   });
 
   it('undoes with a tap on a logged habit', async () => {
     await open([row({ status: 'done', level_done: 'full' })]);
     await fireEvent.press(screen.getByRole('button', { name: /^Run/ }));
-    expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-03');
+    expect(api.undoLog).toHaveBeenCalledWith('h1', '2026-11-03', 'tap');
   });
 
   it('opens the Shrink sheet on long press and logs the chosen level', async () => {
     await open([row()]);
     await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
     await fireEvent.press(screen.getByRole('button', { name: 'Minimum version, Run 1 km' }));
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'minimum', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'minimum', null, 'tap');
   });
 
   it('offers a repair only when the server says it can happen', async () => {
@@ -141,7 +180,7 @@ describe('TodayScreen', () => {
     await open([row(), row({ day: '2026-11-02', is_today: false })]);
     expect(screen.getByText('Still open from yesterday')).toBeTruthy();
     await fireEvent.press(screen.getAllByRole('button', { name: /^Run/ })[1]);
-    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null);
+    expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null, 'tap');
     afternoon.mockRestore();
   });
 
@@ -209,7 +248,7 @@ describe('TodayScreen', () => {
         }}
       >
         <ThemeProvider forced="light">
-          <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} />
+          <TodayScreen onAddHabit={jest.fn()} onEditHabit={jest.fn()} onOpenReview={jest.fn()} />
         </ThemeProvider>
       </SafeAreaProvider>
     );
@@ -226,5 +265,18 @@ describe('TodayScreen', () => {
     await open([row({ status: 'missed', current_streak: 0 })]);
     expect(screen.queryByText(/fail|broke|lost/i)).toBeNull();
     expect(screen.queryByText('0')).toBeNull();
+  });
+
+  it('explains a rule the first time it comes up, and only once', async () => {
+    const skipped = [row({ status: 'skipped', skip_reason: 'Sick' })];
+    await open(skipped);
+    expect(screen.getByText(RULE_CARDS.skip)).toBeTruthy();
+
+    await act(async () => fireEvent.press(screen.getByLabelText('Got it')));
+    expect(screen.queryByText(RULE_CARDS.skip)).toBeNull();
+
+    await screen.unmount();
+    await open(skipped);
+    expect(screen.queryByText(RULE_CARDS.skip)).toBeNull();
   });
 });

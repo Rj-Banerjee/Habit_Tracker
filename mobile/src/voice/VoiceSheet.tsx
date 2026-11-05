@@ -38,6 +38,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
   const [speech] = useState(speechInput);
   const [listening, setListening] = useState(false);
   const [micRefused, setMicRefused] = useState(false);
+  const [heardNothing, setHeardNothing] = useState(false);
   const [language, setLanguage] = useState<VoiceLanguage>('en-IN');
 
   const close = () => {
@@ -53,6 +54,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
   const startTalking = async () => {
     if (!speech) return;
     setMicRefused(false);
+    setHeardNothing(false);
     let heard = '';
     const hints = [...VOICE_COMMAND_WORDS, ...voice.names];
     const started = await speech.start(
@@ -64,6 +66,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
       () => {
         setListening(false);
         if (heard.trim()) send(heard);
+        else setHeardNothing(true);
       }
     );
     if (started) setListening(true);
@@ -175,7 +178,9 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
             message={
               micRefused
                 ? 'Microphone access is off. You can still type it.'
-                : (voice.problem ?? undefined)
+                : heardNothing
+                  ? "I didn't hear anything. Keep holding while you talk."
+                  : (voice.problem ?? undefined)
             }
           />
         </>

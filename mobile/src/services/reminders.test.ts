@@ -12,7 +12,7 @@ jest.mock('expo-notifications', () => ({
   requestPermissionsAsync: jest.fn(),
   scheduleNotificationAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(),
-  cancelAllScheduledNotificationsAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
   setNotificationChannelAsync: jest.fn(),
   setNotificationHandler: jest.fn(),
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
@@ -28,13 +28,16 @@ describe('reminders', () => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
     api.getPermissionsAsync.mockResolvedValue({ granted: true, canAskAgain: true } as never);
     api.requestPermissionsAsync.mockResolvedValue({ granted: true, canAskAgain: true } as never);
-    api.getAllScheduledNotificationsAsync.mockResolvedValue([{}] as never);
+    api.getAllScheduledNotificationsAsync.mockResolvedValue([
+      { identifier: 'daily-reminder' },
+    ] as never);
     api.scheduleNotificationAsync.mockResolvedValue('id');
+    api.setNotificationChannelAsync.mockReset();
   });
 
   it('replaces any earlier reminder with a daily one', async () => {
     await expect(setDailyReminder('07:30')).resolves.toEqual({ status: 'set' });
-    expect(api.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+    expect(api.cancelScheduledNotificationAsync).toHaveBeenCalledWith('daily-reminder');
     expect(api.scheduleNotificationAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         trigger: expect.objectContaining({ type: 'daily', hour: 7, minute: 30 }),
@@ -69,6 +72,29 @@ describe('reminders', () => {
     );
   });
 
+  it('carries on when the channel fails, as it does in Expo Go on Android', async () => {
+    api.setNotificationChannelAsync.mockRejectedValue(new Error('NullPointerException'));
+    api.getPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: true } as never);
+    await expect(setDailyReminder('07:30')).resolves.toEqual({ status: 'set' });
+    expect(api.requestPermissionsAsync).toHaveBeenCalled();
+    const { trigger } = api.scheduleNotificationAsync.mock.calls[0][0];
+    expect(trigger).toMatchObject({ hour: 7, minute: 30 });
+    expect((trigger as { channelId?: string }).channelId).toBeUndefined();
+  });
+
+  it('sends a test even when the channel fails', async () => {
+    api.setNotificationChannelAsync.mockRejectedValue(new Error('NullPointerException'));
+    await expect(sendTestReminder()).resolves.toEqual({ status: 'set' });
+  });
+
+  it('uses its own channel when it can', async () => {
+    await setDailyReminder('07:30');
+    const { trigger } = api.scheduleNotificationAsync.mock.calls[0][0];
+    expect((trigger as { channelId?: string }).channelId).toBe(
+      onAndroid ? 'daily-reminder-high' : undefined
+    );
+  });
+
   it('schedules nothing when refused', async () => {
     api.getPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: true } as never);
     api.requestPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: true } as never);
@@ -84,7 +110,7 @@ describe('reminders', () => {
 
   it('cancels for no reminder, without asking for permission', async () => {
     await setDailyReminder(null);
-    expect(api.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+    expect(api.cancelScheduledNotificationAsync).toHaveBeenCalledWith('daily-reminder');
     expect(api.getPermissionsAsync).not.toHaveBeenCalled();
   });
 
@@ -94,6 +120,11 @@ describe('reminders', () => {
       status: 'unavailable',
       detail: 'no native module',
     });
+  });
+
+  it('leaves a scheduled nudge alone', async () => {
+    await setDailyReminder('07:30');
+    expect(api.cancelScheduledNotificationAsync).not.toHaveBeenCalledWith('nudge');
   });
 
   it('notices when the phone kept nothing', async () => {
@@ -111,7 +142,7 @@ describe('reminders', () => {
 
   it('a test leaves the daily reminder in place', async () => {
     await sendTestReminder();
-    expect(api.cancelAllScheduledNotificationsAsync).not.toHaveBeenCalled();
+    expect(api.cancelScheduledNotificationAsync).not.toHaveBeenCalled();
   });
 
   describe('on opening the app', () => {

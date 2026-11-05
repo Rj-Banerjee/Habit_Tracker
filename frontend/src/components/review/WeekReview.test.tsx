@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../../services/tracker', () => ({ tracker: api }));
+vi.mock('../../services/live', () => ({ watchMyActivity: () => () => {} }));
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
 }));

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
+import { habitPatterns, heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
 import { Button, Chip, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
 import { useProgress } from '../hooks/useProgress';
 import { Forecaster } from '../progress/Forecaster';
@@ -20,7 +20,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function ProgressScreen({ active }: { active: boolean }) {
+interface ProgressScreenProps {
+  active: boolean;
+  onOpenReview: () => void;
+}
+
+export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
   const { colors, identity: identityColor } = useTheme();
   const size = useLayoutSize();
   const { habits, days, today, loading, loadFailed, load } = useProgress(active);
@@ -94,6 +99,14 @@ export function ProgressScreen({ active }: { active: boolean }) {
           ))}
         </View>
 
+        {habitPatterns(days, habit).length > 0 ? (
+          <Section title="Your pattern">
+            {habitPatterns(days, habit).map((line) => (
+              <Text key={line}>{line}</Text>
+            ))}
+          </Section>
+        ) : null}
+
         <Section title="The last year">
           <Heatmap data={heatmap(days, habit.id, today)} identity={habit.identities.colour_token} />
         </Section>
@@ -120,6 +133,7 @@ export function ProgressScreen({ active }: { active: boolean }) {
         <Text variant="title" accessibilityRole="header">
           Progress
         </Text>
+        <Button label="Sunday Review" quiet onPress={onOpenReview} />
         {body()}
       </ScrollView>
     </SafeAreaView>

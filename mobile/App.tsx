@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Figtree_400Regular,
   Figtree_500Medium,
@@ -16,10 +16,11 @@ import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
+import { SundayReviewScreen } from './src/screens/SundayReviewScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { YouScreen } from './src/screens/YouScreen';
 import { supabase } from './src/services/supabase';
-import { AuthForm, ThemeProvider, useTheme } from '@habit-tracker/ui';
+import { AuthForm, SheetInsetContext, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
 const THEME_KEY = 'theme-preference';
 const themeStorage = {
@@ -59,12 +60,18 @@ function Root() {
   return <SignedIn key={session.user.id} session={session} />;
 }
 
+function SheetInset({ children }: { children: React.ReactNode }) {
+  const { bottom } = useSafeAreaInsets();
+  return <SheetInsetContext.Provider value={bottom}>{children}</SheetInsetContext.Provider>;
+}
+
 function SignedIn({ session }: { session: Session }) {
   const { colors } = useTheme();
   const onboarding = useNeedsOnboarding();
   // No router yet. Null shows the tabs; otherwise the form, for a new habit or habitId.
   const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
   const [tab, setTab] = useState<Tab>('today');
+  const [reviewing, setReviewing] = useState(false);
 
   if (onboarding.needed === undefined) {
     return (
@@ -76,6 +83,10 @@ function SignedIn({ session }: { session: Session }) {
 
   if (onboarding.needed) {
     return <OnboardingScreen userId={session.user.id} onDone={onboarding.finished} />;
+  }
+
+  if (reviewing) {
+    return <SundayReviewScreen userId={session.user.id} onClose={() => setReviewing(false)} />;
   }
 
   if (habitForm) {
@@ -95,10 +106,11 @@ function SignedIn({ session }: { session: Session }) {
         <TodayScreen
           onAddHabit={(title) => setHabitForm({ title })}
           onEditHabit={(habitId) => setHabitForm({ habitId })}
+          onOpenReview={() => setReviewing(true)}
         />
       </View>
       <View style={[styles.root, tab !== 'progress' && styles.hidden]}>
-        <ProgressScreen active={tab === 'progress'} />
+        <ProgressScreen active={tab === 'progress'} onOpenReview={() => setReviewing(true)} />
       </View>
       <View style={[styles.root, tab !== 'you' && styles.hidden]}>
         <YouScreen
@@ -127,7 +139,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider storage={themeStorage}>
         <ThemedStatusBar />
-        <Root />
+        <SheetInset>
+          <Root />
+        </SheetInset>
       </ThemeProvider>
     </SafeAreaProvider>
   );

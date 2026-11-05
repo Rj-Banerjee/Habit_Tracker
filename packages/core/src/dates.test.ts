@@ -4,6 +4,7 @@ import {
   addDays,
   canChangeDay,
   dayCellStatus,
+  reviewWeekStart,
   dayLabel,
   dayName,
   dayNumber,
@@ -63,6 +64,20 @@ describe('dates', () => {
     expect(dayNumber('2026-11-02')).toBe(2);
     expect(dayLabel('2026-11-02')).toBe('Mon, 2 Nov');
     expect(weekLabel('2026-11-02')).toBe('Week of 2 Nov');
+  });
+});
+
+describe('reviewWeekStart', () => {
+  it('looks at this week on a Sunday', () => {
+    expect(reviewWeekStart('2026-11-08')).toBe('2026-11-02');
+  });
+
+  it('looks back at the finished week on a Monday', () => {
+    expect(reviewWeekStart('2026-11-02')).toBe('2026-10-26');
+  });
+
+  it('still looks back later in the week', () => {
+    expect(reviewWeekStart('2026-11-07')).toBe('2026-10-26');
   });
 });
 

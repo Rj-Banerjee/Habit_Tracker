@@ -29,6 +29,20 @@ describe('coachCard', () => {
     expect(coachCard([row('Read', 'done')], [], 'morning')?.id).toBe('all-done');
   });
 
+  it('opens a miss review for a slip', () => {
+    expect(coachCard([row('Read')], [repair], 'morning')?.opens).toBe('miss');
+  });
+
+  it('offers the Sunday Review on a Sunday', () => {
+    const sunday = { ...row('Read'), day: '2026-11-08' };
+    expect(coachCard([sunday], [], 'evening')?.opens).toBe('sunday');
+  });
+
+  it('puts a slip ahead of the Sunday Review', () => {
+    const sunday = { ...row('Read'), day: '2026-11-08' };
+    expect(coachCard([sunday], [repair], 'evening')?.opens).toBe('miss');
+  });
+
   it('never talks about failure', () => {
     const text = coachCard([], [repair], 'evening')?.text ?? '';
     expect(text).not.toMatch(/fail|broke|lost/i);

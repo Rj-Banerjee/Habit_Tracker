@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { openPhoneSettings, sendTestReminder, setDailyReminder } from '../services/reminders';
+import { setNudgesEnabled } from '../services/nudges';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import { YouScreen } from './YouScreen';
@@ -10,10 +11,19 @@ import { YouScreen } from './YouScreen';
 jest.mock('../services/supabase', () => ({
   supabase: { auth: { signOut: jest.fn() } },
 }));
+jest.mock('../services/nudges', () => ({
+  nudgesEnabled: jest.fn(() => Promise.resolve(true)),
+  setNudgesEnabled: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../services/tracker', () => ({
   tracker: {
     getProfile: jest.fn(() => Promise.resolve({ reminder_time: '20:00:00' })),
     setReminderTime: jest.fn(() => Promise.resolve()),
+    listIdentities: jest.fn(() =>
+      Promise.resolve([{ id: 'i1', name: 'The Reader', why_text: 'Calmer evenings' }])
+    ),
+    updateIdentityWhy: jest.fn(() => Promise.resolve()),
+    getToday: jest.fn(() => Promise.resolve([])),
   },
 }));
 jest.mock('../services/reminders', () => ({
@@ -114,6 +124,16 @@ describe('YouScreen', () => {
     expect(screen.getByText(/test reminder is on its way/)).toBeTruthy();
   });
 
+  it('puts an open habit on the test reminder, so its buttons can be tried', async () => {
+    (tracker.getToday as jest.Mock).mockResolvedValueOnce([
+      { habit_id: 'h1', title: 'Read', status: 'pending', is_today: true },
+    ]);
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Send a test reminder' }));
+    await act(async () => {});
+    expect(sendTestReminder).toHaveBeenCalledWith({ id: 'h1', title: 'Read' });
+  });
+
   it("offers the phone's settings once it won't ask again", async () => {
     (sendTestReminder as jest.Mock).mockResolvedValueOnce({ status: 'blocked' });
     await open();
@@ -121,6 +141,24 @@ describe('YouScreen', () => {
     await act(async () => {});
     await fireEvent.press(screen.getByRole('button', { name: 'Open phone settings' }));
     expect(openPhoneSettings).toHaveBeenCalled();
+  });
+
+  it('shows and saves why an identity matters', async () => {
+    await open();
+    const field = screen.getByLabelText('Why The Reader matters');
+    expect(field.props.value).toBe('Calmer evenings');
+    await fireEvent.changeText(field, 'For my kids');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save why' }));
+    await act(async () => {});
+    expect(tracker.updateIdentityWhy).toHaveBeenCalledWith('i1', 'For my kids');
+  });
+
+  it('turns nudges off', async () => {
+    await open();
+    expect(screen.getByRole('button', { name: 'On', selected: true })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Off' }));
+    await act(async () => {});
+    expect(setNudgesEnabled).toHaveBeenCalledWith(false);
   });
 
   it('asks before signing out', async () => {

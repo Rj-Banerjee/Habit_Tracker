@@ -5,7 +5,9 @@ import {
   heardLine,
   isUndoPhrase,
   isVoiceAction,
+  matchSimplePhrase,
   TodayRow,
+  VoiceHabit,
   VoiceIntent,
   VoiceOption,
   VoiceQuestion,
@@ -50,7 +52,7 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
   // Shown wherever a result is, so a mishearing is easy to spot.
   const [heard, setHeard] = useState<string | null>(null);
   const [pending, setPending] = useState<VoiceIntent[]>([]);
-  const [names, setNames] = useState<string[]>([]);
+  const [habits, setHabits] = useState<VoiceHabit[]>([]);
   const [missingHabit, setMissingHabit] = useState<string | null>(null);
   // The banner is set in the same tick as the words arrive, before state catches up.
   const latestLine = useRef<string | null>(null);
@@ -60,8 +62,8 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
   // Only hints, so a failure here costs nothing.
   useEffect(() => {
     tracker
-      .listVoiceNames()
-      .then(setNames)
+      .listVoiceHabits()
+      .then(setHabits)
       .catch(() => {});
   }, [rows.length]);
 
@@ -149,6 +151,13 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
     setProblem(null);
     setHeard(text);
     latestLine.current = `Heard: ${text}`;
+
+    const simple = matchSimplePhrase(text, habits);
+    if (simple) {
+      await run([simple]);
+      return;
+    }
+
     try {
       const parsed = await ai.parseVoice(text);
       latestLine.current = heardLine(text, parsed.corrected, parsed.intents);
@@ -203,7 +212,7 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach }: VoiceO
     heard,
     pending,
     missingHabit,
-    names,
+    names: habits.flatMap((habit) => [habit.title, ...habit.voice_aliases]),
     banner,
     reset,
     submit,

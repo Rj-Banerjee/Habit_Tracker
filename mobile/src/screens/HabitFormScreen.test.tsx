@@ -23,12 +23,18 @@ import { HabitFormScreen } from './HabitFormScreen';
 import { TodayScreen } from './TodayScreen';
 
 jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
+jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../services/live', () => ({ watchMyActivity: () => () => {} }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
 jest.mock('../services/tracker', () => ({
   tracker: {
-    listVoiceNames: jest.fn(() => Promise.resolve([])),
+    listVoiceHabits: jest.fn(() => Promise.resolve([])),
     getHabitAllowance: jest.fn(),
     listIdentities: jest.fn(),
     createHabit: jest.fn(),
@@ -945,7 +951,7 @@ describe('Today entry points', () => {
 
   const openToday = async (rows: TodayRow[]) => {
     api.getToday.mockResolvedValue(rows);
-    await render(inApp(<TodayScreen onAddHabit={onAddHabit} onEditHabit={onEditHabit} />));
+    await render(inApp(<TodayScreen onAddHabit={onAddHabit} onEditHabit={onEditHabit} onOpenReview={jest.fn()} />));
     await settle();
   };
 

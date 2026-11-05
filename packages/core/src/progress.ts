@@ -294,3 +294,46 @@ export function forecast(
   };
   return { ...result, sentence: forecastSentence(habit, result) };
 }
+
+export interface WeekHabit {
+  habitId: string;
+  title: string;
+  done: number;
+  minimum: number;
+  repaired: number;
+  protectedDays: number;
+  due: number;
+  label: string;
+}
+
+// The same counting as the identity score: an allowed skip means it wasn't due.
+export function weekSummary(
+  habits: ProgressHabit[],
+  days: ProgressDay[],
+  start: string
+): WeekHabit[] {
+  const end = addDays(start, 6);
+  return habits
+    .map((habit) => {
+      const inWeek = daysOf(days, habit.id).filter(
+        (day) => day.date >= start && day.date <= end && isSettled(day) && day.status !== 'skipped'
+      );
+      const kinds = inWeek.map(heatKind);
+      const count = (kind: HeatKind) => kinds.filter((item) => item === kind).length;
+      const done = count('done');
+      const minimum = count('minimum');
+      const repaired = count('repaired');
+      const finished = done + minimum + repaired;
+      return {
+        habitId: habit.id,
+        title: habit.title,
+        done,
+        minimum,
+        repaired,
+        protectedDays: count('protected'),
+        due: inWeek.length,
+        label: `${finished} of ${inWeek.length} ${inWeek.length === 1 ? 'day' : 'days'}`,
+      };
+    })
+    .filter((habit) => habit.due > 0);
+}

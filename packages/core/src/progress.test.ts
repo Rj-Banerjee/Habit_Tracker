@@ -10,6 +10,7 @@ import {
   scheduledDaysAhead,
   streakHistory,
   topHabits,
+  weekSummary,
 } from './progress';
 
 const TODAY = '2026-11-02'; // a Monday
@@ -224,6 +225,42 @@ describe('topHabits', () => {
     const extra = ['a', 'b', 'c', 'd'].map((id) => habit({ id, title: id }));
     const days = extra.slice(0, 4).map((h) => day('2026-11-01', 'done', { habit_id: h.id }));
     expect(topHabits([...extra, habit({ id: 'none' })], days, TODAY)).toHaveLength(3);
+  });
+});
+
+describe('weekSummary', () => {
+  const start = '2026-10-26';
+  const week = (...statuses: string[]) => statuses.map((status, i) => day(addDays(start, i), status));
+
+  it('counts a finished day at any level', () => {
+    const days = week('done', 'repaired', 'missed');
+    days[0].level_done = 'minimum';
+    expect(weekSummary([habit()], days, start)[0]).toMatchObject({
+      minimum: 1,
+      repaired: 1,
+      label: '2 of 3 days',
+    });
+  });
+
+  it('leaves out an allowed skip, as the identity score does', () => {
+    expect(weekSummary([habit()], week('done', 'skipped'), start)[0].label).toBe('1 of 1 day');
+  });
+
+  it('notes protected days', () => {
+    expect(weekSummary([habit()], week('protected'), start)[0].protectedDays).toBe(1);
+  });
+
+  it('stays inside the week', () => {
+    const days = [day('2026-10-25', 'done'), day('2026-11-02', 'done'), day(start, 'done')];
+    expect(weekSummary([habit()], days, start)[0].due).toBe(1);
+  });
+
+  it("doesn't count an unfinished day", () => {
+    expect(weekSummary([habit()], week('done', 'pending'), start)[0].due).toBe(1);
+  });
+
+  it('leaves out a habit with nothing due', () => {
+    expect(weekSummary([habit()], [], start)).toEqual([]);
   });
 });
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { layout, space } from '@habit-tracker/core';
+import { isLogged, layout, space } from '@habit-tracker/core';
 import {
   BottomSheet,
   Button,
@@ -12,6 +12,8 @@ import {
   THEME_PREFERENCES,
   useTheme,
 } from '@habit-tracker/ui';
+import { WhySection } from '../coach/WhySection';
+import { NudgeSetting } from '../components/NudgeSetting';
 import { ReminderPicker } from '../components/ReminderPicker';
 import {
   openPhoneSettings,
@@ -50,7 +52,7 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const show = (result: ReminderResult, success: string | null) => {
     setProblem(reminderMessage(result));
     setNote(result.status === 'set' ? success : null);
-    setBlocked(result.status === 'blocked');
+    setBlocked(result.status === 'blocked' || result.status === 'denied');
   };
 
   const changeReminder = async (time: string | null) => {
@@ -66,7 +68,12 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
 
   const test = async () => {
     setNote(null);
-    show(await sendTestReminder(), 'A test reminder is on its way. It takes about 5 seconds.');
+    const rows = await tracker.getToday().catch(() => []);
+    const open = rows.find((row) => row.is_today && !isLogged(row));
+    show(
+      await sendTestReminder(open && { id: open.habit_id, title: open.title }),
+      'A test reminder is on its way. It takes about 5 seconds.'
+    );
   };
 
   const signOut = async () => {
@@ -123,6 +130,8 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
             ) : null}
           </View>
         ) : null}
+        <NudgeSetting />
+        <WhySection />
         {COMING_SOON.map((label) => (
           <View key={label} style={styles.group}>
             <Text>{label}</Text>
