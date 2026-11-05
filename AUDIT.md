@@ -1140,3 +1140,22 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
 
 **Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision.
+
+### Phone builds reach the AI service, and Realtime sync (5 Nov 2026)
+
+**Fixed**
+
+- Coach and voice failed on the preview build with "Coach isn't available right now". Release builds block plain `http`, and the AI service on the laptop is plain `http`. A config plugin now allows `http` to the one `EXPO_PUBLIC_AI_URL` host and adds nothing when that URL is `https`. Checked on the phone: a typed phrase got the AI's reply.
+- Holding the mic and saying nothing now says "I didn't hear anything" instead of going quiet. Checked on the phone.
+- Four streak tests started failing on 5 Nov. Writing Shrink levels directly stamps a settings version with the real date, and those tests ask about 2 to 4 Nov. A test helper now makes those settings cover the habit's whole life. App code is unchanged, because `create_habit` always starts a habit on the day it's made.
+
+**Added**
+
+- Realtime sync. A log from any device shows on an open Today screen, the widget and the web grid without a reload. The apps listen to `activity_events`, not `habit_logs`: Realtime checks inserts against the owner-only policy but sends deletes without it, which would show other people a row id. A burst of changes reloads once.
+- Migration `20261105000000_realtime_activity.sql` adds `activity_events` to the Realtime publication, with tests that it is the only public table there and keeps RLS on.
+
+**Found while testing:** supabase-js hands Realtime the sign-in token without waiting, so a channel opened just after sign-in joined as nobody and heard nothing. The token is now set before joining. Refreshed tokens still reach Realtime through supabase-js.
+
+**Checked live:** the migration pushed after the dry run listed only that file. Two temporary users were made: the first got one reload for its log, the second got none, and the second could read none of the first user's activity or habits with the publishable key. Both users were deleted. The security advisor shows nothing new.
+
+**Not checked:** Realtime on the phone, which needs the next build and a log from a second device.
