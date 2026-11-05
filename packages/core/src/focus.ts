@@ -21,7 +21,9 @@ export function focusMinutes(habit: { habit_type: HabitType; target: number | nu
   return clampMinutes(habit.target);
 }
 
-export type FocusPhase = 'setup' | 'running' | 'paused' | 'asking' | 'finished';
+// asking: stopped early, log the minimum? timeUp: the timer ran out, is it done?
+// again: not done yet, focus again? Nothing is logged without an answer.
+export type FocusPhase = 'setup' | 'running' | 'paused' | 'asking' | 'timeUp' | 'again' | 'finished';
 
 export interface FocusState {
   phase: FocusPhase;
@@ -39,7 +41,11 @@ export type FocusAction =
   | { type: 'resume'; now: number }
   | { type: 'tick'; now: number }
   | { type: 'stop'; now: number }
-  | { type: 'keepGoing'; now: number };
+  | { type: 'keepGoing'; now: number }
+  // "Done my work", said or tapped: finished, early or at the end.
+  | { type: 'workDone'; now: number }
+  | { type: 'notDone' }
+  | { type: 'focusAgain'; now: number };
 
 export const focusStart = (minutes: number): FocusState => ({
   phase: 'setup',
@@ -69,13 +75,28 @@ export function focusReducer(state: FocusState, action: FocusAction): FocusState
         : state;
     case 'tick':
       return state.phase === 'running' && left(state, action.now) === 0
-        ? { ...state, phase: 'finished', endsAt: null, remainingMs: 0 }
+        ? { ...state, phase: 'timeUp', endsAt: null, remainingMs: 0 }
         : state;
     case 'stop':
       if (state.phase !== 'running' && state.phase !== 'paused') return state;
-      // Stopping in the last moment counts as finishing.
-      if (left(state, action.now) === 0) return { ...state, phase: 'finished', endsAt: null, remainingMs: 0 };
+      // Stopping in the last moment is the timer running out.
+      if (left(state, action.now) === 0) return { ...state, phase: 'timeUp', endsAt: null, remainingMs: 0 };
       return { ...state, phase: 'asking', endsAt: null, remainingMs: left(state, action.now) };
+    case 'workDone':
+      return ['running', 'paused', 'asking', 'timeUp'].includes(state.phase)
+        ? { ...state, phase: 'finished', endsAt: null, remainingMs: left(state, action.now) }
+        : state;
+    case 'notDone':
+      return state.phase === 'timeUp' ? { ...state, phase: 'again' } : state;
+    case 'focusAgain':
+      return state.phase === 'again'
+        ? {
+            ...state,
+            phase: 'running',
+            remainingMs: state.minutes * 60_000,
+            endsAt: action.now + state.minutes * 60_000,
+          }
+        : state;
     case 'keepGoing':
       return state.phase === 'asking'
         ? { ...state, phase: 'running', endsAt: action.now + state.remainingMs }
@@ -105,3 +126,41 @@ export function clockSpoken(ms: number) {
 }
 
 export const STOP_QUESTION = 'Log the minimum version?';
+export const timeUpQuestion = (title: string) => `Time's up. Is ${title} done?`;
+export const AGAIN_QUESTION = 'Focus again?';
+
+// What someone says to finish early, in English or Hindi. Plain matching on the phone,
+// so it works offline and never sends the words anywhere.
+const DONE_PHRASES = [
+  /\b(done|finished|completed?)\b.*\b(work|it|task|this)\b/,
+  /\b(work|task|it)\b.*\b(is |s )?(done|finished|complete)\b/,
+  /^(i'?m |i am |all )?(done|finished)$/,
+  /\b(ho gaya|ho gya|khatam|kar liya|kar diya|pura ho gaya)\b/,
+];
+const NOT_DONE = /\b(not|isn'?t|haven'?t|nahi|nahin)\b/;
+
+export function isDonePhrase(said: string) {
+  const text = said.toLowerCase().replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim();
+  if (!text || NOT_DONE.test(text)) return false;
+  return DONE_PHRASES.some((pattern) => pattern.test(text));
+}
+
+// A session the phone kept while the app was closed, back as a timer.
+export interface SavedFocus {
+  minutes: number;
+  endAt: number;
+  paused: boolean;
+  remainingMs: number;
+  timeUp: boolean;
+}
+
+export function focusFromSaved(saved: SavedFocus, now: number): FocusState {
+  const minutes = Math.min(MAX_FOCUS_MINUTES, Math.max(MIN_FOCUS_MINUTES, Math.round(saved.minutes)));
+  if (saved.timeUp || (!saved.paused && saved.endAt <= now)) {
+    return { phase: 'timeUp', minutes, endsAt: null, remainingMs: 0 };
+  }
+  if (saved.paused) return { phase: 'paused', minutes, endsAt: null, remainingMs: Math.max(0, saved.remainingMs) };
+  return { phase: 'running', minutes, endsAt: saved.endAt, remainingMs: saved.endAt - now };
+}
+
+export const FOCUS_LINK = 'focus';

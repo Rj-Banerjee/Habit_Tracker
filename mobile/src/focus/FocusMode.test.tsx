@@ -12,9 +12,25 @@ jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
 jest.mock('../services/reminders', () => ({ showHeldNotifications: jest.fn(() => Promise.resolve()) }));
 jest.mock('../services/haptics', () => ({ checkOffTick: jest.fn() }));
 jest.mock('../services/tracker', () => ({ tracker: { recordFocus: jest.fn(() => Promise.resolve()) } }));
+jest.mock('../voice/speech', () => ({ speechInput: jest.fn(() => null) }));
+jest.mock('../../modules/focus-lock', () => ({
+  FocusLock: {
+    hasUsageAccess: jest.fn(() => true),
+    canDrawOverlays: jest.fn(() => true),
+    openUsageAccessSettings: jest.fn(),
+    openOverlaySettings: jest.fn(),
+    start: jest.fn(),
+    pause: jest.fn(),
+    resume: jest.fn(),
+    stop: jest.fn(),
+    status: jest.fn(() => null),
+  },
+}));
 
 const api = tracker as jest.Mocked<typeof tracker>;
 const keepAwake = jest.requireMock('expo-keep-awake').useKeepAwake as jest.Mock;
+const lock = jest.requireMock('../../modules/focus-lock').FocusLock as Record<string, jest.Mock>;
+const speech = jest.requireMock('../voice/speech').speechInput as jest.Mock;
 
 const row = (patch: Partial<TodayRow> = {}): TodayRow =>
   ({
@@ -34,12 +50,12 @@ const row = (patch: Partial<TodayRow> = {}): TodayRow =>
     ...patch,
   }) as TodayRow;
 
-async function open(patch: Partial<TodayRow> = {}) {
+async function open(patch: Partial<TodayRow> = {}, saved: React.ComponentProps<typeof FocusMode>['saved'] = null) {
   const onLog = jest.fn();
   const onClose = jest.fn();
   const view = await render(
     <ThemeProvider forced="light">
-      <FocusMode row={row(patch)} reducedMotion={false} onLog={onLog} onClose={onClose} />
+      <FocusMode row={row(patch)} saved={saved} reducedMotion={false} onLog={onLog} onClose={onClose} />
     </ThemeProvider>
   );
   return { ...view, onLog, onClose };
@@ -52,6 +68,9 @@ describe('Tunnel Vision', () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date('2026-11-05T09:00:00Z') });
     jest.clearAllMocks();
+    lock.hasUsageAccess.mockReturnValue(true);
+    lock.canDrawOverlays.mockReturnValue(true);
+    speech.mockReturnValue(null);
   });
   afterEach(() => jest.useRealTimers());
 
@@ -72,7 +91,7 @@ describe('Tunnel Vision', () => {
     expect(keepAwake).toHaveBeenCalledWith('tunnel-vision');
   });
 
-  it('counts down in big numbers, then logs the full version and says so', async () => {
+  it('counts down in big numbers, then asks instead of logging', async () => {
     const { onLog } = await open();
     await press('5 minutes less');
     await press('Start 20 minutes');
@@ -82,15 +101,110 @@ describe('Tunnel Vision', () => {
     expect(screen.getByText('19:00')).toBeTruthy();
     expect(screen.getByLabelText('19 minutes left')).toBeTruthy();
     await wait(19 * 60_000);
+    expect(screen.getByText("Time's up. Is Read done?")).toBeTruthy();
+    expect(onLog).not.toHaveBeenCalled();
+    await press("Yes, it's done");
     expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 'full');
     expect(api.recordFocus).toHaveBeenCalledWith('h1', 'focus.completed', 1200, 1200);
     expect(screen.getByText('Done. Nicely focused.')).toBeTruthy();
+  });
+
+  it('offers to focus again when the work is not done, and logs nothing', async () => {
+    const { onLog, onClose } = await open();
+    await press('Start 25 minutes');
+    await wait(25 * 60_000);
+    await press('Not yet');
+    expect(screen.getByText('Focus again?')).toBeTruthy();
+    await press('Focus 25 more minutes');
+    expect(screen.getByText('25:00')).toBeTruthy();
+    expect(lock.start).toHaveBeenCalledTimes(2);
+    await wait(25 * 60_000);
+    await press('Not yet');
+    await press('Not now');
+    await wait(250);
+    expect(onLog).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+    expect(api.recordFocus).toHaveBeenLastCalledWith('h1', 'focus.stopped', 1500, 1500);
+  });
+
+  it('finishes early on "Done my work"', async () => {
+    const { onLog } = await open();
+    await press('Start 25 minutes');
+    await wait(5 * 60_000);
+    await press('Done my work');
+    expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 'full');
+    expect(api.recordFocus).toHaveBeenLastCalledWith('h1', 'focus.completed', 1500, 300);
+  });
+
+  it('finishes early when "done my work" is said, and only then', async () => {
+    const handlers: { text?: (t: string) => void; end?: () => void } = {};
+    speech.mockReturnValue({
+      start: jest.fn(async (_o, text, end) => {
+        handlers.text = text;
+        handlers.end = end;
+        return true;
+      }),
+      stop: jest.fn(),
+    });
+    const { onLog } = await open();
+    await press('Start 25 minutes');
+    const mic = screen.getByRole('button', { name: 'Hold and say done my work' });
+    await fireEvent(mic, 'pressIn');
+    await act(async () => {
+      handlers.text?.('how long is left');
+      handlers.end?.();
+    });
+    expect(onLog).not.toHaveBeenCalled();
+    expect(screen.getByText(/Heard “how long is left”/)).toBeTruthy();
+    await fireEvent(mic, 'pressIn');
+    await act(async () => {
+      handlers.text?.('done my work');
+      handlers.end?.();
+    });
+    expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 'full');
+  });
+
+  it('locks the phone while running, keeps the countdown while paused, and unlocks for questions', async () => {
+    await open();
+    expect(lock.start).not.toHaveBeenCalled();
+    await press('Start 25 minutes');
+    expect(lock.start).toHaveBeenCalledWith('h1', 'Read', 25, Date.now() + 25 * 60_000);
+    await press('Pause');
+    expect(lock.pause).toHaveBeenCalledWith(25 * 60_000);
+    await press('Resume');
+    await press('Stop');
+    expect(lock.stop).toHaveBeenCalled();
+    lock.stop.mockClear();
+    await screen.unmount();
+    expect(lock.stop).toHaveBeenCalled();
+  });
+
+  it('asks for the two Android permissions before it can lock', async () => {
+    lock.hasUsageAccess.mockReturnValue(false);
+    lock.canDrawOverlays.mockReturnValue(false);
+    await open();
+    expect(screen.getByRole('button', { name: 'Start 25 minutes' }).props.accessibilityState?.disabled).toBe(true);
+    await press('Allow usage access');
+    expect(lock.openUsageAccessSettings).toHaveBeenCalled();
+    await press('Allow display over other apps');
+    expect(lock.openOverlaySettings).toHaveBeenCalled();
+    expect(screen.getByText('Calls and emergency calls always get through.')).toBeTruthy();
+  });
+
+  it('picks up a session the phone kept going while the app was closed', async () => {
+    const now = Date.now();
+    await open({}, { minutes: 25, endAt: now + 10 * 60_000, paused: false, remainingMs: 0, timeUp: false });
+    expect(screen.getByText('10:00')).toBeTruthy();
+    await screen.unmount();
+    await open({}, { minutes: 25, endAt: now - 1000, paused: false, remainingMs: 0, timeUp: true });
+    expect(screen.getByText("Time's up. Is Read done?")).toBeTruthy();
   });
 
   it('never logs twice when the habit was already done', async () => {
     const { onLog } = await open({ status: 'done', level_done: 'full' });
     await press('Start 25 minutes');
     await wait(25 * 60_000);
+    await press("Yes, it's done");
     expect(onLog).not.toHaveBeenCalled();
     expect(api.recordFocus).toHaveBeenCalledWith('h1', 'focus.completed', 1500, 1500);
   });

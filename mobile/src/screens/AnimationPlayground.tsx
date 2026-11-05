@@ -16,6 +16,7 @@ import * as Device from 'expo-device';
 import { captionsFor, streakBeforeWeld, useCountUp } from '../chain/CardChain';
 import { MomentChain } from '../chain/MomentChain';
 import { WelcomeBack } from '../chain/WelcomeBack';
+import { FocusMode } from '../focus/FocusMode';
 
 // A fixed week, so every moment can be reviewed without real data. Thursday 12 Nov.
 const TODAY = '2026-11-12';
@@ -128,6 +129,8 @@ export function AnimationPlayground() {
   const [run, setRun] = useState<Run | null>(null);
   const [welcome, setWelcome] = useState(false);
   const [frames, setFrames] = useState<string | null>(null);
+  // Tunnel Vision on a sample habit, including the phone lock. Nothing is logged.
+  const [focusing, setFocusing] = useState(false);
 
   const settings = useMemo(() => ({ reducedMotion, lowEnd, slow: slow ? 4 : 1 }), [reducedMotion, lowEnd, slow]);
   const play = (kind: MomentKind) => {
@@ -153,6 +156,7 @@ export function AnimationPlayground() {
           <Button label="Weld" onPress={() => play('weld')} />
           <Button label="Protected" onPress={() => play('protected')} />
           <Button label="Welcome back" quiet onPress={() => setWelcome(true)} />
+          <Button label="Tunnel Vision" quiet onPress={() => setFocusing(true)} />
         </View>
 
         <View style={styles.wrap}>
@@ -195,6 +199,14 @@ export function AnimationPlayground() {
           </View>
         ))}
       </PlaygroundBody>
+      {focusing ? (
+        <FocusMode
+          row={{ ...row, title: 'Sample habit' }}
+          reducedMotion={reducedMotion}
+          onLog={() => {}}
+          onClose={() => setFocusing(false)}
+        />
+      ) : null}
     </ThemeProvider>
   );
 }

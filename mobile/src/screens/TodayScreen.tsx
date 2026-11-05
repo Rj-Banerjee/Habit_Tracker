@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   coachCard,
   dayPart,
+  FOCUS_LINK,
   eveningNote,
   greeting,
   groupByIdentity,
@@ -30,6 +31,7 @@ import {
 import { repairHabitOf } from '../chain/CardChain';
 import { useMotionSettings } from '../chain/useMotionSettings';
 import { WelcomeBack } from '../chain/WelcomeBack';
+import { FocusLock, FocusSession } from '../../modules/focus-lock';
 import { FocusMode } from '../focus/FocusMode';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
@@ -77,7 +79,35 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const [detailRow, setDetailRow] = useState<TodayRow | null>(null);
   // Tunnel Vision follows the live row, so a log shows on its card straight away.
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusSaved, setFocusSaved] = useState<FocusSession | null>(null);
   const focusRow = focusId ? rows.find((r) => r.is_today && r.habit_id === focusId) ?? null : null;
+  const openFocus = (habitId: string) => {
+    setFocusSaved(null);
+    setFocusId(habitId);
+  };
+
+  // A session kept going with the app closed comes back on open, from its notification,
+  // or when the lock brings the app to the front.
+  const resumeFocus = useCallback(() => {
+    // Today has to know its habits first, or a session can't be matched to one.
+    if (loading) return;
+    const saved = FocusLock?.status();
+    if (!saved) return;
+    if (rows.some((r) => r.is_today && r.habit_id === saved.habitId)) {
+      setFocusSaved(saved);
+      setFocusId(saved.habitId);
+    } else {
+      // Never leave the phone locked behind a habit that isn't on screen.
+      FocusLock?.stop();
+    }
+  }, [rows, loading]);
+  useEffect(() => {
+    if (focusId) return undefined;
+    // After this render, so restoring a session never sets state in the middle of one.
+    void Promise.resolve().then(resumeFocus);
+    const sub = AppState.addEventListener('change', (next) => next === 'active' && resumeFocus());
+    return () => sub.remove();
+  }, [focusId, resumeFocus]);
   const chainOf = (habitId: string) => chains.find((c) => c.habitId === habitId)?.chain;
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,10 +128,16 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
   });
 
+  const resumeFocusRef = useRef(resumeFocus);
+  useEffect(() => {
+    resumeFocusRef.current = resumeFocus;
+  }, [resumeFocus]);
+
   // The widget's voice button opens straight to the sheet.
   useEffect(() => {
     const opened = (url: string | null | undefined) => {
       if (url === VOICE_LINK) setPanel('voice');
+      if (url?.endsWith(`://${FOCUS_LINK}`)) resumeFocusRef.current();
     };
     Linking.getInitialURL()
       .then(opened)
@@ -146,7 +182,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           moments.interrupt(row.habit_id);
           setDetailRow(row);
         }}
-        onFocus={row.is_today ? () => setFocusId(row.habit_id) : undefined}
+        onFocus={row.is_today ? () => openFocus(row.habit_id) : undefined}
       />
     </SwipeToSkip>
   );
@@ -316,7 +352,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         }}
         onFocus={(row) => {
           setShrinkRow(null);
-          setFocusId(row.habit_id);
+          openFocus(row.habit_id);
         }}
       />
       <SkipSheet
@@ -362,7 +398,9 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       />
       {focusRow ? (
         <FocusMode
+          key={focusRow.habit_id}
           row={focusRow}
+          saved={focusSaved}
           reducedMotion={motionSettings.reducedMotion}
           onLog={log}
           onClose={() => setFocusId(null)}

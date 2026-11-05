@@ -14,6 +14,16 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../../modules/focus-lock', () => ({
+  FocusLock: {
+    hasUsageAccess: jest.fn(() => true),
+    canDrawOverlays: jest.fn(() => true),
+    start: jest.fn(),
+    pause: jest.fn(),
+    stop: jest.fn(),
+    status: jest.fn(() => null),
+  },
+}));
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
 jest.mock('../services/reminders', () => ({ showHeldNotifications: jest.fn(() => Promise.resolve()) }));
 jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
@@ -181,18 +191,42 @@ describe('TodayScreen', () => {
       expect(screen.getByText('Tunnel Vision')).toBeTruthy();
     });
 
+    it('comes back to a session the phone kept going with the app closed', async () => {
+      const lock = jest.requireMock('../../modules/focus-lock').FocusLock;
+      lock.status.mockReturnValueOnce({
+        habitId: 'h1', title: 'Run', minutes: 25, endAt: Date.now() + 5 * 60_000, paused: false, remainingMs: 0, timeUp: false,
+      });
+      await open([row()]);
+      await act(async () => {});
+      expect(screen.getByText('Tunnel Vision')).toBeTruthy();
+      expect(screen.getByText(/^0[45]:\d\d$/)).toBeTruthy();
+    });
+
+    it('unlocks the phone rather than trap it behind a habit that is not on screen', async () => {
+      const lock = jest.requireMock('../../modules/focus-lock').FocusLock;
+      lock.status.mockReturnValueOnce({
+        habitId: 'gone', title: 'Old', minutes: 25, endAt: Date.now() + 60_000, paused: false, remainingMs: 0, timeUp: false,
+      });
+      await open([row()]);
+      await act(async () => {});
+      expect(lock.stop).toHaveBeenCalled();
+      expect(screen.queryByText('Tunnel Vision')).toBeNull();
+    });
+
     it("isn't offered for a day that's still open from yesterday", async () => {
       await open([row({ is_today: false, day: '2026-11-02', status: 'pending' })]);
       expect(screen.queryByRole('button', { name: 'Focus on Run' })).toBeNull();
     });
 
-    it('logs through Today when the timer finishes', async () => {
+    it('logs through Today once the work is confirmed done', async () => {
       jest.useFakeTimers();
       try {
         await open([row()]);
         await fireEvent.press(screen.getByRole('button', { name: 'Focus on Run' }));
         await fireEvent.press(screen.getByRole('button', { name: 'Start 25 minutes' }));
         await act(async () => jest.advanceTimersByTime(25 * 60_000));
+        expect(api.logHabit).not.toHaveBeenCalled();
+        await fireEvent.press(screen.getByRole('button', { name: "Yes, it's done" }));
         expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
       } finally {
         jest.useRealTimers();
