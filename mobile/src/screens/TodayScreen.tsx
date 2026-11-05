@@ -35,7 +35,6 @@ import { useMotionSettings } from '../chain/useMotionSettings';
 import { WelcomeBack } from '../chain/WelcomeBack';
 import { FocusLock, FocusSession } from '../../modules/focus-lock';
 import { FocusMode } from '../focus/FocusMode';
-import { focusCommandIn, sendFocusCommand } from '../services/focusCommands';
 import { offlineTracker } from '../services/logQueue';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
@@ -151,11 +150,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   useEffect(() => {
     const opened = (url: string | null | undefined) => {
       if (url === VOICE_LINK) setPanel('voice');
-      if (url?.includes(`://${FOCUS_LINK}`)) {
-        // Resume from the notification: Tunnel Vision resumes and pins once it's on screen.
-        if (focusCommandIn(url)) sendFocusCommand('resume');
-        resumeFocusRef.current();
-      }
+      if (url?.includes(`://${FOCUS_LINK}`)) resumeFocusRef.current();
     };
     Linking.getInitialURL()
       .then(opened)

@@ -6,7 +6,6 @@ import { ThemeProvider } from '@habit-tracker/ui';
 import { isHolding } from '../services/focusHold';
 import { showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
-import { sendFocusCommand } from '../services/focusCommands';
 import { FocusMode } from './FocusMode';
 
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
@@ -272,23 +271,19 @@ describe('Tunnel Vision', () => {
     lock.isLocked.mockReturnValue(false);
   });
 
-  it('resumes and pins again when Resume in the notification opens the app', async () => {
+  it('resumes and pins again when Resume in the notification brings the app back', async () => {
     await open();
     await press('Start 25 minutes');
     await press('Pause');
     lock.pin.mockClear();
     lock.isPinned.mockReturnValue(false);
-    await act(async () => sendFocusCommand('resume'));
+    // The notification's Resume restarts the phone's timer, then opens the app.
+    lock.status.mockReturnValue({ habitId: 'h1', title: 'Read', minutes: 25, endAt: Date.now() + 25 * 60_000, paused: false, remainingMs: 0, timeUp: false });
+    await wait(500);
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
     expect(lock.pin).toHaveBeenCalled();
     lock.isPinned.mockReturnValue(true);
-  });
-
-  it('ignores Resume while already running', async () => {
-    await open();
-    await press('Start 25 minutes');
-    await act(async () => sendFocusCommand('resume'));
-    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    lock.status.mockReturnValue(null);
   });
 
   it('pins again whenever the app comes back while the timer runs', async () => {

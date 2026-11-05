@@ -132,6 +132,14 @@ class FocusLockService : Service() {
       )
     }
 
+    private fun resume(context: Context): PendingIntent =
+      PendingIntent.getActivity(
+        context,
+        "resume".hashCode(),
+        Intent(context, FocusResumeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      )
+
     private fun broadcast(context: Context, action: String): PendingIntent =
       PendingIntent.getBroadcast(
         context,
@@ -169,7 +177,7 @@ class FocusLockService : Service() {
         // can pin the phone again; from the lock screen Android asks for the unlock first.
         views.setOnClickPendingIntent(
           R.id.focus_pause,
-          if (session.paused) openApp(context, "resume") else broadcast(context, FocusActionReceiver.PAUSE)
+          if (session.paused) resume(context) else broadcast(context, FocusActionReceiver.PAUSE)
         )
         views.setOnClickPendingIntent(R.id.focus_done, broadcast(context, FocusActionReceiver.DONE))
       }
