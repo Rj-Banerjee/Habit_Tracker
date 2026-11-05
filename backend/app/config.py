@@ -47,6 +47,14 @@ class Settings(BaseSettings):
 
     ai_allowed_origins: CommaList = []
 
+    # Scheduled jobs. Supabase's pg_cron sends this secret with each call. Empty turns the
+    # /jobs endpoints off.
+    job_secret: str = ""
+    # Sunday letters are written from this hour, in each person's own timezone.
+    job_letter_hour: int = 18
+    # Expo's push service. Tests point it elsewhere.
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+
     @field_validator("ai_test_user_ids", "ai_allowed_origins", mode="before")
     @classmethod
     def split_commas(cls, value: object) -> object:

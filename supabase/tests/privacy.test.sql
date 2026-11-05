@@ -92,7 +92,11 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub": "55555555-5555-4555-8555-555555555555", "role": "authenticated"}';
 select is((select count(*)::int from public.habits), 1, 'the owner reads their habit');
 select is((select count(*)::int from public.habit_logs), 1, 'and their log');
-select is((select count(*)::int from public.activity_events), 1, 'and their activity event');
+select is(
+  (select array_agg(kind order by kind) from public.activity_events),
+  array['habit_created', 'log_created'],
+  'and their activity: the habit starting, and the log'
+);
 select is((select count(*)::int from public.reflections), 1, 'and their reflection');
 select is((select count(*)::int from public.coach_events), 1, 'and their coach event');
 reset role;
@@ -102,7 +106,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 select is(
   (select kind || '/' || (payload ->> 'status') || '/' || (payload ->> 'level') || '/' || source || '/' || actor
-   from public.activity_events where user_id = '55555555-5555-4555-8555-555555555555'),
+   from public.activity_events where user_id = '55555555-5555-4555-8555-555555555555' and kind = 'log_created'),
   'log_created/done/full/tap/user',
   'a log records what happened, where it came from and who did it'
 );
@@ -174,6 +178,74 @@ select is(
    where user_id = '55555555-5555-4555-8555-555555555555' and kind = 'habit_deleted'),
   1, 'deleting a habit is recorded once'
 );
+
+-- ---------------------------------------------------------------------------
+-- Tunnel Vision's focus events
+-- ---------------------------------------------------------------------------
+insert into public.habits (id, identity_id, title) values
+  ('e0000000-0000-4000-8000-000000000009', 'e0000000-0000-4000-8000-000000000001', 'Focus habit');
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "66666666-6666-4666-8666-666666666666", "role": "authenticated"}';
+select throws_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.started', 1500) $$,
+  'Habit not found',
+  'a stranger cannot write focus events on someone else''s habit'
+);
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "55555555-5555-4555-8555-555555555555", "role": "authenticated"}';
+select lives_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.started', 1500) $$,
+  'the owner starts a focus session'
+);
+select lives_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.stopped', 1500, 600) $$,
+  'and stops it early'
+);
+select is(
+  (select string_agg(kind || ':' || (payload ->> 'planned_seconds') || ':' || coalesce(payload ->> 'elapsed_seconds', '-'), ',' order by occurred_at, kind)
+     from public.activity_events where kind like 'focus.%'),
+  'focus.started:1500:-,focus.stopped:1500:600',
+  'both are in the owner''s activity history'
+);
+select throws_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.hacked', 1500) $$,
+  'Unknown focus event',
+  'only the three focus events are accepted'
+);
+select throws_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.started', 30) $$,
+  'A focus session is between 1 minute and 4 hours',
+  'a session has a sensible length'
+);
+select throws_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.completed', 1500, 99999) $$,
+  'That focus time does not fit the session',
+  'and a sensible elapsed time'
+);
+select throws_ok(
+  $$ insert into public.activity_events (user_id, kind) values ('55555555-5555-4555-8555-555555555555', 'focus.started') $$,
+  '42501', null,
+  'the app still cannot write activity events directly'
+);
+reset role;
+
+select throws_ok(
+  $$ select tracker.record_focus('55555555-5555-4555-8555-555555555555', 'e0000000-0000-4000-8000-000000000009', 'focus.started', 1500, null, now())
+     from generate_series(1, 200) $$,
+  'Too many focus sessions today',
+  'a script cannot flood the history'
+);
+
+set local role anon;
+select throws_ok(
+  $$ select public.record_focus('e0000000-0000-4000-8000-000000000009', 'focus.started', 1500) $$,
+  '42501', null,
+  'signed out, focus events are refused'
+);
+reset role;
 
 -- An account's history goes with the account.
 delete from auth.users where id = '55555555-5555-4555-8555-555555555555';

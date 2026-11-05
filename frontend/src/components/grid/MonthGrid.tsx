@@ -214,6 +214,7 @@ export function MonthGrid() {
                           identity={group.colour}
                           isToday={date === today}
                           repairOn={range.repairOn(habit.id, date)}
+                          repairedLabel={range.repairedLabel(habit.id, date)}
                           editable={canChangeDay(date, today)}
                           onPress={() => tap(targetFor(habit, date))}
                           onActions={() => setTarget(targetFor(habit, date))}

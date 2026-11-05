@@ -78,7 +78,7 @@ describe('MonthGrid', () => {
       'Run, Tue, 3 Nov, Repair on Thu',
       'Run, Wed, 4 Nov, Skipped',
       'Run, Thu, 5 Nov, Protected by a Grace Day',
-      'Run, Fri, 6 Nov, Repaired',
+      'Run, Fri, 6 Nov, Repaired on Sat with the full and minimum versions',
       'Run, Sat, 7 Nov, Not done',
       'Run, Mon, 9 Nov, Not logged yet',
       'Run, Tue, 10 Nov, Due today',
@@ -86,6 +86,22 @@ describe('MonthGrid', () => {
       expect(screen.getByRole('button', { name: label })).toBeTruthy();
     }
     expect(errors).not.toHaveBeenCalled();
+  });
+
+  it('says what a repair took when a repaired day is hovered', async () => {
+    api.listHabitsInRange.mockResolvedValue([
+      {
+        ...habit,
+        type: 'count',
+        target: 30,
+        unit: 'pages',
+        habit_logs: [...habit.habit_logs, { id: 'l3', habit_id: 'h1', date: '2026-11-07', status: 'done', level_done: 'full', amount: 45 }],
+      },
+    ]);
+    await open();
+    const cell = await screen.findByRole('button', { name: 'Run, Fri, 6 Nov, Repaired on Sat with 45 pages' });
+    fireEvent.mouseEnter(cell);
+    expect(await screen.findByText('Repaired on Sat with 45 pages')).toBeTruthy();
   });
 
   it('draws nothing to click on unscheduled or future days', async () => {

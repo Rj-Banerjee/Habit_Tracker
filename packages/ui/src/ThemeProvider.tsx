@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import { colors, identityColors, IdentityToken, ThemeColors, ThemeName } from '@habit-tracker/core';
+import {
+  DEFAULT_THEME,
+  identityColors,
+  IdentityToken,
+  textStylesFor,
+  ThemeColors,
+  ThemeData,
+  ThemeName,
+  withGlow,
+} from '@habit-tracker/core';
 
 export type ThemePreference = 'system' | ThemeName;
 
@@ -25,6 +34,10 @@ interface ThemeContextValue {
   setPreference: (preference: ThemePreference) => void;
   colors: ThemeColors;
   identity: (token: IdentityToken) => (typeof identityColors)['light'][IdentityToken];
+  // The theme as data, and its text styles and corner radii, for components to read.
+  theme: ThemeData;
+  text: ReturnType<typeof textStylesFor>;
+  radii: ThemeData['radii'];
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -33,10 +46,13 @@ export function ThemeProvider({
   children,
   forced,
   storage,
+  theme = DEFAULT_THEME,
 }: {
   children: React.ReactNode;
   forced?: ThemeName;
   storage?: ThemeStorage;
+  // Checked with validateTheme before it gets here. The default is today's look.
+  theme?: ThemeData;
 }) {
   const system = useColorScheme();
   const [preference, setChoice] = useState<ThemePreference>('system');
@@ -57,6 +73,12 @@ export function ThemeProvider({
     };
   }, [storage]);
 
+  const accents = useMemo(
+    () => ({ light: withGlow(theme.modes.light.identity), dark: withGlow(theme.modes.dark.identity) }),
+    [theme]
+  );
+  const text = useMemo(() => textStylesFor(theme.typography), [theme]);
+
   const value = useMemo(
     () => ({
       name,
@@ -67,10 +89,13 @@ export function ThemeProvider({
           .then(() => storage?.save(next))
           .catch(() => {});
       },
-      colors: colors[name],
-      identity: (token: IdentityToken) => identityColors[name][token],
+      colors: theme.modes[name].colors,
+      identity: (token: IdentityToken) => accents[name][token],
+      theme,
+      text,
+      radii: theme.radii,
     }),
-    [name, preference, storage]
+    [name, preference, storage, theme, accents, text]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

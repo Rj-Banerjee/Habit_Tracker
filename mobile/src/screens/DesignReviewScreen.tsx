@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
+  colors as palette,
   HabitCardStatus,
   IdentityToken,
   identityColors,
@@ -10,7 +11,8 @@ import {
   ThemeColors,
   ThemeName,
 } from '@habit-tracker/core';
-import { HabitCard, StatusMark, Text, ThemeProvider, useTheme } from '@habit-tracker/ui';
+import { HabitCard, SegmentedControl, StatusMark, Text, ThemeProvider, useTheme } from '@habit-tracker/ui';
+import { AnimationPlayground } from './AnimationPlayground';
 
 const SWATCHES: (keyof ThemeColors)[] = [
   'canvas',
@@ -143,19 +145,40 @@ export function DesignReviewScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= 800;
   const themes: ThemeName[] = ['light', 'dark'];
+  const [page, setPage] = useState<'review' | 'animations'>('review');
 
   return (
-    <ScrollView contentContainerStyle={wide && styles.row}>
-      {themes.map((name) => (
-        <ThemeProvider key={name} forced={name}>
-          <ThemeColumn />
-        </ThemeProvider>
-      ))}
-    </ScrollView>
+    <View style={styles.page}>
+      <ThemeProvider forced="light">
+        <View style={styles.switcher}>
+          <SegmentedControl
+            options={[
+              { value: 'review', label: 'Design review' },
+              { value: 'animations', label: 'Animation playground' },
+            ]}
+            value={page}
+            onChange={setPage}
+          />
+        </View>
+      </ThemeProvider>
+      {page === 'animations' ? (
+        <AnimationPlayground />
+      ) : (
+        <ScrollView contentContainerStyle={wide && styles.row}>
+          {themes.map((name) => (
+            <ThemeProvider key={name} forced={name}>
+              <ThemeColumn />
+            </ThemeProvider>
+          ))}
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: palette.light.canvas },
+  switcher: { paddingHorizontal: space.lg, paddingTop: space.xxl + space.lg, paddingBottom: space.sm },
   row: { flexDirection: 'row' },
   column: { flex: 1, gap: space.xl, padding: space.lg, paddingTop: space.xxl },
   section: { gap: space.sm },

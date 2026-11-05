@@ -230,6 +230,34 @@ describe('matchSimplePhrase', () => {
   it('never guesses between two habits with the same name', () => {
     expect(matchSimplePhrase('I did my jog', habits)).toBeNull();
   });
+
+  describe('amounts, for Free voice with no AI', () => {
+    const counted = [
+      { id: 'h1', title: 'Read', voice_aliases: ['book'], type: 'count' as const, unit: 'pages' },
+      { id: 'h4', title: 'Meditate', voice_aliases: [], type: 'duration' as const, unit: 'minutes' },
+      { id: 'h5', title: 'Stretch', voice_aliases: [], type: 'boolean' as const, unit: null },
+    ];
+
+    it.each([
+      ['read 20 pages', 'h1', 20],
+      ['I read 20 pages', 'h1', 20],
+      ['20 pages of read', 'h1', 20],
+      ['book 1 page', 'h1', 1],
+      ['meditate 10 minutes', 'h4', 10],
+      ['Meditate 12.5 minutes.', 'h4', 12.5],
+    ])('hears %s', (text, id, amount) => {
+      expect(matchSimplePhrase(text, counted)).toEqual(
+        expect.objectContaining({ intent: 'log_amount', habit_id: id, amount })
+      );
+    });
+
+    it.each(['read 20 minutes', 'stretch 5 times', 'jog 3 km', 'I read lots of pages'])(
+      'leaves %s alone, since the unit or habit does not fit',
+      (text) => {
+        expect(matchSimplePhrase(text, counted)?.intent).not.toBe('log_amount');
+      }
+    );
+  });
 });
 
 describe('isUndoPhrase', () => {

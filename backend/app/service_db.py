@@ -62,5 +62,53 @@ class ServiceDb:
         except httpx.HTTPError as error:
             log.warning("Coach event not saved: %s", type(error).__name__)
 
+    async def plan_of(self, user_id: str) -> str:
+        """The stored plan. If it can't be read, nothing is unlocked: the caller stops."""
+        try:
+            response = await self.client.get(
+                "/users", params={"select": "plan", "id": f"eq.{user_id}"}
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            raise Unavailable("Plan isn't readable") from error
+        rows = response.json()
+        return rows[0]["plan"] if rows else "free"
+
     async def close(self) -> None:
         await self.client.aclose()
+
+
+class JobDb(ServiceDb):
+    """What the scheduled jobs read and write, all through service_role-only functions."""
+
+    async def rpc(self, name: str, args: dict[str, Any] | None = None) -> Any:
+        try:
+            response = await self.client.post(f"/rpc/{name}", json=args or {})
+            response.raise_for_status()
+        except httpx.HTTPError as error:
+            raise Unavailable(f"{name} failed") from error
+        return response.json()
+
+    async def claim(self, job: str, key: str) -> bool:
+        return bool(await self.rpc("job_claim", {"p_job": job, "p_run_key": key}))
+
+    async def release(self, job: str, key: str) -> None:
+        await self.rpc("job_release", {"p_job": job, "p_run_key": key})
+
+    async def rebuild_patterns(self) -> int:
+        return int(await self.rpc("job_rebuild_patterns"))
+
+    async def letter_candidates(self, hour: int) -> list[dict[str, Any]]:
+        return await self.rpc("job_letter_candidates", {"p_hour": hour})
+
+    async def letter_context(self, user_id: str, week_start: str) -> dict[str, Any]:
+        return await self.rpc("job_letter_context", {"p_user": user_id, "p_week_start": week_start})
+
+    async def due_reminders(self) -> list[dict[str, Any]]:
+        return await self.rpc("job_due_reminders")
+
+    async def due_nudges(self) -> list[dict[str, Any]]:
+        return await self.rpc("job_due_nudges")
+
+    async def push_tokens(self, user_id: str) -> list[str]:
+        return await self.rpc("job_push_tokens", {"p_user": user_id})

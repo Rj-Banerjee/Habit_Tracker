@@ -1,0 +1,22 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Keeps the focus countdown going in the notification and on the lock screen. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <service
+      android:name="expo.modules.focuslock.FocusLockService"
+      android:exported="false"
+      android:foregroundServiceType="specialUse">
+      <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="A focus timer the person starts themselves, shown as a countdown in the notification and on the lock screen until it ends or they stop it." />
+    </service>
+    <!-- Pause and Resume from the notification. Only the app's own notification sends these. -->
+    <receiver
+      android:name="expo.modules.focuslock.FocusActionReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

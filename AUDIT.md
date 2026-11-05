@@ -1139,7 +1139,7 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
 
-**Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision.
+**Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision. (Decided and built on 5 Nov, below.)
 
 ### Phone builds reach the AI service, and Realtime sync (5 Nov 2026)
 
@@ -1158,4 +1158,126 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Checked live:** the migration pushed after the dry run listed only that file. Two temporary users were made: the first got one reload for its log, the second got none, and the second could read none of the first user's activity or habits with the publishable key. Both users were deleted. The security advisor shows nothing new.
 
-**Not checked:** Realtime on the phone, which needs the next build and a log from a second device.
+**Checked on the phone:** with Today open on the phone, a log on the web grid ticked the habit on the phone without a reload.
+
+### Offline skips and repairs (5 Nov 2026)
+
+**Changed:** skips and repairs now queue on the phone with no connection, like logs. That covers Today, voice ("skip meditation, I'm sick") and the coach. A queued skip shows as skipped with its reason, and a queued repair shows as done. Each is sent with its own call when the connection is back, and one the server refuses is dropped with the same "couldn't be saved" note. A queue saved by an older build still sends as logs.
+
+**Limit:** the server takes a repair only on its repair day and goes by its own clock, so a repair made offline that syncs the next day is refused, and the person is told.
+
+**Not checked:** on the phone, because airplane mode cuts the wireless adb connection.
+
+### Streak chain: fracture, weld and Grace Day moments (5 Nov 2026)
+
+**Added**
+
+- The streak chain: one node per scheduled day with the habit card's own marks, joined by links that crack, settle into a quiet gap, or carry the approved stitched seam. On each Today card (last 7 scheduled days), on a new habit detail screen (last 30, opened from the chain or the long-press sheet), and still on Progress (last 14). On Progress and the web grid, holding or hovering a seam says what the repair took, for example "Repaired on Thu with 45 pages".
+- Fracture, weld and Grace Day moments, timed as in the brief. They're drawn with `react-native-svg` and moved by Reanimated 4 on the UI thread, one timeline per moment. Each plays once and is remembered on the phone. A fresh install marks everything already there as seen. A miss whose repair day has passed settles quietly. Several at once become one Welcome back card instead.
+- Reduced motion only crossfades, in 150 ms. A tap, long press or opening the detail jumps a moment to its end. Sparks are skipped on phones under 3 GB of memory. Haptics: one light tap for a crack, a success haptic when a weld's halves meet, none for a Grace Day.
+- A weld glow token per identity colour, tested to be brighter than its accent, in the same hue, and not red, in both themes. The crack uses the existing warm grey `hollow` token.
+- A hidden Animation Playground in the design review build, with fracture, weld, protected and Welcome back buttons, 0.25x slow motion, reduced motion, dark and low-end toggles, and a frame-rate readout. The review build installs as its own app, "Habit Tracker Review", so it never replaces the real one.
+- PLAN.md now records the streak moments, the Welcome back card, and "Coach" as the placeholder name.
+
+**Fixed while testing:** the crack's even zigzag read as an arrow at chain size on the phone, and is now an uneven line. A past repaired day on the web grid was a disabled button, which can't be hovered, so it now stays hoverable while its taps do nothing.
+
+**Frame rate on the Realme RMX2189 (2.7 GB, so low-end, sparks off):** measured on the UI thread with Reanimated's frame callback, over three rounds after the first: fracture 58 to 59 fps, weld 53 to 59 fps, Grace Day 53 to 60 fps, with 0 to 3 long frames each. The first fracture after launch ran at 30 fps while it warmed up. Android's own frame stats for one weld: 82 frames, 6 that missed their deadline, 1 missed vsync, median 16 ms and 90th percentile 20 ms. Its headline "janky" figure of 40% is mostly flagged as high input latency, which is how adb's injected taps show up, not slow drawing.
+
+**Frame rate on a Samsung Galaxy F23 (SM-E236B, Android 14, 5.3 GB, sparks on):** three rounds on the UI thread: fracture 59 to 61 fps, weld 57 to 59 fps, Grace Day 61 fps, with 0 or 1 long frames and no missed vsync. Android's frame stats counted 3 to 8 frames per moment past their deadline.
+
+**Not checked:** a fracture or weld on the real app from real data. The first open marked existing cracks as seen, as designed, so the next real miss or repair is the first chance. The habit detail and Progress chains on the phone. Reduced motion with the phone's own setting, rather than the playground toggle.
+
+### Tunnel Vision (5 Nov 2026)
+
+**Added**
+
+- A Focus action on today's cards, in the long-press sheet, and as a screen-reader action on the card. Everything else fades out over 250 ms and only that habit stays, centred, with a timer. Reduced motion is a plain fade.
+- The timer is the habit's duration target, in minutes or hours, or 25 minutes, and can be changed before starting. A big tabular countdown with Pause and Stop. It runs by the clock, so sleeping or leaving the app never loses time.
+- Finishing logs the full version, with the card's check-off and haptic, unless it was already logged. Stopping early asks "Log the minimum version?" with Yes, No and Keep going.
+- The screen stays on (`expo-keep-awake`). The app's own notifications are held while focusing and shown when it ends. Esc on a keyboard and Android's back button step out: before starting they close it, and while running they ask the stop question.
+- Migration `20261105000100_focus_events.sql`: `record_focus` writes `focus.started`, `focus.completed` and `focus.stopped` to `activity_events`, with the planned and elapsed seconds. It checks the habit is the caller's, accepts only those three kinds, a session of 1 minute to 4 hours and a fitting elapsed time, and caps a day at 200 so nothing can flood the history. Apps still can't write `activity_events` directly.
+
+**Checked live:** the dry run listed only that migration. With two temporary users, the owner's start and stop were saved and readable only by the owner. An unknown kind, a stranger's write, a signed-out call and a direct insert were all refused. Both users were deleted. The security advisor's only new line is `record_focus` in the expected group of app functions.
+
+**Limit:** notifications are held only while the app is open, which it is during focus because the screen stays on. If the person switches away, Android shows them as usual.
+
+**Not checked:** on a phone. It needs the next build, and the phone was locked.
+
+### Tunnel Vision locks the phone, and asks before logging (5 Nov 2026)
+
+**Changed, at the user's request**
+
+- While a focus timer runs, the phone stays in Tunnel Vision. A local native module (`mobile/modules/focus-lock`) runs a foreground service that keeps the countdown in an ongoing notification, on the lock screen too, and brings the app back whenever another app comes to the front, with the app open or closed. Calls, the dialer, emergency calls, the keyboard and the permission screen always get through. It needs **usage access** and **display over other apps**, which the setup step asks for before Start is available.
+- The timer no longer logs on its own. When it runs out it asks "Time's up. Is Read done?". Yes logs the full version. Not yet offers "Focus again?" for the same length.
+- "Done my work" finishes early, by tapping it or saying it while holding the mic. It's matched on the phone, in English and Hindi, and "not done" phrases never count.
+- A session kept going with the app closed comes back on open, from its notification, or when the lock brings the app forward. A saved session for a habit that isn't on Today unlocks the phone, rather than trap it.
+
+**Why this way:** an app that isn't the device owner can't truly freeze Android. Screen pinning needs no permissions, but it's off by default on many phones, a button gesture undoes it, and it can't carry on with the app closed. Usage access plus display over other apps is how screen-time apps keep you in, and it works when the app is closed. Play needs a clear disclosure for both permissions before release.
+
+**Builds:** the EAS free plan ran out of Android builds for the month, so builds are now made on this Mac with `eas build --local`, using the same signing key, so they install over the existing app without losing the sign-in. The Android SDK is at `/opt/homebrew/share/android-commandlinetools`, about 3 GB. A first build took 52 minutes; with a warm cache about 23.
+
+**Checked on a Samsung Galaxy F23 (Android 14), with the review app's Tunnel Vision on a sample habit:**
+
+- The setup step showed the permissions, and **Allow usage access** opened Android's usage-access page. Start stayed disabled until they were granted. For the test they were granted over adb, for the review app only.
+- During a session, **Home** and opening **Settings** both bounced straight back to Tunnel Vision, and so did **Recents**, so the app can't be swiped away while focusing.
+- The foreground service ran with the countdown notification: "Focusing on Sample habit" with a live countdown, public on the lock screen.
+- With the phone locked, the time ran out: the service stopped itself, Tunnel Vision came to the front and asked "Time's up. Is Sample habit done?" without logging. Not yet led to "Focus again?", and Not now closed it. Afterwards Home worked normally, so the lock lifts.
+
+**Fixed from that test**
+
+- Android hid the countdown because the app had no notification permission. The setup step now asks for notifications too, with the other two.
+- The countdown's channel was low importance, which some phones hide on the lock screen as silent. It's now normal importance with no sound or vibration, on a new channel id.
+- "Start 1 minutes" and "Focus 1 more minutes" now say "minute".
+
+**Not checked:** the lock-screen countdown shown on screen, since I don't screenshot a lock screen with other notifications on it. Saying "done my work" out loud. A phone restart mid-session: the service doesn't come back by itself after a reboot, but the app picks the session up the next time it opens.
+
+### Android install steps and the iPhone plan (5 Nov 2026)
+
+- `docs/install-android.md`: installing a test build, the widget, the voice tile and Tunnel Vision's two permissions, step by step.
+- Siri, the iPhone widgets and an iPhone focus lock need the paid Apple account, and Apple's Screen Time entitlement for the lock. They aren't written, because untestable iOS code could break the first iPhone build. `PLAN.md` says how they'll be built.
+
+### Scheduled jobs (5 Nov 2026)
+
+**Added**
+
+- Three jobs as FastAPI endpoints under `/jobs`, protected by a shared `JOB_SECRET` compared in constant time, and off when it's empty:
+  - `nightly-patterns` rebuilds each person's `pattern_snapshots` row, which only its owner can read.
+  - `sunday-letters` writes the Future-Self letter from 18:00 on Sunday in each person's own timezone, from their own Sunday Review. It writes one a week, and on a free tier only for test accounts.
+  - `reminders-and-nudges` sends the daily reminder and the preemptive nudge by push, by PLAN.md's rules: at risk under 90% over 14 days, 30 minutes before the usual hour from 5 or more same-day logs, an hour from the reminder, not after 3 ignored, and at most one a day.
+- Every job is safe to run twice: work is claimed in `tracker.job_runs` first, and a failure gives the claim back. All job functions are `service_role` only.
+- `pg_cron` schedules call the service through `pg_net`, reading its URL and secret from Vault. Until they're stored, the schedules do nothing.
+- `push_tokens` holds each phone's push token, owner-only. **Phones don't register a token yet:** that needs Firebase Cloud Messaging set up on the Expo project, which needs a Firebase account. Until then the job finds no phone, records nothing, and the phone's own local reminders and nudges carry on.
+- `npm run jobs` runs all three once against the service on this Mac, or one with `npm run jobs -- sunday-letters`. It creates `JOB_SECRET` in `backend/.env` the first time.
+- `docs/hosting-options.md` compares Cloud Run, Fly.io, Railway and Render from their current pricing, and recommends Cloud Run.
+
+**Checked locally:** 35 new database tests and 15 new service tests. Postgres called a local service through `pg_net` from Vault's URL, got HTTP 200, and the snapshot it wrote was in the database.
+
+**Checked live:** the dry run listed only the two job migrations. The three schedules are registered, Vault is empty so they do nothing, and both new tables have row-level security. With two temporary users, a push token could be saved only for oneself and read by nobody else, each person saw only their own pattern snapshot, and signed-in and signed-out callers were refused the job functions. Both users were deleted. The live rebuild during that check also wrote a pattern snapshot for each real account, which is what the nightly job does. The security advisor shows nothing new.
+
+### Analytics, off until the beta (5 Nov 2026)
+
+**Added**
+
+- `packages/core/src/analytics.ts`: a catalogue of events and a wrapper. It covers every log, undo, skip and repair with its source, whether it was a back-log and whether it waited offline; each onboarding step, with how many habits were saved by then; coach messages and their outcomes; voice use, with speech or typed, the language and the outcome; Tunnel Vision's start, finish and stop; and app opens, with days since the first open, for retention.
+- No personal data. Every property is a fixed choice, a capped number or a yes/no, and anything else is dropped, so a habit name, transcript, coach text or account id passed by mistake never leaves the phone. A test checks the catalogue has no free-text fields. People are counted under a random install id, never their account.
+- Off by default. It switches on only with `EXPO_PUBLIC_ANALYTICS=on` and a PostHog project key, and while off it stores and sends nothing. A PostHog sender is ready; no account has been made.
+- Logging is counted in one place, the offline-aware tracker, so taps, voice, the coach, the widget and notifications are all counted the same way.
+
+### Plans foundations (5 Nov 2026)
+
+**Added**
+
+- PLAN.md has a **Plans** section (Free, Pro, Ultra, Enterprise; pricing not decided) and a launch checklist line on Apple and Google in-app purchase, with RevenueCat worth considering.
+- **Entitlements:** `packages/core/src/entitlements.ts` maps each plan to its features. `users.plan` (migration `20261105000300`) defaults to `free`, and people can read but never change it. The AI service refuses chat, letters, voice parsing and scheduled letters and nudges without the feature, with a calm "Available on Pro." Its copy of the map is checked against the app's by a test. Screens ask `useEntitlements().can(feature)`, never a plan name. On Free, the coach button and card, the Sunday letter and nudges show or skip calmly, and voice logs simple phrases on the phone. The matcher now also understands amounts, like "read 20 pages". The `+test` account is on Pro, and AI test accounts count as Pro on the server.
+- **Themes as data:** a theme is a data file checked by `validateTheme`: structure, hex colours, all 8 identities, sensible type sizes, https-only assets, and readable text in both modes. A broken one falls back to the default. Today's look is `themes/default.ts`, the old tokens are derived from it, and `ThemeProvider` takes a `theme`.
+- **Game history:** `activity_events` now records `habit_created`, `habit_archived` and `habit_restored`, and every existing habit got its `habit_created` at its real creation time. Each log event also carries its identity. With the logs' level, status, amount, source, actor and time, plus repairs, moves and focus sessions, that's what XP and levels need. Grace Days aren't events, because they're recalculated from the logs.
+
+**Checked live:** the dry run listed only that migration. Afterwards one account (the test account) was on Pro and four on Free, all 11 habits had a start event, signed-in users couldn't update `plan` but could update their settings, and the security advisor showed nothing new.
+
+### Tunnel Vision pins the phone instead of bouncing back (5 Nov 2026)
+
+**Changed, at the user's request:** pressing Home or opening another app used to close Tunnel Vision for a moment before it came back. Now the phone is **screen pinned** while a session runs. Android turns off Home and Recents itself and shows its own message, so the app never closes. A test on the Samsung over adb showed Home staying in the app while pinned, and also that Android keeps the notification shade closed while pinned.
+
+- The app-blocking service and its two permissions (usage access, display over other apps) are gone. Only notifications are asked for.
+- Unpinning with Android's held gesture counts as Stop. If pinning never takes hold within 8 seconds, the screen says so calmly, with **Pin again** and **Open pinning settings**.
+- The countdown notification follows the user's sketch: the app name and arrow from Android, the habit and its target ("Read 20 pages"), a big countdown, and **Pause**, **Stop** and **Done**. Pause and Resume work from the notification without opening the app. Stop and Done open the app to ask or log. Tapping a button on the lock screen asks for an unlock first. While pinned the shade is closed, so the buttons are for when the phone isn't pinned. The user chose this.

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import {
 } from '@expo-google-fonts/figtree';
 import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
+import { EntitlementsProvider } from './src/hooks/useEntitlements';
 import { useNeedsOnboarding } from './src/hooks/useNeedsOnboarding';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
@@ -19,6 +20,7 @@ import { ProgressScreen } from './src/screens/ProgressScreen';
 import { SundayReviewScreen } from './src/screens/SundayReviewScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { YouScreen } from './src/screens/YouScreen';
+import { trackAppOpened } from './src/services/analytics';
 import { supabase } from './src/services/supabase';
 import { AuthForm, SheetInsetContext, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
@@ -66,8 +68,29 @@ function SheetInset({ children }: { children: React.ReactNode }) {
 }
 
 function SignedIn({ session }: { session: Session }) {
-  const { colors } = useTheme();
+  // For retention: counted on open and on each return to the app, if analytics is on.
+  useEffect(() => {
+    void trackAppOpened();
+    const sub = AppState.addEventListener('change', (next) => next === 'active' && void trackAppOpened());
+    return () => sub.remove();
+  }, []);
   const onboarding = useNeedsOnboarding();
+
+  return (
+    <EntitlementsProvider>
+      <SignedInScreens session={session} onboarding={onboarding} />
+    </EntitlementsProvider>
+  );
+}
+
+function SignedInScreens({
+  session,
+  onboarding,
+}: {
+  session: Session;
+  onboarding: ReturnType<typeof useNeedsOnboarding>;
+}) {
+  const { colors } = useTheme();
   // No router yet. Null shows the tabs; otherwise the form, for a new habit or habitId.
   const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
   const [tab, setTab] = useState<Tab>('today');

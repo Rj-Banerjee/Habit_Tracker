@@ -31,6 +31,23 @@ The launch release (v1) is the core tracker, the AI coach and voice logging. Eve
 | Focus | Tunnel Vision mode with a focus timer | Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
 | Social and game | — | Accountability pods | Gamification (RPG, rewards) |
 
+## Plans
+
+Pricing is still undecided, and these plans may change. Payments aren't built yet.
+
+| Plan | What it includes |
+| --- | --- |
+| **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. 10+ normal themes, each customizable (colours, fonts, accent per identity). |
+| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
+| **Ultra** | Everything in Pro, plus the AI-powered workspace (design not decided yet). Habits sync with the workspace: for example a "Work" habit updates automatically from work done in the workspace, via the activity log. |
+| **Enterprise** | Team workspaces and the features teams need: roles, a manager view of company work, audit history. Personal habits stay private from managers, always. |
+
+**Foundations built now** (the plan features themselves aren't):
+
+- **Entitlements:** `packages/core/src/entitlements.ts` maps each plan to its features (`tracker`, `voice.simple`, `themes.standard`, `ai.coach`, `ai.nudges`, `ai.voice`, `themes.game`, `social`, `workspace`, `team`). `users.plan` defaults to `free`, and only the server can change it. The AI service refuses AI calls without the entitlement, and its copy of the map is checked against the app's by a test. Screens ask one hook for a feature, never a plan name, and show locked features with a calm "Available on Pro." Test accounts get Pro.
+- **Themes as data:** a theme is a data file (light and dark colours, typography, radii, optional images and sounds), checked by `validateTheme` on load, including that text stays readable. The current look is the default theme, `packages/core/src/themes/default.ts`.
+- **Game progress:** `activity_events` has what XP and levels need: every log change with its Shrink level, status, amount, identity, source, actor and time; repairs; when each habit began, moved, was archived or restored; and focus sessions. Grace Days are worked out from the logs, as the streak rules already do.
+
 ## Tech stack and architecture
 
 One React Native codebase for iPhone and Android, a Next.js web app for desktop, and a backend on Supabase plus FastAPI — a stack you already work in.
@@ -147,6 +164,16 @@ Changing mode only affects days from then on.
 
 A Grace-covered miss shows as "Protected". That is a card state of its own.
 
+### Streak moments
+
+The streak chain draws each scheduled day as a node, joined by links, using the same marks as the habit card. It's on each Today card (the last 7 scheduled days), the habit detail (the last 30) and Progress (the last 14, still).
+
+- **Fracture:** plays once, the next time the habit is on screen after a miss becomes final and can still be repaired. A miss whose repair day has already passed settles into a quiet gap with no animation.
+- **Weld:** plays once after the log that completes a Streak Repair, from any source.
+- **Protected:** a one-time shimmer on the shield when a Grace Day is spent.
+- **Welcome back:** when 2 or more misses are waiting, or a miss and a weld, nothing animates. One card on Today says "Welcome back. Here's where things stand.", with each affected habit's chain in its end state and a repair line where one is still possible. No haptic. Got it marks them all as seen.
+- A fresh install never plays history: everything already there is marked as seen.
+
 ### How results are computed
 
 Streaks and Grace Days are computed purely from `habit_logs` and settings, so the result is identical whenever it's read. They can update lazily on read rather than in a nightly job. `pg_cron` is enabled when reminders are built.
@@ -207,6 +234,14 @@ Users will be able to log by voice without opening the app, but not with our own
    - **Two possible habits:** ask once. "Deep work or workout?"
    - **No match:** offer to create the habit, never guess silently.
 4. Offline: the log is queued on the device and synced later. Simple phrases ("done with X") are matched on-device without the LLM.
+
+**iPhone, waiting for the paid Apple Developer account:** Siri via App Intents, the iPhone home and lock-screen widgets, and the Control Center control all need the paid account, to sign and test. They aren't written yet, because code that can't be compiled or tested could break the first iPhone build. When the account exists, the plan is:
+
+- An App Intents extension with `LogHabitIntent` (habit, level), `UndoLastIntent` and `AskCoachIntent`, plus App Shortcuts phrases such as "Log \(habit) in Habit Tracker". It calls the same Supabase functions as the app, with the session shared through an App Group keychain.
+- A WidgetKit extension for "Habits today" (home screen and lock screen), reading a snapshot the app writes to the App Group after each change, and logging through an App Intent on tap.
+- Both added through config plugins, as the Android tile is, because `ios/` is generated.
+
+**Tunnel Vision on iPhone** can't keep other apps closed the way Android does. That needs Apple's Screen Time API (`FamilyControls`), which needs an entitlement Apple grants on request. Until then iPhone gets the timer without the lock.
 
 **Example phrases v1 must handle:** "I've completed my work" · "Read 15 pages" · "Did the minimum version of my run" · "Skip meditation today, I'm sick" · "Undo that."
 
@@ -282,6 +317,7 @@ We launch only after a closed beta proves people keep logging in week two. The t
 - Supabase Auth: turn Confirm email back on
 - Supabase Auth: leaked password protection on
 - Supabase Auth: custom email provider set up, so the built-in email limit can't block sign-ups
+- Subscriptions through Apple and Google in-app purchase, as the stores require for digital features. RevenueCat is worth considering to handle both stores, receipts and the server's view of each plan. The server sets `users.plan` only from verified purchases.
 
 | Metric | What it tells us | Starting target |
 | --- | --- | --- |
@@ -307,7 +343,7 @@ The biggest risk is scope: v1 is already a tracker, a coach and a voice product.
 
 **Open decisions**
 
-- [ ] App name and the assistant's name (the wake word needs 2–3 distinct syllables)
+- [ ] App name and the assistant's name (the wake word needs 2–3 distinct syllables). Not decided: the wake word waits, and "Coach" is the placeholder everywhere.
 - [ ] Team size: the timeline assumes 2 developers plus 1 designer
 - [ ] Pricing: free tier vs paid features (coach and voice are the natural paid tier)
 - [ ] Launch markets and languages (Hindi voice support in v1 or later?)

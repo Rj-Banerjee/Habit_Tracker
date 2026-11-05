@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  cardDetail,
-  cardStatus,
   coachCard,
   dayPart,
+  FOCUS_LINK,
   eveningNote,
   greeting,
   groupByIdentity,
   HabitLevel,
   isLogged,
+  lockedMessage,
   layout,
   progressLabel,
   repairOnLabel,
@@ -29,19 +29,29 @@ import {
   useShortcut,
   useTheme,
 } from '@habit-tracker/ui';
+import { repairHabitOf } from '../chain/CardChain';
+import { useMotionSettings } from '../chain/useMotionSettings';
+import { WelcomeBack } from '../chain/WelcomeBack';
+import { FocusLock, FocusSession } from '../../modules/focus-lock';
+import { FocusMode } from '../focus/FocusMode';
+import { focusCommandIn, sendFocusCommand } from '../services/focusCommands';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
 import { RuleCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
+import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
+import { useEntitlements } from '../hooks/useEntitlements';
+import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
 import { useRuleCard } from '../hooks/useRuleCard';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
-import { checkOffTick } from '../services/haptics';
 import { ShrinkSheet } from '../today/ShrinkSheet';
 import { SwipeToSkip } from '../today/SwipeToSkip';
+import { TodayCard } from '../today/TodayCard';
+import { HabitDetailScreen } from './HabitDetailScreen';
 import { UndoBanner } from '../voice/UndoBanner';
 import { VoiceSheet } from '../voice/VoiceSheet';
 
@@ -64,8 +74,46 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
-  useNudges(rows, loading, refresh);
+  const { can } = useEntitlements();
+  const coachLocked = can('ai.coach') ? undefined : lockedMessage('ai.coach');
+  useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
+  const { chains, ready: chainsReady } = useChains(rows);
+  const moments = useMoments(chains, chainsReady && !loading);
+  const motionSettings = useMotionSettings();
+  const [detailRow, setDetailRow] = useState<TodayRow | null>(null);
+  // Tunnel Vision follows the live row, so a log shows on its card straight away.
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusSaved, setFocusSaved] = useState<FocusSession | null>(null);
+  const focusRow = focusId ? rows.find((r) => r.is_today && r.habit_id === focusId) ?? null : null;
+  const openFocus = (habitId: string) => {
+    setFocusSaved(null);
+    setFocusId(habitId);
+  };
+
+  // A session kept going with the app closed comes back on open, from its notification,
+  // or when the lock brings the app to the front.
+  const resumeFocus = useCallback(() => {
+    // Today has to know its habits first, or a session can't be matched to one.
+    if (loading) return;
+    const saved = FocusLock?.status();
+    if (!saved) return;
+    if (rows.some((r) => r.is_today && r.habit_id === saved.habitId)) {
+      setFocusSaved(saved);
+      setFocusId(saved.habitId);
+    } else {
+      // Never leave the phone locked behind a habit that isn't on screen.
+      FocusLock?.stop();
+    }
+  }, [rows, loading]);
+  useEffect(() => {
+    if (focusId) return undefined;
+    // After this render, so restoring a session never sets state in the middle of one.
+    void Promise.resolve().then(resumeFocus);
+    const sub = AppState.addEventListener('change', (next) => next === 'active' && resumeFocus());
+    return () => sub.remove();
+  }, [focusId, resumeFocus]);
+  const chainOf = (habitId: string) => chains.find((c) => c.habitId === habitId)?.chain;
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
@@ -83,12 +131,24 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     refresh,
     onClose: () => setPanel(null),
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
+    canUseAi: can('ai.voice'),
   });
+
+  const resumeFocusRef = useRef(resumeFocus);
+  useEffect(() => {
+    resumeFocusRef.current = resumeFocus;
+  }, [resumeFocus]);
 
   // The widget's voice button opens straight to the sheet.
   useEffect(() => {
     const opened = (url: string | null | undefined) => {
       if (url === VOICE_LINK) setPanel('voice');
+      if (url?.includes(`://${FOCUS_LINK}`)) {
+        // Stop or Done from the notification: Tunnel Vision acts on it once it's on screen.
+        const command = focusCommandIn(url);
+        if (command) sendFocusCommand(command);
+        resumeFocusRef.current();
+      }
     };
     Linking.getInitialURL()
       .then(opened)
@@ -105,7 +165,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     refresh();
   }, [refresh]);
 
-  const tap = (row: TodayRow) => (isLogged(row) ? undo(row) : log(row, 'full'));
+  const tap = (row: TodayRow) => {
+    // A tap never waits for an animation: it jumps to the end and logs.
+    moments.interrupt(row.habit_id);
+    return isLogged(row) ? undo(row) : log(row, 'full');
+  };
 
   const renderCard = (row: TodayRow) => (
     <SwipeToSkip
@@ -113,19 +177,31 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       enabled={!isLogged(row)}
       onSkip={() => setSkipRow(row)}
     >
-      <HabitCard
-        title={row.title}
-        status={cardStatus(row)}
-        identity={row.colour_token}
-        streak={row.current_streak}
-        detail={cardDetail(row)}
+      <TodayCard
+        row={row}
+        chain={row.is_today ? chainOf(row.habit_id) : undefined}
+        playing={row.is_today ? moments.playing[row.habit_id] : undefined}
+        settings={motionSettings}
         onPress={() => tap(row)}
-        onLongPress={() => setShrinkRow(row)}
+        onLongPress={() => {
+          moments.interrupt(row.habit_id);
+          setShrinkRow(row);
+        }}
         onSkip={() => setSkipRow(row)}
-        onCheckOff={checkOffTick}
+        onMomentFinish={() => moments.finish(row.habit_id)}
+        onOpenDetail={() => {
+          moments.interrupt(row.habit_id);
+          setDetailRow(row);
+        }}
+        onFocus={row.is_today ? () => openFocus(row.habit_id) : undefined}
       />
     </SwipeToSkip>
   );
+
+  const welcomeHabits = today.flatMap((row) => {
+    const chain = chainOf(row.habit_id);
+    return chain ? [{ habitId: row.habit_id, identity: row.colour_token, chain, ...repairHabitOf(row) }] : [];
+  });
 
   useShortcut('r', refreshNow);
 
@@ -189,13 +265,19 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             />
           </View>
           <View style={styles.action}>
-            <Button label="Ask coach" quiet onPress={() => setPanel('coach')} />
+            <Button label="Ask coach" quiet disabled={Boolean(coachLocked)} onPress={() => setPanel('coach')} />
           </View>
         </View>
+        {coachLocked ? (
+          <Text variant="small" muted>
+            Coach · {coachLocked}
+          </Text>
+        ) : null}
 
         {card && !loading ? (
           <CoachCard
             text={card.text}
+            locked={coachLocked}
             onPress={() => {
               if (card.opens === 'sunday') {
                 onOpenReview();
@@ -206,6 +288,14 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
                 void coach.send(card.prompt, 'card');
               }
             }}
+          />
+        ) : null}
+
+        {moments.welcomeBack.length > 0 ? (
+          <WelcomeBack
+            moments={moments.welcomeBack}
+            habits={welcomeHabits}
+            onDismiss={moments.dismissWelcomeBack}
           />
         ) : null}
 
@@ -273,6 +363,14 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           setShrinkRow(null);
           onEditHabit(row.habit_id);
         }}
+        onDetails={(row) => {
+          setShrinkRow(null);
+          setDetailRow(row);
+        }}
+        onFocus={(row) => {
+          setShrinkRow(null);
+          openFocus(row.habit_id);
+        }}
       />
       <SkipSheet
         visible={skipRow !== null}
@@ -315,6 +413,26 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         }}
         onClose={() => setPanel(null)}
       />
+      {focusRow ? (
+        <FocusMode
+          key={focusRow.habit_id}
+          row={focusRow}
+          saved={focusSaved}
+          reducedMotion={motionSettings.reducedMotion}
+          onLog={log}
+          onClose={() => setFocusId(null)}
+        />
+      ) : null}
+      {detailRow ? (
+        <HabitDetailScreen
+          row={detailRow}
+          onClose={() => setDetailRow(null)}
+          onEdit={() => {
+            setDetailRow(null);
+            onEditHabit(detailRow.habit_id);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

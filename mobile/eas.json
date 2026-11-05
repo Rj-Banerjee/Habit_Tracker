@@ -17,6 +17,12 @@
         "buildType": "apk"
       },
       "environment": "preview"
+    },
+    "review": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_DESIGN_REVIEW": "1"
+      }
     }
   }
 }

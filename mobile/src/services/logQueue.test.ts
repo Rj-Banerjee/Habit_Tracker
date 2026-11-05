@@ -13,10 +13,14 @@ jest.mock('./tracker', () => ({
     logHabit: jest.fn(),
     undoLog: jest.fn(),
     skipHabit: jest.fn(),
+    repairHabit: jest.fn(),
   },
 }));
 
+jest.mock('./analytics', () => ({ analytics: { enabled: true, track: jest.fn() } }));
+
 const api = tracker as jest.Mocked<typeof tracker>;
+const track = jest.requireMock('./analytics').analytics.track as jest.Mock;
 const today = localDate(Intl.DateTimeFormat().resolvedOptions().timeZone);
 const row = { habit_id: 'h1', day: today, is_today: true, status: 'pending' } as TodayRow;
 const offline = new Error(OFFLINE_MESSAGE);
@@ -28,6 +32,8 @@ describe('offline logging', () => {
     api.getToday.mockResolvedValue([row]);
     api.logHabit.mockResolvedValue(null as never);
     api.undoLog.mockResolvedValue(null as never);
+    api.skipHabit.mockResolvedValue(null as never);
+    api.repairHabit.mockResolvedValue(null as never);
   });
 
   it('logs straight through when online', async () => {
@@ -105,5 +111,64 @@ describe('offline logging', () => {
   it("won't show yesterday's list as today", async () => {
     mockStore.set('today-rows', JSON.stringify([{ ...row, day: '2020-01-01' }]));
     await expect(cachedToday()).resolves.toEqual([]);
+  });
+
+  it('queues a skip offline, shows it as skipped, and sends it with its reason later', async () => {
+    await loadToday();
+    api.skipHabit.mockRejectedValue(offline);
+    await expect(offlineTracker.skipHabit('h1', today, 'sick', 'voice')).resolves.toBeNull();
+    api.getToday.mockRejectedValueOnce(offline);
+    const { rows } = await loadToday();
+    expect(rows[0]).toMatchObject({ status: 'skipped', skip_reason: 'sick' });
+    api.skipHabit.mockReset().mockResolvedValue(null as never);
+    await loadToday();
+    expect(api.skipHabit).toHaveBeenCalledWith('h1', today, 'sick', 'voice');
+  });
+
+  it('still shows a skip the server refused while online', async () => {
+    api.skipHabit.mockRejectedValue(new Error('You have used both skips this week'));
+    await expect(offlineTracker.skipHabit('h1', today, 'sick')).rejects.toThrow('both skips');
+  });
+
+  it('queues a repair offline and sends it later', async () => {
+    api.repairHabit.mockRejectedValueOnce(offline);
+    await offlineTracker.repairHabit('h1', '2026-11-02', 8);
+    await loadToday();
+    expect(api.repairHabit).toHaveBeenLastCalledWith('h1', '2026-11-02', 8);
+  });
+
+  it('says so when a queued repair comes in after its day', async () => {
+    api.repairHabit.mockRejectedValueOnce(offline);
+    await offlineTracker.repairHabit('h1', '2026-11-02', 8);
+    api.repairHabit.mockRejectedValueOnce(new Error('This day can no longer be repaired'));
+    expect((await loadToday()).note).toContain("couldn't be saved");
+  });
+
+  it('counts every log with its source, and whether it waited offline', async () => {
+    await offlineTracker.logHabit('h1', today, 'minimum', null, 'widget');
+    expect(track).toHaveBeenLastCalledWith('habit_logged', {
+      source: 'widget',
+      level: 'minimum',
+      backlog: false,
+      offline: false,
+    });
+    api.logHabit.mockRejectedValueOnce(offline);
+    await offlineTracker.logHabit('h1', '2020-01-01', 'full', null, 'voice');
+    expect(track).toHaveBeenLastCalledWith('habit_logged', {
+      source: 'voice',
+      level: 'full',
+      backlog: true,
+      offline: true,
+    });
+  });
+
+  it('counts undos, skips and repairs, never the reason', async () => {
+    await offlineTracker.undoLog('h1', today, 'coach');
+    expect(track).toHaveBeenLastCalledWith('habit_undone', { source: 'coach', offline: false });
+    await offlineTracker.skipHabit('h1', today, 'Therapy appointment', 'tap');
+    expect(track).toHaveBeenLastCalledWith('habit_skipped', { source: 'tap', offline: false });
+    expect(JSON.stringify(track.mock.calls)).not.toContain('Therapy');
+    await offlineTracker.repairHabit('h1', '2026-11-02', 8);
+    expect(track).toHaveBeenLastCalledWith('habit_repaired', { source: 'tap', offline: false });
   });
 });

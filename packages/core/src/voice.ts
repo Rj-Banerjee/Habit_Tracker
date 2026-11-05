@@ -43,8 +43,40 @@ const SAID_IT = [
 
 // "done with Read" works with no connection and costs nothing. Only an exact name counts:
 // anything less goes to the parser, which can ask.
+// "read 20 pages" or "20 pages of Read": a number in the habit's own unit, singular or plural.
+const AMOUNT_FIRST = /^(?:i )?(?:did |read |ran |logged )?(\d+(?:\.\d+)?) ([a-z]+)(?: of)? (.+)$/;
+const NAME_FIRST = /^(?:i )?(.+?) (\d+(?:\.\d+)?) ([a-z]+)$/;
+
+const sameUnit = (said: string, unit: string | null | undefined) => {
+  if (!unit) return false;
+  const want = unit.toLowerCase().replace(/s$/, '');
+  return said.replace(/s$/, '') === want;
+};
+
+function matchAmount(said: string, habits: VoiceHabit[]): VoiceAction | null {
+  const tries: { name: string; amount: string; unit: string }[] = [];
+  const first = AMOUNT_FIRST.exec(said);
+  if (first) tries.push({ amount: first[1], unit: first[2], name: first[3] });
+  const named = NAME_FIRST.exec(said);
+  if (named) tries.push({ name: named[1], amount: named[2], unit: named[3] });
+  for (const { name, amount, unit } of tries) {
+    const found = habits.filter(
+      (habit) =>
+        (habit.type === 'count' || habit.type === 'duration') &&
+        sameUnit(unit, habit.unit) &&
+        [habit.title, ...habit.voice_aliases].some((option) => option.toLowerCase() === name.replace(/^(my|the) /, ''))
+    );
+    if (found.length === 1) {
+      return { intent: 'log_amount', habit_id: found[0].id, habit_title: found[0].title, amount: Number(amount) };
+    }
+  }
+  return null;
+}
+
 export function matchSimplePhrase(text: string, habits: VoiceHabit[]): VoiceAction | null {
   const said = text.trim().toLowerCase().replace(/[.!]$/, '');
+  const amount = matchAmount(said, habits);
+  if (amount) return amount;
   for (const pattern of SAID_IT) {
     const name = pattern.exec(said)?.[1];
     if (!name) continue;

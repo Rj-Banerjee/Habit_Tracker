@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { asPlan } from './entitlements';
+import type { FocusEventKind } from './focus';
 import { IdentityToken } from './tokens';
 
 export type HabitLevel = 'full' | 'minimum' | 'setup';
@@ -78,12 +80,16 @@ export interface HabitLog {
   date: string;
   status: LogStatus;
   level_done: HabitLevel | null;
+  amount?: number | null;
 }
 
 export interface RangeHabit {
   id: string;
   identity_id: string;
   title: string;
+  type?: HabitType;
+  target?: number | null;
+  unit?: string | null;
   identities: { name: string; colour_token: IdentityToken };
   habit_levels: LevelOption[];
   habit_logs: HabitLog[];
@@ -118,6 +124,9 @@ export interface VoiceHabit {
   id: string;
   title: string;
   voice_aliases: string[];
+  // For "read 20 pages" on the phone: only count and duration habits take an amount.
+  type?: HabitType;
+  unit?: string | null;
 }
 
 export interface FutureLetter {
@@ -249,6 +258,15 @@ export function createTrackerApi(client: SupabaseClient) {
         p_full_and_minimum: amount === null,
       }),
 
+    // Tunnel Vision's start, finish or early stop, for the activity history.
+    recordFocus: (habitId: string, kind: FocusEventKind, plannedSeconds: number, elapsedSeconds: number | null = null) =>
+      call('record_focus', {
+        p_habit_id: habitId,
+        p_kind: kind,
+        p_planned_seconds: plannedSeconds,
+        p_elapsed_seconds: elapsedSeconds,
+      }),
+
     getHabitAllowance: async () => (await call<HabitAllowance[]>('get_habit_allowance'))[0],
 
     // A new identity saves with the habit, so a refused habit leaves nothing behind.
@@ -340,7 +358,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, identities(name, colour_token), habit_levels(level, description, target), habit_logs(id, habit_id, date, status, level_done)'
+            'id, identity_id, title, type, target, unit, identities(name, colour_token), habit_levels(level, description, target), habit_logs(id, habit_id, date, status, level_done, amount)'
           )
           .is('archived_at', null)
           .gte('habit_logs.date', from)
@@ -351,7 +369,7 @@ export function createTrackerApi(client: SupabaseClient) {
     // The words speech recognition should listen out for.
     listVoiceHabits: () =>
       select<VoiceHabit[]>(
-        client.from('habits').select('id, title, voice_aliases').is('archived_at', null)
+        client.from('habits').select('id, title, voice_aliases, type, unit').is('archived_at', null)
       ),
 
     listProgressHabits: () =>
@@ -367,6 +385,10 @@ export function createTrackerApi(client: SupabaseClient) {
 
     getHabitDays: (from: string, to: string) =>
       call<ProgressDay[]>('get_habit_days', { p_from: from, p_to: to }),
+
+    // Unknown or missing plans count as Free, so nothing unlocks by mistake.
+    getPlan: async () =>
+      asPlan((await select<{ plan: string }>(client.from('users').select('plan').single())).plan),
 
     getProfile: () =>
       select<Profile>(

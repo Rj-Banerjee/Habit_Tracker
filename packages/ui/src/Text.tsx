@@ -10,11 +10,11 @@ interface TextProps extends RNTextProps {
 }
 
 export function Text({ variant = 'body', muted, numeric, style, ...rest }: TextProps) {
-  const { colors } = useTheme();
+  const { colors, text } = useTheme();
   return (
     <RNText
       style={[
-        textStyles[variant],
+        text[variant],
         { color: muted ? colors.textMuted : colors.text },
         numeric && tabularNumerals,
         style,

@@ -14,6 +14,24 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../../modules/focus-lock', () => ({
+  FocusLock: {
+    pin: jest.fn(() => true),
+    unpin: jest.fn(),
+    isPinned: jest.fn(() => true),
+    openPinningSettings: jest.fn(),
+    start: jest.fn(),
+    pause: jest.fn(),
+    stop: jest.fn(),
+    status: jest.fn(() => null),
+  },
+}));
+jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
+jest.mock('../services/reminders', () => ({
+  showHeldNotifications: jest.fn(() => Promise.resolve()),
+  notificationsAllowed: jest.fn(() => Promise.resolve(true)),
+  askForNotifications: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
@@ -27,6 +45,9 @@ jest.mock('../services/tracker', () => ({
     undoLog: jest.fn(() => Promise.resolve()),
     skipHabit: jest.fn(() => Promise.resolve()),
     repairHabit: jest.fn(() => Promise.resolve()),
+    getHabitDays: jest.fn(() => Promise.resolve([])),
+    getDayStatuses: jest.fn(() => Promise.resolve([])),
+    recordFocus: jest.fn(() => Promise.resolve()),
   },
 }));
 
@@ -114,6 +135,111 @@ describe('TodayScreen', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
+  describe('streak chain', () => {
+    const week = Array.from({ length: 7 }, (_, i) => `2026-10-${String(28 + i).padStart(2, '0')}`)
+      .map((d) => (d > '2026-10-31' ? `2026-11-${String(Number(d.slice(8)) - 31).padStart(2, '0')}` : d));
+    const statuses = week.map((date) => ({
+      habit_id: 'h1',
+      date,
+      status: date === '2026-11-03' ? 'pending' : 'done',
+      repair_on: null,
+    }));
+    const habitDays = statuses.map((s) => ({ ...s, level_done: s.status === 'done' ? 'full' : null, amount: null, target: null }));
+
+    beforeEach(() => {
+      api.getHabitDays.mockResolvedValue(habitDays as never);
+      api.getDayStatuses.mockResolvedValue(statuses as never);
+    });
+
+    it("shows the last 7 days on today's card", async () => {
+      await open([row()]);
+      expect(screen.getByLabelText(/^Last 7 days: Wed, 28 Oct done/)).toBeTruthy();
+    });
+
+    it('opens the streak and details from the chain, and comes back', async () => {
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Run streak' }));
+      await act(async () => {});
+      expect(screen.getByText('The last 30 scheduled days')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+      expect(screen.queryByText('The last 30 scheduled days')).toBeNull();
+    });
+
+    it('offers the streak and details in the long-press sheet too', async () => {
+      await open([row()]);
+      await fireEvent(screen.getByRole('button', { name: /^Run, / }), 'longPress');
+      await fireEvent.press(screen.getByRole('button', { name: 'Streak and details' }));
+      await act(async () => {});
+      expect(screen.getByText('The last 30 scheduled days')).toBeTruthy();
+    });
+
+    it('still works when the chain cannot load', async () => {
+      api.getHabitDays.mockRejectedValue(new Error('offline'));
+      await open([row()]);
+      expect(screen.queryByLabelText(/^Last 7 days/)).toBeNull();
+      expect(screen.getByRole('button', { name: /^Run, / })).toBeTruthy();
+    });
+  });
+
+  describe('Tunnel Vision', () => {
+    it("opens from the Focus button on today's card", async () => {
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Focus on Run' }));
+      expect(screen.getByText('Tunnel Vision')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Start 25 minutes' })).toBeTruthy();
+    });
+
+    it('opens from the long-press sheet', async () => {
+      await open([row()]);
+      await fireEvent(screen.getByRole('button', { name: /^Run, / }), 'longPress');
+      await fireEvent.press(screen.getByRole('button', { name: /^Focus, Tunnel Vision/ }));
+      await act(async () => {});
+      expect(screen.getByText('Tunnel Vision')).toBeTruthy();
+    });
+
+    it('comes back to a session the phone kept going with the app closed', async () => {
+      const lock = jest.requireMock('../../modules/focus-lock').FocusLock;
+      lock.status.mockReturnValueOnce({
+        habitId: 'h1', title: 'Run', minutes: 25, endAt: Date.now() + 5 * 60_000, paused: false, remainingMs: 0, timeUp: false,
+      });
+      await open([row()]);
+      await act(async () => {});
+      expect(screen.getByText('Tunnel Vision')).toBeTruthy();
+      expect(screen.getByText(/^0[45]:\d\d$/)).toBeTruthy();
+    });
+
+    it('unlocks the phone rather than trap it behind a habit that is not on screen', async () => {
+      const lock = jest.requireMock('../../modules/focus-lock').FocusLock;
+      lock.status.mockReturnValueOnce({
+        habitId: 'gone', title: 'Old', minutes: 25, endAt: Date.now() + 60_000, paused: false, remainingMs: 0, timeUp: false,
+      });
+      await open([row()]);
+      await act(async () => {});
+      expect(lock.stop).toHaveBeenCalled();
+      expect(screen.queryByText('Tunnel Vision')).toBeNull();
+    });
+
+    it("isn't offered for a day that's still open from yesterday", async () => {
+      await open([row({ is_today: false, day: '2026-11-02', status: 'pending' })]);
+      expect(screen.queryByRole('button', { name: 'Focus on Run' })).toBeNull();
+    });
+
+    it('logs through Today once the work is confirmed done', async () => {
+      jest.useFakeTimers();
+      try {
+        await open([row()]);
+        await fireEvent.press(screen.getByRole('button', { name: 'Focus on Run' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Start 25 minutes' }));
+        await act(async () => jest.advanceTimersByTime(25 * 60_000));
+        expect(api.logHabit).not.toHaveBeenCalled();
+        await fireEvent.press(screen.getByRole('button', { name: "Yes, it's done" }));
+        expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
+
   it('groups habits by identity', async () => {
     await open([
       row(),
@@ -160,7 +286,7 @@ describe('TodayScreen', () => {
     await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
     await fireEvent.press(screen.getByRole('button', { name: 'Skip today' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Sick' }));
-    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Sick');
+    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Sick', 'tap');
   });
 
   it('keeps a typed skip reason disabled until there is text', async () => {
@@ -171,7 +297,7 @@ describe('TodayScreen', () => {
     expect(api.skipHabit).not.toHaveBeenCalled();
     await fireEvent.changeText(screen.getByLabelText('Another reason'), 'Doctor said rest');
     await fireEvent.press(screen.getByRole('button', { name: 'Skip' }));
-    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Doctor said rest');
+    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Doctor said rest', 'tap');
   });
 
   it('shows days that can still be back-logged', async () => {

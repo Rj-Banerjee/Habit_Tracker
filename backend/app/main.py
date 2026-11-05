@@ -10,14 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import coach, voice
+from . import coach, jobs, voice
 from .auth import CurrentUser, current_user
 from .config import Settings, get_settings
 from .data_policy import may_reach_provider
+from .entitlements import LOCKED, as_plan, effective_plan, has_feature
 from .llm import build_provider
 from .llm.base import LLMError, LLMProvider, Message, RateLimited, Refused
 from .llm.metered import MeteredProvider
-from .service_db import ServiceDb
+from .push import Push
+from .service_db import JobDb, ServiceDb
 from .tracker import Tracker, TrackerUnavailable
 
 log = logging.getLogger("ai")
@@ -63,13 +65,16 @@ def problem(status: int, code: str, message: str, retry_after: int | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    app.state.db = ServiceDb(settings)
+    app.state.db = JobDb(settings)
     app.state.provider = build_provider(settings, app.state.db)
+    app.state.push = Push(settings.expo_push_url)
     yield
     await app.state.db.close()
+    await app.state.push.close()
 
 
 app = FastAPI(title="Habit tracker AI service", lifespan=lifespan)
+app.include_router(jobs.router)
 
 
 def add_cors(settings: Settings) -> None:
@@ -115,7 +120,12 @@ async def admit(
     limit: int,
     seconds: int = 3600,
     refused: str = TOO_MANY,
+    feature: str = "ai.coach",
 ) -> None:
+    # The plan comes first: Free never reaches the AI, however the app was changed.
+    stored = as_plan(await request.app.state.db.plan_of(user.id))
+    if not has_feature(effective_plan(user, stored, settings), feature):
+        raise Denied(403, "needs_plan", LOCKED)
     if not may_reach_provider(user, settings, request.app.state.provider):
         raise Denied(403, "test_only", TEST_ONLY)
     wait = await request.app.state.db.take_slot(f"user:{user.id}:{action}", limit, seconds)
@@ -287,7 +297,7 @@ async def voice_parse(
     settings: Settings = Depends(get_settings),
     provider: LLMProvider = Depends(get_provider),
 ) -> dict:
-    await admit(request, user, settings, "voice", settings.ai_user_voice_per_hour)
+    await admit(request, user, settings, "voice", settings.ai_user_voice_per_hour, feature="ai.voice")
     tracker = Tracker(settings, user)
     metered = MeteredProvider(provider)
     try:

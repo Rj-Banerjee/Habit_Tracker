@@ -64,7 +64,8 @@ def api(monkeypatch):
     FakeTracker.fail = False
     app.dependency_overrides[current_user] = lambda: CurrentUser("test-user", "token")
     with TestClient(app) as client:
-        app.state.db = FakeDb()
+        # These tests are about the AI, so their real account is on Pro.
+        app.state.db = FakeDb(plans={"real-person": "pro"})
         yield client
     app.dependency_overrides.clear()
 
@@ -178,6 +179,33 @@ def test_a_paid_tier_lets_real_accounts_through(api):
     paid = get_settings().model_copy(update={"ai_provider_tier": "paid"})
     app.dependency_overrides[get_settings] = lambda: paid
     app.dependency_overrides[current_user] = lambda: CurrentUser("real-person", "token")
+    assert api.post("/coach/chat", json=ASK).status_code == 200
+
+
+def test_free_plan_never_reaches_the_ai_and_says_so_calmly(api):
+    provider = use(FakeProvider(["ok"]))
+    paid = get_settings().model_copy(update={"ai_provider_tier": "paid"})
+    app.dependency_overrides[get_settings] = lambda: paid
+    app.dependency_overrides[current_user] = lambda: CurrentUser("free-person", "token")
+    for path, body in (("/coach/chat", ASK), ("/voice/parse", {"transcript": "I read"})):
+        response = api.post(path, json=body)
+        assert response.status_code == 403
+        assert response.json() == {"code": "needs_plan", "message": "Available on Pro.", "retry_after": None}
+    assert provider.opened == 0
+
+
+def test_an_unknown_plan_counts_as_free(api):
+    use(FakeProvider(["ok"]))
+    app.state.db = FakeDb(plans={"odd-person": "premium"})
+    paid = get_settings().model_copy(update={"ai_provider_tier": "paid"})
+    app.dependency_overrides[get_settings] = lambda: paid
+    app.dependency_overrides[current_user] = lambda: CurrentUser("odd-person", "token")
+    assert api.post("/coach/chat", json=ASK).json()["code"] == "needs_plan"
+
+
+def test_test_accounts_get_pro_for_testing(api):
+    use(FakeProvider(["ok"]))
+    app.state.db = FakeDb()
     assert api.post("/coach/chat", json=ASK).status_code == 200
 
 
