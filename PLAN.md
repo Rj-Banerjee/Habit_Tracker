@@ -218,6 +218,14 @@ Users will be able to log by voice without opening the app, but not with our own
    - **No match:** offer to create the habit, never guess silently.
 4. Offline: the log is queued on the device and synced later. Simple phrases ("done with X") are matched on-device without the LLM.
 
+**iPhone, waiting for the paid Apple Developer account:** Siri via App Intents, the iPhone home and lock-screen widgets, and the Control Center control all need the paid account, to sign and test. They aren't written yet, because code that can't be compiled or tested could break the first iPhone build. When the account exists, the plan is:
+
+- An App Intents extension with `LogHabitIntent` (habit, level), `UndoLastIntent` and `AskCoachIntent`, plus App Shortcuts phrases such as "Log \(habit) in Habit Tracker". It calls the same Supabase functions as the app, with the session shared through an App Group keychain.
+- A WidgetKit extension for "Habits today" (home screen and lock screen), reading a snapshot the app writes to the App Group after each change, and logging through an App Intent on tap.
+- Both added through config plugins, as the Android tile is, because `ios/` is generated.
+
+**Tunnel Vision on iPhone** can't keep other apps closed the way Android does. That needs Apple's Screen Time API (`FamilyControls`), which needs an entitlement Apple grants on request. Until then iPhone gets the timer without the lock.
+
 **Example phrases v1 must handle:** "I've completed my work" · "Read 15 pages" · "Did the minimum version of my run" · "Skip meditation today, I'm sick" · "Undo that."
 
 **AI data:** while the AI service runs on a free tier, only test accounts and test data may reach the provider, because free-tier prompts and responses may be used by the provider and read by human reviewers. The service enforces this with `AI_PROVIDER_TIER=free` and the `AI_TEST_USER_IDS` allow-list. **Production must use a paid tier with no training on user data**, set explicitly with `AI_PROVIDER_TIER=paid`. Google allows only paid services for users in the EEA, Switzerland and the UK.
