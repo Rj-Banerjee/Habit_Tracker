@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  cardDetail,
-  cardStatus,
   coachCard,
   dayPart,
   eveningNote,
@@ -29,19 +27,25 @@ import {
   useShortcut,
   useTheme,
 } from '@habit-tracker/ui';
+import { repairHabitOf } from '../chain/CardChain';
+import { useMotionSettings } from '../chain/useMotionSettings';
+import { WelcomeBack } from '../chain/WelcomeBack';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
 import { RuleCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
+import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
+import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
 import { useRuleCard } from '../hooks/useRuleCard';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
-import { checkOffTick } from '../services/haptics';
 import { ShrinkSheet } from '../today/ShrinkSheet';
 import { SwipeToSkip } from '../today/SwipeToSkip';
+import { TodayCard } from '../today/TodayCard';
+import { HabitDetailScreen } from './HabitDetailScreen';
 import { UndoBanner } from '../voice/UndoBanner';
 import { VoiceSheet } from '../voice/VoiceSheet';
 
@@ -66,6 +70,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const coach = useCoach(actions);
   useNudges(rows, loading, refresh);
   const ruleCard = useRuleCard(rows, repairs, loading);
+  const { chains, ready: chainsReady } = useChains(rows);
+  const moments = useMoments(chains, chainsReady && !loading);
+  const motionSettings = useMotionSettings();
+  const [detailRow, setDetailRow] = useState<TodayRow | null>(null);
+  const chainOf = (habitId: string) => chains.find((c) => c.habitId === habitId)?.chain;
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const switchTo = (next: 'coach' | 'voice', then?: () => void) => {
@@ -105,7 +114,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     refresh();
   }, [refresh]);
 
-  const tap = (row: TodayRow) => (isLogged(row) ? undo(row) : log(row, 'full'));
+  const tap = (row: TodayRow) => {
+    // A tap never waits for an animation: it jumps to the end and logs.
+    moments.interrupt(row.habit_id);
+    return isLogged(row) ? undo(row) : log(row, 'full');
+  };
 
   const renderCard = (row: TodayRow) => (
     <SwipeToSkip
@@ -113,19 +126,30 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       enabled={!isLogged(row)}
       onSkip={() => setSkipRow(row)}
     >
-      <HabitCard
-        title={row.title}
-        status={cardStatus(row)}
-        identity={row.colour_token}
-        streak={row.current_streak}
-        detail={cardDetail(row)}
+      <TodayCard
+        row={row}
+        chain={row.is_today ? chainOf(row.habit_id) : undefined}
+        playing={row.is_today ? moments.playing[row.habit_id] : undefined}
+        settings={motionSettings}
         onPress={() => tap(row)}
-        onLongPress={() => setShrinkRow(row)}
+        onLongPress={() => {
+          moments.interrupt(row.habit_id);
+          setShrinkRow(row);
+        }}
         onSkip={() => setSkipRow(row)}
-        onCheckOff={checkOffTick}
+        onMomentFinish={() => moments.finish(row.habit_id)}
+        onOpenDetail={() => {
+          moments.interrupt(row.habit_id);
+          setDetailRow(row);
+        }}
       />
     </SwipeToSkip>
   );
+
+  const welcomeHabits = today.flatMap((row) => {
+    const chain = chainOf(row.habit_id);
+    return chain ? [{ habitId: row.habit_id, identity: row.colour_token, chain, ...repairHabitOf(row) }] : [];
+  });
 
   useShortcut('r', refreshNow);
 
@@ -209,6 +233,14 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           />
         ) : null}
 
+        {moments.welcomeBack.length > 0 ? (
+          <WelcomeBack
+            moments={moments.welcomeBack}
+            habits={welcomeHabits}
+            onDismiss={moments.dismissWelcomeBack}
+          />
+        ) : null}
+
         {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
 
         {message ? (
@@ -273,6 +305,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           setShrinkRow(null);
           onEditHabit(row.habit_id);
         }}
+        onDetails={(row) => {
+          setShrinkRow(null);
+          setDetailRow(row);
+        }}
       />
       <SkipSheet
         visible={skipRow !== null}
@@ -315,6 +351,16 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         }}
         onClose={() => setPanel(null)}
       />
+      {detailRow ? (
+        <HabitDetailScreen
+          row={detailRow}
+          onClose={() => setDetailRow(null)}
+          onEdit={() => {
+            setDetailRow(null);
+            onEditHabit(detailRow.habit_id);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -14,3 +14,5 @@ export * from './Text';
 export * from './TextField';
 export * from './ThemeProvider';
 export * from './WeekdayPicker';
+export * from './chainGeometry';
+export * from './StreakChain';

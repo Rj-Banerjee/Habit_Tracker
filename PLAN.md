@@ -147,6 +147,16 @@ Changing mode only affects days from then on.
 
 A Grace-covered miss shows as "Protected". That is a card state of its own.
 
+### Streak moments
+
+The streak chain draws each scheduled day as a node, joined by links, using the same marks as the habit card. It's on each Today card (the last 7 scheduled days), the habit detail (the last 30) and Progress (the last 14, still).
+
+- **Fracture:** plays once, the next time the habit is on screen after a miss becomes final and can still be repaired. A miss whose repair day has already passed settles into a quiet gap with no animation.
+- **Weld:** plays once after the log that completes a Streak Repair, from any source.
+- **Protected:** a one-time shimmer on the shield when a Grace Day is spent.
+- **Welcome back:** when 2 or more misses are waiting, or a miss and a weld, nothing animates. One card on Today says "Welcome back. Here's where things stand.", with each affected habit's chain in its end state and a repair line where one is still possible. No haptic. Got it marks them all as seen.
+- A fresh install never plays history: everything already there is marked as seen.
+
 ### How results are computed
 
 Streaks and Grace Days are computed purely from `habit_logs` and settings, so the result is identical whenever it's read. They can update lazily on read rather than in a nightly job. `pg_cron` is enabled when reminders are built.
@@ -307,7 +317,7 @@ The biggest risk is scope: v1 is already a tracker, a coach and a voice product.
 
 **Open decisions**
 
-- [ ] App name and the assistant's name (the wake word needs 2–3 distinct syllables)
+- [ ] App name and the assistant's name (the wake word needs 2–3 distinct syllables). Not decided: the wake word waits, and "Coach" is the placeholder everywhere.
 - [ ] Team size: the timeline assumes 2 developers plus 1 designer
 - [ ] Pricing: free tier vs paid features (coach and voice are the natural paid tier)
 - [ ] Launch markets and languages (Hindi voice support in v1 or later?)

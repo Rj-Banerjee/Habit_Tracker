@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { shortDate, space, StreakRun } from '@habit-tracker/core';
-import { Text } from '@habit-tracker/ui';
+import { Chain, IdentityToken, RepairHabit, seamLabel, shortDate, space, StreakRun } from '@habit-tracker/core';
+import { StreakChain, Text } from '@habit-tracker/ui';
 
 const SHOWN = 5;
 
@@ -13,16 +13,42 @@ function detail(run: StreakRun) {
   return notes.join(' · ');
 }
 
-export function StreakHistory({ runs }: { runs: StreakRun[] }) {
+interface StreakHistoryProps {
+  runs: StreakRun[];
+  // The recent days as a still chain: no animation here.
+  chain?: Chain;
+  habit?: RepairHabit & { identity: IdentityToken };
+}
+
+export function StreakHistory({ runs, chain, habit }: StreakHistoryProps) {
+  const seams =
+    chain && habit
+      ? Object.fromEntries(
+          chain.links.flatMap((kind, i) =>
+            kind === 'seam' ? [[i + 1, seamLabel(chain.nodes[i + 1], habit)]] : []
+          )
+        )
+      : undefined;
+  const recent =
+    chain && habit && chain.nodes.length > 1 ? (
+      <View style={styles.chain}>
+        <StreakChain chain={chain} identity={habit.identity} seamLabels={seams} />
+      </View>
+    ) : null;
+
   if (runs.length === 0) {
     return (
-      <Text variant="small" muted>
-        Streaks will show up here.
-      </Text>
+      <View style={styles.root}>
+        {recent}
+        <Text variant="small" muted>
+          Streaks will show up here.
+        </Text>
+      </View>
     );
   }
   return (
     <View style={styles.root}>
+      {recent}
       {runs.slice(0, SHOWN).map((run) => (
         <View key={run.start} style={styles.run}>
           <Text numeric>
@@ -39,5 +65,6 @@ export function StreakHistory({ runs }: { runs: StreakRun[] }) {
 
 const styles = StyleSheet.create({
   root: { gap: space.md },
+  chain: { paddingBottom: space.lg },
   run: { gap: space.xs },
 });

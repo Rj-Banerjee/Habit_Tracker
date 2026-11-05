@@ -27,6 +27,8 @@ jest.mock('../services/tracker', () => ({
     undoLog: jest.fn(() => Promise.resolve()),
     skipHabit: jest.fn(() => Promise.resolve()),
     repairHabit: jest.fn(() => Promise.resolve()),
+    getHabitDays: jest.fn(() => Promise.resolve([])),
+    getDayStatuses: jest.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -113,6 +115,52 @@ describe('TodayScreen', () => {
   });
 
   beforeEach(() => jest.clearAllMocks());
+
+  describe('streak chain', () => {
+    const week = Array.from({ length: 7 }, (_, i) => `2026-10-${String(28 + i).padStart(2, '0')}`)
+      .map((d) => (d > '2026-10-31' ? `2026-11-${String(Number(d.slice(8)) - 31).padStart(2, '0')}` : d));
+    const statuses = week.map((date) => ({
+      habit_id: 'h1',
+      date,
+      status: date === '2026-11-03' ? 'pending' : 'done',
+      repair_on: null,
+    }));
+    const habitDays = statuses.map((s) => ({ ...s, level_done: s.status === 'done' ? 'full' : null, amount: null, target: null }));
+
+    beforeEach(() => {
+      api.getHabitDays.mockResolvedValue(habitDays as never);
+      api.getDayStatuses.mockResolvedValue(statuses as never);
+    });
+
+    it("shows the last 7 days on today's card", async () => {
+      await open([row()]);
+      expect(screen.getByLabelText(/^Last 7 days: Wed, 28 Oct done/)).toBeTruthy();
+    });
+
+    it('opens the streak and details from the chain, and comes back', async () => {
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Run streak' }));
+      await act(async () => {});
+      expect(screen.getByText('The last 30 scheduled days')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+      expect(screen.queryByText('The last 30 scheduled days')).toBeNull();
+    });
+
+    it('offers the streak and details in the long-press sheet too', async () => {
+      await open([row()]);
+      await fireEvent(screen.getByRole('button', { name: /^Run, / }), 'longPress');
+      await fireEvent.press(screen.getByRole('button', { name: 'Streak and details' }));
+      await act(async () => {});
+      expect(screen.getByText('The last 30 scheduled days')).toBeTruthy();
+    });
+
+    it('still works when the chain cannot load', async () => {
+      api.getHabitDays.mockRejectedValue(new Error('offline'));
+      await open([row()]);
+      expect(screen.queryByLabelText(/^Last 7 days/)).toBeNull();
+      expect(screen.getByRole('button', { name: /^Run, / })).toBeTruthy();
+    });
+  });
 
   it('groups habits by identity', async () => {
     await open([

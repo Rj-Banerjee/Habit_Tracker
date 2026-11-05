@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.118.0",
     "expo": "~58.0.22",
     "expo-dev-client": "~58.0.18",
+    "expo-device": "~58.0.5",
     "expo-font": "~58.0.11",
     "expo-haptics": "~58.0.7",
     "expo-notifications": "~58.1.7",
@@ -25,10 +26,12 @@
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
     "react-native-android-widget": "^0.26.0",
+    "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-svg": "15.16.0",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.4"
+    "react-native-web": "^0.21.4",
+    "react-native-worklets": "0.13.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^14.1.0",
@@ -63,6 +66,9 @@
         "roots": [
           "<rootDir>",
           "<rootDir>/../packages/ui"
+        ],
+        "setupFiles": [
+          "<rootDir>/test/reanimated.setup.js"
         ]
       },
       {
@@ -74,6 +80,9 @@
         "roots": [
           "<rootDir>",
           "<rootDir>/../packages/ui"
+        ],
+        "setupFiles": [
+          "<rootDir>/test/reanimated.setup.js"
         ]
       },
       {
@@ -82,6 +91,7 @@
           "**/*.web.test.tsx"
         ],
         "setupFiles": [
+          "<rootDir>/test/reanimated.setup.js",
           "<rootDir>/test/web.setup.js"
         ],
         "moduleNameMapper": {

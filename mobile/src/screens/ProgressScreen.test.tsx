@@ -11,6 +11,7 @@ jest.mock('../services/tracker', () => ({
     getProfile: jest.fn(),
     listProgressHabits: jest.fn(),
     getHabitDays: jest.fn(),
+    getDayStatuses: jest.fn(() => Promise.resolve([])),
   },
 }));
 

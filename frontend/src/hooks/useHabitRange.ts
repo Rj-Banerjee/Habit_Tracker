@@ -7,6 +7,7 @@ import {
   HabitCardStatus,
   HabitLevel,
   RangeHabit,
+  seamLabels,
 } from '@habit-tracker/core';
 import { watchMyActivity } from '../services/live';
 import { tracker } from '../services/tracker';
@@ -70,6 +71,30 @@ export function useHabitRange(from: string, to: string, today: string | null) {
           )
         : null,
     [dayMap, levelMap, today]
+  );
+
+  // "Repaired on Thu with 45 pages", for a repaired day's hover.
+  const repairedLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    if (!today) return labels;
+    for (const habit of habits) {
+      const own = days.filter((d) => d.habit_id === habit.id);
+      const repairHabit = {
+        title: habit.title,
+        type: habit.type ?? 'boolean',
+        target: habit.target ?? null,
+        unit: habit.unit ?? null,
+      };
+      for (const [date, label] of seamLabels(own, habit.habit_logs, repairHabit, today)) {
+        labels.set(key(habit.id, date), label);
+      }
+    }
+    return labels;
+  }, [habits, days, today]);
+
+  const repairedLabel = useCallback(
+    (habitId: string, date: string) => repairedLabels.get(key(habitId, date)) ?? null,
+    [repairedLabels]
   );
 
   const repairOn = useCallback(
@@ -137,6 +162,7 @@ export function useHabitRange(from: string, to: string, today: string | null) {
     refresh,
     statusOf,
     repairOn,
+    repairedLabel,
     log,
     undo,
     skip,

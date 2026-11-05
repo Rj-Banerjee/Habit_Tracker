@@ -78,12 +78,16 @@ export interface HabitLog {
   date: string;
   status: LogStatus;
   level_done: HabitLevel | null;
+  amount?: number | null;
 }
 
 export interface RangeHabit {
   id: string;
   identity_id: string;
   title: string;
+  type?: HabitType;
+  target?: number | null;
+  unit?: string | null;
   identities: { name: string; colour_token: IdentityToken };
   habit_levels: LevelOption[];
   habit_logs: HabitLog[];
@@ -340,7 +344,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, identities(name, colour_token), habit_levels(level, description, target), habit_logs(id, habit_id, date, status, level_done)'
+            'id, identity_id, title, type, target, unit, identities(name, colour_token), habit_levels(level, description, target), habit_logs(id, habit_id, date, status, level_done, amount)'
           )
           .is('archived_at', null)
           .gte('habit_logs.date', from)

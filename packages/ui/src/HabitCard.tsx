@@ -26,6 +26,8 @@ interface HabitCardProps {
   onSkip?: () => void;
   // Fires when a habit becomes logged. Apps use this for a haptic tick.
   onCheckOff?: () => void;
+  // Drawn under the title, full width: the streak chain on Today.
+  footer?: React.ReactNode;
 }
 
 const LOGGED: HabitCardStatus[] = ['done', 'doneMinimum', 'repaired'];
@@ -41,6 +43,7 @@ export function HabitCard({
   onLongPress,
   onSkip,
   onCheckOff,
+  footer,
 }: HabitCardProps) {
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
@@ -94,27 +97,30 @@ export function HabitCard({
       ]}
       {...rightClick(onLongPress)}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>
-        <StatusMark status={status} identity={identity} />
-      </Animated.View>
+      <View style={styles.row}>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <StatusMark status={status} identity={identity} />
+        </Animated.View>
 
-      <View style={styles.body}>
-        <Text numberOfLines={1}>{title}</Text>
-        <Text variant="small" muted numberOfLines={1}>
-          {detail ? `${label} · ${detail}` : label}
-        </Text>
-      </View>
-
-      {hasStreak && (
-        <View style={styles.streak}>
-          <Text variant="title" numeric>
-            {streak}
-          </Text>
-          <Text variant="small" muted>
-            days
+        <View style={styles.body}>
+          <Text numberOfLines={1}>{title}</Text>
+          <Text variant="small" muted numberOfLines={1}>
+            {detail ? `${label} · ${detail}` : label}
           </Text>
         </View>
-      )}
+
+        {hasStreak && (
+          <View style={styles.streak}>
+            <Text variant="title" numeric>
+              {streak}
+            </Text>
+            <Text variant="small" muted>
+              days
+            </Text>
+          </View>
+        )}
+      </View>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </Pressable>
   );
 }
@@ -122,13 +128,21 @@ export function HabitCard({
 const styles = StyleSheet.create({
   card: {
     minHeight: layout.minTouchTarget + space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
+    justifyContent: 'center',
+    gap: space.sm,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+  },
+  footer: {
+    // Lines up with the title, past the status mark.
+    paddingLeft: 28 + space.md,
   },
   body: {
     flex: 1,

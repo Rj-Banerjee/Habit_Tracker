@@ -15,9 +15,10 @@ interface ShrinkSheetProps {
   onRepair: (row: TodayRow) => void;
   onSkip: (row: TodayRow) => void;
   onEdit: (row: TodayRow) => void;
+  onDetails?: (row: TodayRow) => void;
 }
 
-export function ShrinkSheet({ row, onClose, onLog, onRepair, onSkip, onEdit }: ShrinkSheetProps) {
+export function ShrinkSheet({ row, onClose, onLog, onRepair, onSkip, onEdit, onDetails }: ShrinkSheetProps) {
   return (
     <BottomSheet visible={row !== null} title={row?.title ?? ''} onClose={onClose}>
       {row ? (
@@ -38,6 +39,7 @@ export function ShrinkSheet({ row, onClose, onLog, onRepair, onSkip, onEdit }: S
             />
           ) : null}
           <SheetOption label="Skip today" onPress={() => onSkip(row)} />
+          {onDetails ? <SheetOption label="Streak and details" onPress={() => onDetails(row)} /> : null}
           <SheetOption label="Edit habit" onPress={() => onEdit(row)} />
         </>
       ) : null}

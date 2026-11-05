@@ -52,10 +52,31 @@ export interface IdentityColor {
   // The accent on surfaces, and the check drawn on top of it.
   accent: string;
   onAccent: string;
+  // A brighter tint of the accent, for the weld bead travelling along a repaired link.
+  glow: string;
 }
 
+const mix = (from: string, to: string, amount: number) => {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2]
+    .map((i) => Math.round(channel(from, i) + (channel(to, i) - channel(from, i)) * amount))
+    .map((v) => v.toString(16).padStart(2, '0').toUpperCase())
+    .join('')}`;
+};
+
+const GLOW_TOWARD = '#FFF4DC';
+const GLOW_AMOUNT = 0.45;
+
+const withGlow = (accents: Record<IdentityToken, Omit<IdentityColor, 'glow'>>) =>
+  Object.fromEntries(
+    Object.entries(accents).map(([token, colour]) => [
+      token,
+      { ...colour, glow: mix(colour.accent, GLOW_TOWARD, GLOW_AMOUNT) },
+    ])
+  ) as Record<IdentityToken, IdentityColor>;
+
 export const identityColors: Record<ThemeName, Record<IdentityToken, IdentityColor>> = {
-  light: {
+  light: withGlow({
     'identity-1': { label: 'Pine', accent: '#1D5C30', onAccent: '#FBF8F2' },
     'identity-2': { label: 'Lagoon', accent: '#237D7A', onAccent: '#FBF8F2' },
     'identity-3': { label: 'Harbour', accent: '#004CA9', onAccent: '#FBF8F2' },
@@ -64,8 +85,8 @@ export const identityColors: Record<ThemeName, Record<IdentityToken, IdentityCol
     'identity-6': { label: 'Ochre', accent: '#8E6B00', onAccent: '#FBF8F2' },
     'identity-7': { label: 'Copper', accent: '#833D0A', onAccent: '#FBF8F2' },
     'identity-8': { label: 'Stone', accent: '#4D514D', onAccent: '#FBF8F2' },
-  },
-  dark: {
+  }),
+  dark: withGlow({
     'identity-1': { label: 'Pine', accent: '#91D8A8', onAccent: '#1D1A16' },
     'identity-2': { label: 'Lagoon', accent: '#1FDDF3', onAccent: '#1D1A16' },
     'identity-3': { label: 'Harbour', accent: '#52A2FB', onAccent: '#1D1A16' },
@@ -74,7 +95,7 @@ export const identityColors: Record<ThemeName, Record<IdentityToken, IdentityCol
     'identity-6': { label: 'Ochre', accent: '#AE9F3D', onAccent: '#1D1A16' },
     'identity-7': { label: 'Copper', accent: '#CA8B63', onAccent: '#1D1A16' },
     'identity-8': { label: 'Stone', accent: '#859C8B', onAccent: '#1D1A16' },
-  },
+  }),
 };
 
 export const fonts = {

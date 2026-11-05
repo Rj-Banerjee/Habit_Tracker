@@ -26,6 +26,20 @@ describe.each(themes)('%s theme', (theme) => {
     expect(contrast(c.hollow, c.surface)).toBeLessThan(contrast(c.text, c.surface));
   });
 
+  it.each(Object.keys(identityColors[theme]))('%s has a weld glow brighter than its accent, in the same hue', (token) => {
+    const a = identityColors[theme][token as keyof (typeof identityColors)['light']];
+    const luminance = (hex: string) => contrast(hex, '#000001');
+    expect(luminance(a.glow)).toBeGreaterThan(luminance(a.accent));
+    expect(a.glow.toUpperCase()).not.toBe('#FFFFFF');
+    const { hue: glowHue, saturation } = hueAndSaturation(a.glow);
+    const { hue, saturation: accentSaturation } = hueAndSaturation(a.accent);
+    const apart = Math.min(Math.abs(glowHue - hue), 360 - Math.abs(glowHue - hue));
+    // Greys have no real hue to keep.
+    if (accentSaturation > 0.2) expect(apart).toBeLessThan(30);
+    const isRed = (glowHue < 18 || glowHue > 340) && saturation > 0.3;
+    expect({ glow: a.glow, isRed }).toEqual({ glow: a.glow, isRed: false });
+  });
+
   it('has exactly 8 identity accents', () => {
     expect(accents).toHaveLength(8);
   });
