@@ -5,6 +5,7 @@ import {
   coachCard,
   dayPart,
   FOCUS_LINK,
+  localDate,
   eveningNote,
   greeting,
   groupByIdentity,
@@ -34,6 +35,8 @@ import { useMotionSettings } from '../chain/useMotionSettings';
 import { WelcomeBack } from '../chain/WelcomeBack';
 import { FocusLock, FocusSession } from '../../modules/focus-lock';
 import { FocusMode } from '../focus/FocusMode';
+import { focusCommandIn, sendFocusCommand } from '../services/focusCommands';
+import { offlineTracker } from '../services/logQueue';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
@@ -101,6 +104,12 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       setFocusSaved(saved);
       setFocusId(saved.habitId);
     } else {
+      // Done from the notification while the app was closed, for a day that has since
+      // moved on: it's still logged, for the day the session was on.
+      if (saved.pending === 'done') {
+        const day = localDate(Intl.DateTimeFormat().resolvedOptions().timeZone, new Date(saved.endAt - saved.minutes * 60_000));
+        void offlineTracker.logHabit(saved.habitId, day, 'full', null, 'notification').catch(() => {});
+      }
       // Never leave the phone locked behind a habit that isn't on screen.
       FocusLock?.stop();
     }
@@ -142,7 +151,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   useEffect(() => {
     const opened = (url: string | null | undefined) => {
       if (url === VOICE_LINK) setPanel('voice');
-      if (url?.includes(`://${FOCUS_LINK}`)) resumeFocusRef.current();
+      if (url?.includes(`://${FOCUS_LINK}`)) {
+        // Resume from the notification: Tunnel Vision resumes and pins once it's on screen.
+        if (focusCommandIn(url)) sendFocusCommand('resume');
+        resumeFocusRef.current();
+      }
     };
     Linking.getInitialURL()
       .then(opened)

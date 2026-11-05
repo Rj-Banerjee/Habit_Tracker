@@ -87,7 +87,10 @@ class FocusLockService : Service() {
     const val CHANNEL_DONE = "focus-done"
     const val ONGOING_ID = 7401
     const val DONE_ID = 7402
+    // Its own id, so the app clearing "Time's up" never takes the done message with it.
+    const val DONE_MESSAGE_ID = 7403
     private const val CHECK_MS = 700L
+    private const val DONE_MESSAGE_MS = 5000L
 
     fun ensureChannels(context: Context) {
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -145,7 +148,7 @@ class FocusLockService : Service() {
     }
 
     // The design: the app's name and arrow from Android, then the habit, a big countdown,
-    // and Pause, Stop, Done.
+    // and Pause or Resume, and Done.
     private fun views(context: Context, session: FocusState.Session, layout: Int, buttons: Boolean): RemoteViews {
       val views = RemoteViews(context.packageName, layout)
       views.setTextViewText(R.id.focus_detail, session.detail.ifBlank { session.title })
@@ -162,11 +165,12 @@ class FocusLockService : Service() {
       }
       if (buttons) {
         views.setTextViewText(R.id.focus_pause, if (session.paused) "Resume" else "Pause")
+        // Pause works in the background. Resume opens the app, because only an app on screen
+        // can pin the phone again; from the lock screen Android asks for the unlock first.
         views.setOnClickPendingIntent(
           R.id.focus_pause,
-          broadcast(context, if (session.paused) FocusActionReceiver.RESUME else FocusActionReceiver.PAUSE)
+          if (session.paused) openApp(context, "resume") else broadcast(context, FocusActionReceiver.PAUSE)
         )
-        views.setOnClickPendingIntent(R.id.focus_stop, broadcast(context, FocusActionReceiver.STOP))
         views.setOnClickPendingIntent(R.id.focus_done, broadcast(context, FocusActionReceiver.DONE))
       }
       return views
@@ -185,6 +189,24 @@ class FocusLockService : Service() {
         .setCustomBigContentView(views(context, session, R.layout.focus_notification_big, buttons = true))
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) b.setStyle(Notification.DecoratedCustomViewStyle())
       return b.build()
+    }
+
+    // Done from the notification: the countdown goes, and a short "work is done" message
+    // takes its place for a few seconds. The app logs the habit.
+    fun showDone(context: Context, session: FocusState.Session) {
+      context.stopService(Intent(context, FocusLockService::class.java))
+      val manager = context.getSystemService(NotificationManager::class.java)
+      manager.cancel(ONGOING_ID)
+      val b = builder(context, CHANNEL_DONE)
+        .setSmallIcon(R.drawable.ic_focus)
+        .setContentTitle("Your work is done")
+        .setContentText("${session.title} is logged. Nicely focused.")
+        .setVisibility(Notification.VISIBILITY_PUBLIC)
+        .setAutoCancel(true)
+        .setOnlyAlertOnce(true)
+        .setContentIntent(openApp(context, null))
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) b.setTimeoutAfter(DONE_MESSAGE_MS)
+      manager.notify(DONE_MESSAGE_ID, b.build())
     }
 
     fun refresh(context: Context) {

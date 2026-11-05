@@ -1,11 +1,12 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { BackHandler } from 'react-native';
+import { AppState, BackHandler } from 'react-native';
 import { TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { isHolding } from '../services/focusHold';
 import { showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
+import { sendFocusCommand } from '../services/focusCommands';
 import { FocusMode } from './FocusMode';
 
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
@@ -269,6 +270,46 @@ describe('Tunnel Vision', () => {
     await wait(1500);
     expect(screen.queryByText(/Pausing locked your phone/)).toBeNull();
     lock.isLocked.mockReturnValue(false);
+  });
+
+  it('resumes and pins again when Resume in the notification opens the app', async () => {
+    await open();
+    await press('Start 25 minutes');
+    await press('Pause');
+    lock.pin.mockClear();
+    lock.isPinned.mockReturnValue(false);
+    await act(async () => sendFocusCommand('resume'));
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(lock.pin).toHaveBeenCalled();
+    lock.isPinned.mockReturnValue(true);
+  });
+
+  it('ignores Resume while already running', async () => {
+    await open();
+    await press('Start 25 minutes');
+    await act(async () => sendFocusCommand('resume'));
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+  });
+
+  it('pins again whenever the app comes back while the timer runs', async () => {
+    const listeners: ((state: string) => void)[] = [];
+    const addListener = AppState.addEventListener as jest.Mock;
+    const original = addListener.getMockImplementation();
+    addListener.mockImplementation((_, listener) => {
+      listeners.push(listener as (state: string) => void);
+      return { remove: jest.fn() };
+    });
+    try {
+      await open();
+      await press('Start 25 minutes');
+      lock.pin.mockClear();
+      lock.isPinned.mockReturnValue(false);
+      await act(async () => listeners.forEach((l) => l('active')));
+      expect(lock.pin).toHaveBeenCalled();
+    } finally {
+      addListener.mockImplementation(original);
+      lock.isPinned.mockReturnValue(true);
+    }
   });
 
   it('asks only for notifications, so the countdown can show', async () => {

@@ -36,6 +36,7 @@ import { Button, HabitCard, PressableState, Text, TextField, useShortcut, useThe
 import { FocusLock } from '../../modules/focus-lock';
 import { analytics } from '../services/analytics';
 import { checkOffTick } from '../services/haptics';
+import { onFocusCommand } from '../services/focusCommands';
 import { holdNotifications, releaseNotifications } from '../services/focusHold';
 import { askForNotifications, notificationsAllowed, showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
@@ -128,6 +129,10 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   }, []);
   const recorded = useRef(false);
   const closing = useRef(false);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Everything else fades out: this layer fades in over it. Without reduced motion the
   // habit also settles into the middle.
@@ -301,6 +306,25 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     if (logMinimum && !isLogged(row)) onLog(row, 'minimum');
     close();
   };
+
+  // Resume tapped in the notification, which opened the app so it can pin again.
+  useEffect(
+    () =>
+      onFocusCommand(() => {
+        if (stateRef.current.phase === 'paused') dispatch({ type: 'resume', now: Date.now() });
+      }),
+    []
+  );
+
+  // While the timer runs the phone stays pinned: whenever the app comes back to the front
+  // unpinned, it pins again.
+  useEffect(() => {
+    if (!FocusLock || state.phase !== 'running') return undefined;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && !FocusLock!.isPinned()) FocusLock!.pin();
+    });
+    return () => sub.remove();
+  }, [state.phase]);
 
   // "Done my work", said while holding the mic.
   const listen = async () => {

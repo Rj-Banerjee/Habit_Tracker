@@ -221,6 +221,18 @@ describe('TodayScreen', () => {
       expect(screen.queryByText('Tunnel Vision')).toBeNull();
     });
 
+    it('still logs a Done from the notification for a habit no longer on Today', async () => {
+      const lock = jest.requireMock('../../modules/focus-lock').FocusLock;
+      lock.status.mockReturnValueOnce({
+        habitId: 'yesterday-habit', title: 'Old', minutes: 25, endAt: Date.parse('2026-11-02T10:00:00Z'),
+        paused: true, remainingMs: 0, timeUp: false, pending: 'done',
+      });
+      await open([row()]);
+      await act(async () => {});
+      expect(api.logHabit).toHaveBeenCalledWith('yesterday-habit', expect.stringMatching(/^2026-11-0[12]$/), 'full', null, 'notification');
+      expect(lock.stop).toHaveBeenCalled();
+    });
+
     it("isn't offered for a day that's still open from yesterday", async () => {
       await open([row({ is_today: false, day: '2026-11-02', status: 'pending' })]);
       expect(screen.queryByRole('button', { name: 'Focus on Run' })).toBeNull();
