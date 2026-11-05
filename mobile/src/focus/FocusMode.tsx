@@ -36,7 +36,6 @@ import { Button, HabitCard, PressableState, Text, TextField, useShortcut, useThe
 import { FocusLock } from '../../modules/focus-lock';
 import { analytics } from '../services/analytics';
 import { checkOffTick } from '../services/haptics';
-import { onFocusCommand } from '../services/focusCommands';
 import { holdNotifications, releaseNotifications } from '../services/focusHold';
 import { askForNotifications, notificationsAllowed, showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
@@ -83,6 +82,17 @@ const detailOf = (row: TodayRow) =>
 
 // How long pinning gets to take hold before the app says it's off.
 const PIN_GRACE_MS = 8000;
+const UNPIN_LOCK_CHECK_MS = 1200;
+const UNPIN_LOCKS_KEY = 'focus-unpin-locks';
+const UNPIN_HINT_SEEN_KEY = 'focus-unpin-hint-seen';
+
+// Loaded only on Android, where the lock exists, so tests and the web need no storage.
+const storage = (): typeof import('@react-native-async-storage/async-storage').default | null => {
+  if (!FocusLock) return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const module = require('@react-native-async-storage/async-storage');
+  return module.default ?? module;
+};
 
 function initialState(row: TodayRow, saved: SavedFocus | null | undefined): FocusState {
   return saved ? focusFromSaved(saved, Date.now()) : focusStart(focusMinutes(row));
@@ -102,6 +112,19 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   // Whether Android pinned the screen this run, and whether it's off on this phone.
   const pinned = useRef(false);
   const [pinningOff, setPinningOff] = useState(false);
+  const [unpinLocks, setUnpinLocks] = useState(false);
+  const [unpinHintSeen, setUnpinHintSeen] = useState(false);
+  useEffect(() => {
+    if (!FocusLock) return;
+    storage()
+      ?.multiGet([UNPIN_LOCKS_KEY, UNPIN_HINT_SEEN_KEY])
+      .then((pairs) => {
+        const values = Object.fromEntries(pairs);
+        setUnpinLocks(values[UNPIN_LOCKS_KEY] === '1');
+        setUnpinHintSeen(values[UNPIN_HINT_SEEN_KEY] === '1');
+      })
+      .catch(() => {});
+  }, []);
   const recorded = useRef(false);
   const closing = useRef(false);
 
@@ -172,16 +195,36 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     return () => clearInterval(watch);
   }, [state.phase]);
 
-  // Pause and Resume from the notification: the phone's copy says what happened.
+  // Pause, Resume, Stop and Done from the notification, on the lock screen too: the
+  // phone's copy says what was tapped.
   useEffect(() => {
     if (!FocusLock || (state.phase !== 'running' && state.phase !== 'paused')) return undefined;
     const watch = setInterval(() => {
       const saved = FocusLock!.status();
       if (!saved) return;
+      if (saved.pending) {
+        FocusLock!.clearPending();
+        dispatch({ type: saved.pending === 'done' ? 'workDone' : 'stop', now: Date.now() });
+        return;
+      }
       if (saved.paused && state.phase === 'running') dispatch({ type: 'pause', now: Date.now() });
       if (!saved.paused && state.phase === 'paused') dispatch({ type: 'resume', now: Date.now() });
     }, TICK_MS);
     return () => clearInterval(watch);
+  }, [state.phase]);
+
+  // Some phones, Samsung's among them, lock whenever an app unpins. A pause that locked the
+  // phone is noticed once, so the screen can say how to turn that off.
+  useEffect(() => {
+    if (!FocusLock || state.phase !== 'paused') return undefined;
+    const lockedBefore = FocusLock.isLocked();
+    const check = setTimeout(() => {
+      if (!lockedBefore && FocusLock!.isLocked()) {
+        setUnpinLocks(true);
+        storage()?.setItem(UNPIN_LOCKS_KEY, '1').catch(() => {});
+      }
+    }, UNPIN_LOCK_CHECK_MS);
+    return () => clearTimeout(check);
   }, [state.phase]);
 
   // The app's own notifications wait while focusing, and show once it ends.
@@ -251,17 +294,6 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     if (logMinimum && !isLogged(row)) onLog(row, 'minimum');
     close();
   };
-
-  // Stop and Done tapped in the notification.
-  useEffect(
-    () =>
-      onFocusCommand((command) => {
-        if (command === 'done') done();
-        else stop();
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
 
   // "Done my work", said while holding the mic.
   const listen = async () => {
@@ -416,6 +448,24 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
               <Text variant="small" muted accessibilityLiveRegion="polite">
                 Heard “{heard}”. Say “done my work” when you&apos;re finished.
               </Text>
+            ) : null}
+            {unpinLocks && !unpinHintSeen ? (
+              <View style={[styles.permissions, { borderColor: colors.border }]}>
+                <Text variant="small" accessibilityLiveRegion="polite">
+                  Pausing locked your phone. That&apos;s your phone&apos;s &quot;Lock phone when unpinning&quot;
+                  setting. To pause without locking, turn it off in Settings → Security and privacy → More
+                  security settings → Pin windows.
+                </Text>
+                <Button label="Open settings" quiet onPress={() => FocusLock?.openPinningSettings()} />
+                <Button
+                  label="Got it"
+                  quiet
+                  onPress={() => {
+                    setUnpinHintSeen(true);
+                    storage()?.setItem(UNPIN_HINT_SEEN_KEY, '1').catch(() => {});
+                  }}
+                />
+              </View>
             ) : null}
             {pinningOff && state.phase === 'running' ? (
               <View style={styles.section}>

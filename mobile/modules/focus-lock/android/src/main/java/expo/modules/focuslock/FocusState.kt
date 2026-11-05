@@ -16,7 +16,9 @@ object FocusState {
     val endAt: Long,
     val paused: Boolean,
     val remainingMs: Long,
-    val timeUp: Boolean
+    val timeUp: Boolean,
+    // Stop or Done tapped in the notification, for the app to act on: "stop" or "done".
+    val pending: String? = null
   )
 
   fun save(context: Context, session: Session) {
@@ -30,6 +32,7 @@ object FocusState {
       .putBoolean("paused", session.paused)
       .putLong("remainingMs", session.remainingMs)
       .putBoolean("timeUp", session.timeUp)
+      .putString("pending", session.pending)
       .apply()
   }
 
@@ -44,7 +47,8 @@ object FocusState {
       endAt = prefs.getLong("endAt", 0L),
       paused = prefs.getBoolean("paused", false),
       remainingMs = prefs.getLong("remainingMs", 0L),
-      timeUp = prefs.getBoolean("timeUp", false)
+      timeUp = prefs.getBoolean("timeUp", false),
+      pending = prefs.getString("pending", null)
     )
   }
 
