@@ -45,18 +45,17 @@ Open **Habit Tracker** and sign in. Use the `+test` account if you want the coac
 3. Drag **Log by voice** into the active tiles, then tap **Done** or go back.
 4. Tap the tile, hold the button and say something like "I read 10 pages".
 
-## 6. Set up Tunnel Vision's phone lock
+## 6. Tunnel Vision's phone lock
 
-The first time you tap **Focus**, the app asks for three permissions:
+The first time you tap **Focus**, the app asks to allow **notifications**. The countdown lives there, and on the lock screen.
 
-1. **Usage access:** find **Habit Tracker** in the list and turn it on. This lets the lock see when another app opens.
-2. **Display over other apps** (Samsung: **Appear on top**): turn it on for **Habit Tracker**. This lets it bring focus back to the front.
-3. **Notifications:** tap **Allow**. This shows the countdown in the notifications and on the lock screen.
-4. Come back to the app. **Start** becomes available once all three are on.
+When you start a session, Android asks **"Pin this app?"** Tap **Pin** (Samsung: **Start**). While pinned, Home and Recents do nothing and Android shows its own short message, so the app never closes. Calls and emergency calls always get through.
 
-While a focus timer runs, the countdown shows in the notifications and on the lock screen, and other apps bounce back to Tunnel Vision. Calls and emergency calls always get through. To finish early, tap **Done my work**, hold the mic and say "done my work", or tap **Stop**.
+- To finish early: tap **Done my work**, or hold the mic and say "done my work".
+- To pause or stop: use the buttons on the focus screen. While the phone is pinned, Android keeps the notification shade closed, so the notification's **Pause**, **Stop** and **Done** buttons are for when you're not pinned. On the lock screen they ask you to unlock first.
+- Android always lets you unpin by holding a gesture (on gesture navigation: swipe up and hold; with buttons: hold **Back** and **Recents** together). Tunnel Vision treats that as Stop and asks whether to log the minimum version.
 
-Phones that save battery hard, Realme and Samsung included, can stop the timer's service in the background. If the countdown disappears with the app closed, set Habit Tracker's battery use to **Unrestricted** (Settings → Apps → Habit Tracker → Battery).
+If Android never asks to pin, App pinning is off on your phone. Tunnel Vision shows **Open pinning settings**. Turn on **App pinning** (Samsung: Settings → Security and privacy → More security settings → **Pin windows**; Realme: Settings → Security → **Screen pinning**).
 
 ## The review app
 

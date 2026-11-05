@@ -1262,3 +1262,22 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 - No personal data. Every property is a fixed choice, a capped number or a yes/no, and anything else is dropped, so a habit name, transcript, coach text or account id passed by mistake never leaves the phone. A test checks the catalogue has no free-text fields. People are counted under a random install id, never their account.
 - Off by default. It switches on only with `EXPO_PUBLIC_ANALYTICS=on` and a PostHog project key, and while off it stores and sends nothing. A PostHog sender is ready; no account has been made.
 - Logging is counted in one place, the offline-aware tracker, so taps, voice, the coach, the widget and notifications are all counted the same way.
+
+### Plans foundations (5 Nov 2026)
+
+**Added**
+
+- PLAN.md has a **Plans** section (Free, Pro, Ultra, Enterprise; pricing not decided) and a launch checklist line on Apple and Google in-app purchase, with RevenueCat worth considering.
+- **Entitlements:** `packages/core/src/entitlements.ts` maps each plan to its features. `users.plan` (migration `20261105000300`) defaults to `free`, and people can read but never change it. The AI service refuses chat, letters, voice parsing and scheduled letters and nudges without the feature, with a calm "Available on Pro." Its copy of the map is checked against the app's by a test. Screens ask `useEntitlements().can(feature)`, never a plan name. On Free, the coach button and card, the Sunday letter and nudges show or skip calmly, and voice logs simple phrases on the phone. The matcher now also understands amounts, like "read 20 pages". The `+test` account is on Pro, and AI test accounts count as Pro on the server.
+- **Themes as data:** a theme is a data file checked by `validateTheme`: structure, hex colours, all 8 identities, sensible type sizes, https-only assets, and readable text in both modes. A broken one falls back to the default. Today's look is `themes/default.ts`, the old tokens are derived from it, and `ThemeProvider` takes a `theme`.
+- **Game history:** `activity_events` now records `habit_created`, `habit_archived` and `habit_restored`, and every existing habit got its `habit_created` at its real creation time. Each log event also carries its identity. With the logs' level, status, amount, source, actor and time, plus repairs, moves and focus sessions, that's what XP and levels need. Grace Days aren't events, because they're recalculated from the logs.
+
+**Checked live:** the dry run listed only that migration. Afterwards one account (the test account) was on Pro and four on Free, all 11 habits had a start event, signed-in users couldn't update `plan` but could update their settings, and the security advisor showed nothing new.
+
+### Tunnel Vision pins the phone instead of bouncing back (5 Nov 2026)
+
+**Changed, at the user's request:** pressing Home or opening another app used to close Tunnel Vision for a moment before it came back. Now the phone is **screen pinned** while a session runs. Android turns off Home and Recents itself and shows its own message, so the app never closes. A test on the Samsung over adb showed Home staying in the app while pinned, and also that Android keeps the notification shade closed while pinned.
+
+- The app-blocking service and its two permissions (usage access, display over other apps) are gone. Only notifications are asked for.
+- Unpinning with Android's held gesture counts as Stop. If pinning never takes hold within 8 seconds, the screen says so calmly, with **Pin again** and **Open pinning settings**.
+- The countdown notification follows the user's sketch: the app name and arrow from Android, the habit and its target ("Read 20 pages"), a big countdown, and **Pause**, **Stop** and **Done**. Pause and Resume work from the notification without opening the app. Stop and Done open the app to ask or log. Tapping a button on the lock screen asks for an unlock first. While pinned the shade is closed, so the buttons are for when the phone isn't pinned. The user chose this.
