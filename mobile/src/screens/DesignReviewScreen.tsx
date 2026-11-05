@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
+  colors as palette,
   HabitCardStatus,
   IdentityToken,
   identityColors,
@@ -12,7 +13,6 @@ import {
 } from '@habit-tracker/core';
 import { HabitCard, SegmentedControl, StatusMark, Text, ThemeProvider, useTheme } from '@habit-tracker/ui';
 import { AnimationPlayground } from './AnimationPlayground';
-import { colors as palette } from '@habit-tracker/core';
 
 const SWATCHES: (keyof ThemeColors)[] = [
   'canvas',

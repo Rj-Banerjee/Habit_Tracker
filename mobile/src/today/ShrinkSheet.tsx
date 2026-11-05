@@ -16,9 +16,10 @@ interface ShrinkSheetProps {
   onSkip: (row: TodayRow) => void;
   onEdit: (row: TodayRow) => void;
   onDetails?: (row: TodayRow) => void;
+  onFocus?: (row: TodayRow) => void;
 }
 
-export function ShrinkSheet({ row, onClose, onLog, onRepair, onSkip, onEdit, onDetails }: ShrinkSheetProps) {
+export function ShrinkSheet({ row, onClose, onLog, onRepair, onSkip, onEdit, onDetails, onFocus }: ShrinkSheetProps) {
   return (
     <BottomSheet visible={row !== null} title={row?.title ?? ''} onClose={onClose}>
       {row ? (
@@ -37,6 +38,9 @@ export function ShrinkSheet({ row, onClose, onLog, onRepair, onSkip, onEdit, onD
               description={repairDescription(row)}
               onPress={() => onRepair(row)}
             />
+          ) : null}
+          {onFocus && row.is_today ? (
+            <SheetOption label="Focus" description="Tunnel Vision with a timer" onPress={() => onFocus(row)} />
           ) : null}
           <SheetOption label="Skip today" onPress={() => onSkip(row)} />
           {onDetails ? <SheetOption label="Streak and details" onPress={() => onDetails(row)} /> : null}

@@ -30,6 +30,7 @@ import {
 import { repairHabitOf } from '../chain/CardChain';
 import { useMotionSettings } from '../chain/useMotionSettings';
 import { WelcomeBack } from '../chain/WelcomeBack';
+import { FocusMode } from '../focus/FocusMode';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
@@ -74,6 +75,9 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const moments = useMoments(chains, chainsReady && !loading);
   const motionSettings = useMotionSettings();
   const [detailRow, setDetailRow] = useState<TodayRow | null>(null);
+  // Tunnel Vision follows the live row, so a log shows on its card straight away.
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const focusRow = focusId ? rows.find((r) => r.is_today && r.habit_id === focusId) ?? null : null;
   const chainOf = (habitId: string) => chains.find((c) => c.habitId === habitId)?.chain;
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -142,6 +146,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           moments.interrupt(row.habit_id);
           setDetailRow(row);
         }}
+        onFocus={row.is_today ? () => setFocusId(row.habit_id) : undefined}
       />
     </SwipeToSkip>
   );
@@ -309,6 +314,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           setShrinkRow(null);
           setDetailRow(row);
         }}
+        onFocus={(row) => {
+          setShrinkRow(null);
+          setFocusId(row.habit_id);
+        }}
       />
       <SkipSheet
         visible={skipRow !== null}
@@ -351,6 +360,14 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         }}
         onClose={() => setPanel(null)}
       />
+      {focusRow ? (
+        <FocusMode
+          row={focusRow}
+          reducedMotion={motionSettings.reducedMotion}
+          onLog={log}
+          onClose={() => setFocusId(null)}
+        />
+      ) : null}
       {detailRow ? (
         <HabitDetailScreen
           row={detailRow}

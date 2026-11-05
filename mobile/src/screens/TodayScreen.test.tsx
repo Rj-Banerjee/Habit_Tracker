@@ -14,6 +14,8 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
+jest.mock('../services/reminders', () => ({ showHeldNotifications: jest.fn(() => Promise.resolve()) }));
 jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
@@ -29,6 +31,7 @@ jest.mock('../services/tracker', () => ({
     repairHabit: jest.fn(() => Promise.resolve()),
     getHabitDays: jest.fn(() => Promise.resolve([])),
     getDayStatuses: jest.fn(() => Promise.resolve([])),
+    recordFocus: jest.fn(() => Promise.resolve()),
   },
 }));
 
@@ -159,6 +162,41 @@ describe('TodayScreen', () => {
       await open([row()]);
       expect(screen.queryByLabelText(/^Last 7 days/)).toBeNull();
       expect(screen.getByRole('button', { name: /^Run, / })).toBeTruthy();
+    });
+  });
+
+  describe('Tunnel Vision', () => {
+    it("opens from the Focus button on today's card", async () => {
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Focus on Run' }));
+      expect(screen.getByText('Tunnel Vision')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Start 25 minutes' })).toBeTruthy();
+    });
+
+    it('opens from the long-press sheet', async () => {
+      await open([row()]);
+      await fireEvent(screen.getByRole('button', { name: /^Run, / }), 'longPress');
+      await fireEvent.press(screen.getByRole('button', { name: /^Focus, Tunnel Vision/ }));
+      await act(async () => {});
+      expect(screen.getByText('Tunnel Vision')).toBeTruthy();
+    });
+
+    it("isn't offered for a day that's still open from yesterday", async () => {
+      await open([row({ is_today: false, day: '2026-11-02', status: 'pending' })]);
+      expect(screen.queryByRole('button', { name: 'Focus on Run' })).toBeNull();
+    });
+
+    it('logs through Today when the timer finishes', async () => {
+      jest.useFakeTimers();
+      try {
+        await open([row()]);
+        await fireEvent.press(screen.getByRole('button', { name: 'Focus on Run' }));
+        await fireEvent.press(screen.getByRole('button', { name: 'Start 25 minutes' }));
+        await act(async () => jest.advanceTimersByTime(25 * 60_000));
+        expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

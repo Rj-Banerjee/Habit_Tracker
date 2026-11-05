@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { FocusEventKind } from './focus';
 import { IdentityToken } from './tokens';
 
 export type HabitLevel = 'full' | 'minimum' | 'setup';
@@ -251,6 +252,15 @@ export function createTrackerApi(client: SupabaseClient) {
         p_date: date,
         p_amount: amount,
         p_full_and_minimum: amount === null,
+      }),
+
+    // Tunnel Vision's start, finish or early stop, for the activity history.
+    recordFocus: (habitId: string, kind: FocusEventKind, plannedSeconds: number, elapsedSeconds: number | null = null) =>
+      call('record_focus', {
+        p_habit_id: habitId,
+        p_kind: kind,
+        p_planned_seconds: plannedSeconds,
+        p_elapsed_seconds: elapsedSeconds,
       }),
 
     getHabitAllowance: async () => (await call<HabitAllowance[]>('get_habit_allowance'))[0],

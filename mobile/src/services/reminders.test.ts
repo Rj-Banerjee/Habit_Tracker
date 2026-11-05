@@ -1,10 +1,12 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { holdNotifications, releaseNotifications } from './focusHold';
 import {
   reminderMessage,
   restoreDailyReminder,
   sendTestReminder,
   setDailyReminder,
+  showHeldNotifications,
 } from './reminders';
 
 jest.mock('expo-notifications', () => ({
@@ -52,6 +54,21 @@ describe('reminders', () => {
       shouldShowBanner: true,
       shouldShowList: true,
     });
+  });
+
+  it('holds a notification during Tunnel Vision and shows it after', async () => {
+    await setDailyReminder('07:30');
+    const handler = api.setNotificationHandler.mock.calls[0][0];
+    holdNotifications();
+    const content = { title: 'Time for Read', body: 'A small version counts.', data: { habitId: 'h1' }, categoryIdentifier: 'nudge' };
+    await expect(
+      handler?.handleNotification({ request: { content } } as never)
+    ).resolves.toMatchObject({ shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false });
+    const held = releaseNotifications();
+    expect(held).toEqual([content]);
+    api.scheduleNotificationAsync.mockClear();
+    await showHeldNotifications(held);
+    expect(api.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({ content }));
   });
 
   it('asks for permission when it has none', async () => {

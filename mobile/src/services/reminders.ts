@@ -1,4 +1,6 @@
 import { Linking, Platform } from 'react-native';
+import type { NotificationContentInput } from 'expo-notifications';
+import { isHolding, keepForLater } from './focusHold';
 import {
   NUDGE_CATEGORY,
   parseReminderTime,
@@ -26,16 +28,31 @@ const CHANNEL = 'daily-reminder-high';
 export function loadNotifications() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const notifications = require('expo-notifications') as typeof import('expo-notifications');
-  // Without this, a reminder that fires with the app open is never shown.
+  // Without this, a reminder that fires with the app open is never shown. During
+  // Tunnel Vision it's kept back instead, and shown when focus ends.
   notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const show = !isHolding();
+      if (!show) {
+        const { title, body, data, categoryIdentifier } = notification.request.content;
+        keepForLater({ title, body, data: data ?? undefined, categoryIdentifier: categoryIdentifier ?? undefined });
+      }
+      return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: false };
+    },
   });
   return notifications;
+}
+
+// Shows what Tunnel Vision kept back, now that focus has ended.
+export async function showHeldNotifications(held: NotificationContentInput[]) {
+  if (held.length === 0) return;
+  const notifications = loadNotifications();
+  const channelId = await prepareChannel(notifications);
+  for (const content of held) {
+    await notifications
+      .scheduleNotificationAsync({ content, trigger: channelId ? { channelId } : null })
+      .catch(() => {});
+  }
 }
 
 export type Notifications = ReturnType<typeof loadNotifications>;

@@ -28,6 +28,8 @@ interface HabitCardProps {
   onCheckOff?: () => void;
   // Drawn under the title, full width: the streak chain on Today.
   footer?: React.ReactNode;
+  // Tunnel Vision, offered to screen readers as an action on the card.
+  onFocusMode?: () => void;
 }
 
 const LOGGED: HabitCardStatus[] = ['done', 'doneMinimum', 'repaired'];
@@ -44,6 +46,7 @@ export function HabitCard({
   onSkip,
   onCheckOff,
   footer,
+  onFocusMode,
 }: HabitCardProps) {
   const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
@@ -85,8 +88,14 @@ export function HabitCard({
       delayLongPress={350}
       accessibilityRole="button"
       accessibilityHint="Tap to log. Long press for smaller versions."
-      accessibilityActions={onSkip ? [{ name: 'skip', label: 'Skip today' }] : undefined}
-      onAccessibilityAction={onSkip ? () => onSkip() : undefined}
+      accessibilityActions={[
+        ...(onSkip ? [{ name: 'skip', label: 'Skip today' }] : []),
+        ...(onFocusMode ? [{ name: 'focus', label: 'Focus' }] : []),
+      ]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'skip') onSkip?.();
+        if (event.nativeEvent.actionName === 'focus') onFocusMode?.();
+      }}
       accessibilityLabel={accessibilityLabel}
       style={({ pressed, hovered, focused }: PressableState) => [
         styles.card,
