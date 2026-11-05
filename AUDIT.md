@@ -1202,3 +1202,39 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Limit:** notifications are held only while the app is open, which it is during focus because the screen stays on. If the person switches away, Android shows them as usual.
 
 **Not checked:** on a phone. It needs the next build, and the phone was locked.
+
+### Tunnel Vision locks the phone, and asks before logging (5 Nov 2026)
+
+**Changed, at the user's request**
+
+- While a focus timer runs, the phone stays in Tunnel Vision. A local native module (`mobile/modules/focus-lock`) runs a foreground service that keeps the countdown in an ongoing notification, on the lock screen too, and brings the app back whenever another app comes to the front, with the app open or closed. Calls, the dialer, emergency calls, the keyboard and the permission screen always get through. It needs **usage access** and **display over other apps**, which the setup step asks for before Start is available.
+- The timer no longer logs on its own. When it runs out it asks "Time's up. Is Read done?". Yes logs the full version. Not yet offers "Focus again?" for the same length.
+- "Done my work" finishes early, by tapping it or saying it while holding the mic. It's matched on the phone, in English and Hindi, and "not done" phrases never count.
+- A session kept going with the app closed comes back on open, from its notification, or when the lock brings the app forward. A saved session for a habit that isn't on Today unlocks the phone, rather than trap it.
+
+**Why this way:** an app that isn't the device owner can't truly freeze Android. Screen pinning needs no permissions, but it's off by default on many phones, a button gesture undoes it, and it can't carry on with the app closed. Usage access plus display over other apps is how screen-time apps keep you in, and it works when the app is closed. Play needs a clear disclosure for both permissions before release.
+
+**Not checked on a phone:** the EAS free plan ran out of Android builds for the month, so the build is now made on this Mac with `eas build --local`, using the same signing key. The Android SDK went in at `/opt/homebrew/share/android-commandlinetools`, about 3 GB.
+
+### Android install steps and the iPhone plan (5 Nov 2026)
+
+- `docs/install-android.md`: installing a test build, the widget, the voice tile and Tunnel Vision's two permissions, step by step.
+- Siri, the iPhone widgets and an iPhone focus lock need the paid Apple account, and Apple's Screen Time entitlement for the lock. They aren't written, because untestable iOS code could break the first iPhone build. `PLAN.md` says how they'll be built.
+
+### Scheduled jobs (5 Nov 2026)
+
+**Added**
+
+- Three jobs as FastAPI endpoints under `/jobs`, protected by a shared `JOB_SECRET` compared in constant time, and off when it's empty:
+  - `nightly-patterns` rebuilds each person's `pattern_snapshots` row, which only its owner can read.
+  - `sunday-letters` writes the Future-Self letter from 18:00 on Sunday in each person's own timezone, from their own Sunday Review. It writes one a week, and on a free tier only for test accounts.
+  - `reminders-and-nudges` sends the daily reminder and the preemptive nudge by push, by PLAN.md's rules: at risk under 90% over 14 days, 30 minutes before the usual hour from 5 or more same-day logs, an hour from the reminder, not after 3 ignored, and at most one a day.
+- Every job is safe to run twice: work is claimed in `tracker.job_runs` first, and a failure gives the claim back. All job functions are `service_role` only.
+- `pg_cron` schedules call the service through `pg_net`, reading its URL and secret from Vault. Until they're stored, the schedules do nothing.
+- `push_tokens` holds each phone's push token, owner-only. **Phones don't register a token yet:** that needs Firebase Cloud Messaging set up on the Expo project, which needs a Firebase account. Until then the job finds no phone, records nothing, and the phone's own local reminders and nudges carry on.
+- `npm run jobs` runs all three once against the service on this Mac, or one with `npm run jobs -- sunday-letters`. It creates `JOB_SECRET` in `backend/.env` the first time.
+- `docs/hosting-options.md` compares Cloud Run, Fly.io, Railway and Render from their current pricing, and recommends Cloud Run.
+
+**Checked locally:** 35 new database tests and 15 new service tests. Postgres called a local service through `pg_net` from Vault's URL, got HTTP 200, and the snapshot it wrote was in the database.
+
+**Checked live:** the dry run listed only the two job migrations. The three schedules are registered, Vault is empty so they do nothing, and both new tables have row-level security. With two temporary users, a push token could be saved only for oneself and read by nobody else, each person saw only their own pattern snapshot, and signed-in and signed-out callers were refused the job functions. Both users were deleted. The live rebuild during that check also wrote a pattern snapshot for each real account, which is what the nightly job does. The security advisor shows nothing new.
