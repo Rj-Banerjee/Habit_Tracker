@@ -36,11 +36,12 @@ export const wholeLink = ({ from, to }: LinkSpan) => `M${from} ${y}H${to}`;
 export const CRACK_APART = CRACK_GAP_PX / 2;
 export const QUIET_APART = QUIET_GAP_PX / 2;
 
-// A fine jagged crack across the link, drawn top to bottom.
+// A fine, uneven crack across the link, drawn top to bottom. Small, unequal steps keep
+// it from reading as an arrow at this size.
 export const crackPath = ({ mid }: LinkSpan) =>
-  `M${mid - 1} ${y - 6}L${mid + 1.5} ${y - 3}L${mid - 1.5} ${y}L${mid + 1.5} ${y + 3}L${mid - 1} ${y + 6}`;
+  `M${mid - 0.5} ${y - 7}L${mid + 1.2} ${y - 4}L${mid - 0.6} ${y - 1.5}L${mid + 0.9} ${y + 1}L${mid - 1.1} ${y + 4}L${mid + 0.4} ${y + 7}`;
 // Its length, for drawing it on with a dash offset.
-export const CRACK_LENGTH = 16;
+export const CRACK_LENGTH = 17;
 
 // The approved seam, laid across the link: three short stitches.
 export const stitchesPath = ({ mid }: LinkSpan) =>

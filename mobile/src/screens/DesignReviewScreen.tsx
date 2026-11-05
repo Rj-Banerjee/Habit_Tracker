@@ -12,6 +12,7 @@ import {
 } from '@habit-tracker/core';
 import { HabitCard, SegmentedControl, StatusMark, Text, ThemeProvider, useTheme } from '@habit-tracker/ui';
 import { AnimationPlayground } from './AnimationPlayground';
+import { colors as palette } from '@habit-tracker/core';
 
 const SWATCHES: (keyof ThemeColors)[] = [
   'canvas',
@@ -176,7 +177,7 @@ export function DesignReviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
+  page: { flex: 1, backgroundColor: palette.light.canvas },
   switcher: { paddingHorizontal: space.lg, paddingTop: space.xxl + space.lg, paddingBottom: space.sm },
   row: { flexDirection: 'row' },
   column: { flex: 1, gap: space.xl, padding: space.lg, paddingTop: space.xxl },
