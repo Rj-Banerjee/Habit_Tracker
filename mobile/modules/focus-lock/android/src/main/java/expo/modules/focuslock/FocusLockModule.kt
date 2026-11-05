@@ -1,6 +1,7 @@
 package expo.modules.focuslock
 
 import android.app.ActivityManager
+import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -95,8 +96,21 @@ class FocusLockModule : Module() {
         "endAt" to session.endAt.toDouble(),
         "paused" to session.paused,
         "remainingMs" to session.remainingMs.toDouble(),
-        "timeUp" to session.timeUp
+        "timeUp" to session.timeUp,
+        "pending" to session.pending
       )
+    }
+
+    // The app has acted on Stop or Done from the notification.
+    Function("clearPending") {
+      val session = FocusState.load(context) ?: return@Function null
+      FocusState.save(context, session.copy(pending = null))
+      null
+    }
+
+    // Some phones lock when an app unpins. The app checks this after a pause.
+    Function("isLocked") {
+      context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
     }
   }
 

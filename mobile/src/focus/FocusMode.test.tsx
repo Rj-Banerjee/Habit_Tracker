@@ -6,10 +6,12 @@ import { ThemeProvider } from '@habit-tracker/ui';
 import { isHolding } from '../services/focusHold';
 import { showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
-import { sendFocusCommand } from '../services/focusCommands';
 import { FocusMode } from './FocusMode';
 
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
 jest.mock('../services/reminders', () => ({
   showHeldNotifications: jest.fn(() => Promise.resolve()),
   notificationsAllowed: jest.fn(() => Promise.resolve(true)),
@@ -23,6 +25,8 @@ jest.mock('../../modules/focus-lock', () => ({
     pin: jest.fn(() => true),
     unpin: jest.fn(),
     isPinned: jest.fn(() => true),
+    isLocked: jest.fn(() => false),
+    clearPending: jest.fn(),
     openPinningSettings: jest.fn(),
     start: jest.fn(),
     pause: jest.fn(),
@@ -74,6 +78,7 @@ describe('Tunnel Vision', () => {
     jest.useFakeTimers({ now: new Date('2026-11-05T09:00:00Z') });
     jest.clearAllMocks();
     lock.isPinned.mockReturnValue(true);
+    lock.isLocked.mockReturnValue(false);
     lock.status.mockReturnValue(null);
     speech.mockReturnValue(null);
   });
@@ -225,14 +230,45 @@ describe('Tunnel Vision', () => {
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
   });
 
-  it('acts on Stop and Done tapped in the notification', async () => {
+  it('acts on Stop and Done tapped in the notification, from the lock screen too', async () => {
+    const saved = { habitId: 'h1', title: 'Read', minutes: 25, endAt: 0, paused: true, remainingMs: 20 * 60_000, timeUp: false };
     const { onLog } = await open();
     await press('Start 25 minutes');
-    await act(async () => sendFocusCommand('stop'));
+    lock.status.mockReturnValue({ ...saved, pending: 'stop' });
+    await wait(500);
+    expect(lock.clearPending).toHaveBeenCalled();
     expect(screen.getByText('Log the minimum version?')).toBeTruthy();
+    lock.status.mockReturnValue(null);
     await press('Keep going');
-    await act(async () => sendFocusCommand('done'));
+    lock.status.mockReturnValue({ ...saved, pending: 'done' });
+    await wait(500);
     expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 'full');
+  });
+
+  it('notices once when pausing locks the phone, and says how to turn that off', async () => {
+    await open();
+    await press('Start 25 minutes');
+    await press('Pause');
+    await wait(2000);
+    // This phone takes a couple of seconds to lock.
+    lock.isLocked.mockReturnValue(true);
+    await wait(600);
+    lock.isLocked.mockReturnValue(false);
+    expect(screen.getByText(/Pausing locked your phone/)).toBeTruthy();
+    await press('Open settings');
+    expect(lock.openPinningSettings).toHaveBeenCalled();
+    await press('Got it');
+    expect(screen.queryByText(/Pausing locked your phone/)).toBeNull();
+  });
+
+  it('says nothing about locking when the phone was already locked, as on the lock screen', async () => {
+    lock.isLocked.mockReturnValue(true);
+    await open();
+    await press('Start 25 minutes');
+    await press('Pause');
+    await wait(1500);
+    expect(screen.queryByText(/Pausing locked your phone/)).toBeNull();
+    lock.isLocked.mockReturnValue(false);
   });
 
   it('asks only for notifications, so the countdown can show', async () => {

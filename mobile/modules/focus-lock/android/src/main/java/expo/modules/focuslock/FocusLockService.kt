@@ -117,8 +117,8 @@ class FocusLockService : Service() {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, channel)
       else @Suppress("DEPRECATION") Notification.Builder(context)
 
-    // Opens the app, with Stop or Done for it to act on. From the lock screen Android asks
-    // for the unlock first, because the app never shows over the lock screen.
+    // Opens the app. From the lock screen Android asks for the unlock first, because the
+    // app never shows over the lock screen.
     fun openApp(context: Context, action: String?): PendingIntent {
       val intent = launchIntent(context, action)
       return PendingIntent.getActivity(
@@ -166,8 +166,8 @@ class FocusLockService : Service() {
           R.id.focus_pause,
           broadcast(context, if (session.paused) FocusActionReceiver.RESUME else FocusActionReceiver.PAUSE)
         )
-        views.setOnClickPendingIntent(R.id.focus_stop, openApp(context, "stop"))
-        views.setOnClickPendingIntent(R.id.focus_done, openApp(context, "done"))
+        views.setOnClickPendingIntent(R.id.focus_stop, broadcast(context, FocusActionReceiver.STOP))
+        views.setOnClickPendingIntent(R.id.focus_done, broadcast(context, FocusActionReceiver.DONE))
       }
       return views
     }

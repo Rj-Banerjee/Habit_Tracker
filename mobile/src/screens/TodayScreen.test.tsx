@@ -19,6 +19,8 @@ jest.mock('../../modules/focus-lock', () => ({
     pin: jest.fn(() => true),
     unpin: jest.fn(),
     isPinned: jest.fn(() => true),
+    isLocked: jest.fn(() => false),
+    clearPending: jest.fn(),
     openPinningSettings: jest.fn(),
     start: jest.fn(),
     pause: jest.fn(),

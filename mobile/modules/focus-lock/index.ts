@@ -8,6 +8,8 @@ export interface FocusSession {
   paused: boolean;
   remainingMs: number;
   timeUp: boolean;
+  // Stop or Done tapped in the notification, waiting for the app to act on it.
+  pending?: 'stop' | 'done' | null;
 }
 
 export interface FocusLockModule {
@@ -22,6 +24,9 @@ export interface FocusLockModule {
   resume(endAt: number): void;
   stop(): void;
   status(): FocusSession | null;
+  clearPending(): void;
+  // Whether the phone is on its lock screen, to notice a phone that locks on unpinning.
+  isLocked(): boolean;
 }
 
 // Android only, and missing from Expo Go: null there, and Tunnel Vision runs in the app alone.
