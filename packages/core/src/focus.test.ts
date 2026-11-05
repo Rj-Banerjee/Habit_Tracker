@@ -3,6 +3,7 @@ import {
   clockLabel,
   focusFromSaved,
   isDonePhrase,
+  minutesLabel,
   clockSpoken,
   elapsedSeconds,
   FocusAction,
@@ -177,5 +178,12 @@ describe('focusFromSaved', () => {
     const state = focusFromSaved({ ...saved, paused: true, remainingMs: 30_000 }, 999_999);
     expect(state.phase).toBe('paused');
     expect(remainingMs(state, 999_999)).toBe(30_000);
+  });
+});
+
+describe('minutesLabel', () => {
+  it('says minute for one', () => {
+    expect(minutesLabel(1)).toBe('1 minute');
+    expect(minutesLabel(25)).toBe('25 minutes');
   });
 });

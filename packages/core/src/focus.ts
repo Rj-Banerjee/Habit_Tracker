@@ -125,6 +125,8 @@ export function clockSpoken(ms: number) {
   return minutes === 1 ? '1 minute left' : `${minutes} minutes left`;
 }
 
+export const minutesLabel = (minutes: number) => (minutes === 1 ? '1 minute' : `${minutes} minutes`);
+
 export const STOP_QUESTION = 'Log the minimum version?';
 export const timeUpQuestion = (title: string) => `Time's up. Is ${title} done?`;
 export const AGAIN_QUESTION = 'Focus again?';

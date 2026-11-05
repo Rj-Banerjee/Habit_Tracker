@@ -207,3 +207,26 @@ export function reminderMessage(result: ReminderResult): string | null {
       return null;
   }
 }
+
+// Tunnel Vision's countdown is a notification, so Android 13 and later need permission
+// before it can show, on the lock screen too.
+export async function notificationsAllowed(): Promise<boolean> {
+  try {
+    return (await loadNotifications().getPermissionsAsync()).granted;
+  } catch {
+    return false;
+  }
+}
+
+export async function askForNotifications(): Promise<void> {
+  try {
+    const notifications = loadNotifications();
+    await prepareChannel(notifications);
+    const current = await notifications.getPermissionsAsync();
+    if (current.granted) return;
+    if (current.canAskAgain) await notifications.requestPermissionsAsync();
+    else await Linking.openSettings();
+  } catch {
+    await Linking.openSettings().catch(() => {});
+  }
+}

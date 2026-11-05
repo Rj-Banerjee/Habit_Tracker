@@ -9,7 +9,11 @@ import { tracker } from '../services/tracker';
 import { FocusMode } from './FocusMode';
 
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
-jest.mock('../services/reminders', () => ({ showHeldNotifications: jest.fn(() => Promise.resolve()) }));
+jest.mock('../services/reminders', () => ({
+  showHeldNotifications: jest.fn(() => Promise.resolve()),
+  notificationsAllowed: jest.fn(() => Promise.resolve(true)),
+  askForNotifications: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../services/haptics', () => ({ checkOffTick: jest.fn() }));
 jest.mock('../services/tracker', () => ({ tracker: { recordFocus: jest.fn(() => Promise.resolve()) } }));
 jest.mock('../voice/speech', () => ({ speechInput: jest.fn(() => null) }));
@@ -115,7 +119,7 @@ describe('Tunnel Vision', () => {
     await wait(25 * 60_000);
     await press('Not yet');
     expect(screen.getByText('Focus again?')).toBeTruthy();
-    await press('Focus 25 more minutes');
+    await press('Focus 25 minutes more');
     expect(screen.getByText('25:00')).toBeTruthy();
     expect(lock.start).toHaveBeenCalledTimes(2);
     await wait(25 * 60_000);
@@ -189,6 +193,22 @@ describe('Tunnel Vision', () => {
     await press('Allow display over other apps');
     expect(lock.openOverlaySettings).toHaveBeenCalled();
     expect(screen.getByText('Calls and emergency calls always get through.')).toBeTruthy();
+  });
+
+  it('asks for notifications too, so the countdown can show on the lock screen', async () => {
+    const reminders = jest.requireMock('../services/reminders');
+    reminders.notificationsAllowed.mockResolvedValueOnce(false);
+    await open();
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Start 25 minutes' }).props.accessibilityState?.disabled).toBe(true);
+    await press('Allow notifications');
+    expect(reminders.askForNotifications).toHaveBeenCalled();
+  });
+
+  it('says minute for one', async () => {
+    await open();
+    await fireEvent.changeText(screen.getByLabelText('Minutes'), '1');
+    expect(screen.getByRole('button', { name: 'Start 1 minute' })).toBeTruthy();
   });
 
   it('picks up a session the phone kept going while the app was closed', async () => {

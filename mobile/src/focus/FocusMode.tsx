@@ -22,6 +22,7 @@ import {
   layout,
   MAX_FOCUS_MINUTES,
   MIN_FOCUS_MINUTES,
+  minutesLabel,
   plannedSeconds,
   radius,
   remainingMs,
@@ -36,7 +37,7 @@ import { FocusLock } from '../../modules/focus-lock';
 import { analytics } from '../services/analytics';
 import { checkOffTick } from '../services/haptics';
 import { holdNotifications, releaseNotifications } from '../services/focusHold';
-import { showHeldNotifications } from '../services/reminders';
+import { askForNotifications, notificationsAllowed, showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
 import { speechInput } from '../voice/speech';
 
@@ -58,17 +59,25 @@ const record = (row: TodayRow, kind: FocusEventKind, planned: number, elapsed: n
     .then(() => tracker.recordFocus(row.habit_id, kind, planned, elapsed))
     .catch(() => {});
 
-// What Android needs before it can keep other apps away. Null where there's no lock.
+// What Android needs before it can keep other apps away and show the countdown on the
+// lock screen. Null where there's no lock.
 function useLockPermissions() {
   const read = () =>
     FocusLock ? { usage: FocusLock.hasUsageAccess(), overlay: FocusLock.canDrawOverlays() } : null;
   const [granted, setGranted] = useState(read);
+  const [notifications, setNotifications] = useState(true);
   useEffect(() => {
+    if (!FocusLock) return undefined;
+    const check = () => {
+      setGranted(read());
+      void notificationsAllowed().then(setNotifications);
+    };
+    check();
     // Granting happens in Settings, so it's checked again on the way back.
-    const sub = AppState.addEventListener('change', (next) => next === 'active' && setGranted(read()));
+    const sub = AppState.addEventListener('change', (next) => next === 'active' && check());
     return () => sub.remove();
   }, []);
-  return granted;
+  return granted ? { ...granted, notifications } : null;
 }
 
 function initialState(row: TodayRow, saved: SavedFocus | null | undefined): FocusState {
@@ -85,7 +94,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState<string | null>(null);
   const permissions = useLockPermissions();
-  const lockReady = !permissions || (permissions.usage && permissions.overlay);
+  const lockReady = !permissions || (permissions.usage && permissions.overlay && permissions.notifications);
   const recorded = useRef(false);
   const closing = useRef(false);
 
@@ -253,7 +262,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
       </View>
       {permissions && !lockReady ? (
         <View style={[styles.permissions, { borderColor: colors.border }]}>
-          <Text>To keep other apps closed while you focus, allow two things in Settings:</Text>
+          <Text>To keep other apps closed while you focus, and show the countdown on the lock screen, allow:</Text>
           <Button
             label={permissions.usage ? 'Usage access: allowed' : 'Allow usage access'}
             quiet
@@ -266,12 +275,18 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
             disabled={permissions.overlay}
             onPress={() => FocusLock?.openOverlaySettings()}
           />
+          <Button
+            label={permissions.notifications ? 'Notifications: allowed' : 'Allow notifications'}
+            quiet
+            disabled={permissions.notifications}
+            onPress={() => void askForNotifications()}
+          />
           <Text variant="small" muted>
             Calls and emergency calls always get through.
           </Text>
         </View>
       ) : null}
-      <Button label={`Start ${state.minutes} minutes`} disabled={!lockReady} onPress={start} />
+      <Button label={`Start ${minutesLabel(state.minutes)}`} disabled={!lockReady} onPress={start} />
       <Button label="Not now" quiet onPress={close} />
     </View>
   );
@@ -301,7 +316,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
         return (
           <View style={styles.section}>
             <Text accessibilityLiveRegion="polite">{AGAIN_QUESTION}</Text>
-            <Button label={`Focus ${state.minutes} more minutes`} onPress={focusAgain} />
+            <Button label={`Focus ${minutesLabel(state.minutes)} more`} onPress={focusAgain} />
             <Button label="Not now" quiet onPress={() => leaveWithout(false)} />
           </View>
         );

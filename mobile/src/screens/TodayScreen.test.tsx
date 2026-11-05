@@ -25,7 +25,11 @@ jest.mock('../../modules/focus-lock', () => ({
   },
 }));
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
-jest.mock('../services/reminders', () => ({ showHeldNotifications: jest.fn(() => Promise.resolve()) }));
+jest.mock('../services/reminders', () => ({
+  showHeldNotifications: jest.fn(() => Promise.resolve()),
+  notificationsAllowed: jest.fn(() => Promise.resolve(true)),
+  askForNotifications: jest.fn(() => Promise.resolve()),
+}));
 jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
