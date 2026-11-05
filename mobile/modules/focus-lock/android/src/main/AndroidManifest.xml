@@ -14,9 +14,17 @@
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
         android:value="A focus timer the person starts themselves, shown as a countdown in the notification and on the lock screen until it ends or they stop it." />
     </service>
-    <!-- Pause and Resume from the notification. Only the app's own notification sends these. -->
+    <!-- Pause and Done from the notification. Only the app's own notification sends these. -->
     <receiver
       android:name="expo.modules.focuslock.FocusActionReceiver"
       android:exported="false" />
+    <!-- Resume from the notification: restarts the timer and brings the app back to pin. -->
+    <activity
+      android:name="expo.modules.focuslock.FocusResumeActivity"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
   </application>
 </manifest>

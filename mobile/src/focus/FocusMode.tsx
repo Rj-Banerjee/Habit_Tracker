@@ -129,6 +129,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   const recorded = useRef(false);
   const closing = useRef(false);
 
+
   // Everything else fades out: this layer fades in over it. Without reduced motion the
   // habit also settles into the middle.
   const shown = useSharedValue(0);
@@ -196,8 +197,8 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     return () => clearInterval(watch);
   }, [state.phase]);
 
-  // Pause, Resume, Stop and Done from the notification, on the lock screen too: the
-  // phone's copy says what was tapped.
+  // Pause and Done from the notification, on the lock screen too, and Resume, which brings
+  // the app back first so it can pin: the phone's copy says what was tapped.
   useEffect(() => {
     if (!FocusLock || (state.phase !== 'running' && state.phase !== 'paused')) return undefined;
     const watch = setInterval(() => {
@@ -301,6 +302,16 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     if (logMinimum && !isLogged(row)) onLog(row, 'minimum');
     close();
   };
+
+  // While the timer runs the phone stays pinned: whenever the app comes back to the front
+  // unpinned, it pins again.
+  useEffect(() => {
+    if (!FocusLock || state.phase !== 'running') return undefined;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && !FocusLock!.isPinned()) FocusLock!.pin();
+    });
+    return () => sub.remove();
+  }, [state.phase]);
 
   // "Done my work", said while holding the mic.
   const listen = async () => {

@@ -1296,3 +1296,15 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Found on the Samsung:** Pause locked the phone. That's Samsung's own behaviour when any app unpins ("Lock phone when unpinning" in the Pin windows settings), and no app can change it. Tunnel Vision now notices when a pause locked the phone, checking for 4 seconds because the lock comes down slowly, and says once how to turn that setting off, with **Open settings** and **Got it**. Checked on the phone: after Pause the phone locked, and on waking, the hint was showing.
 
 **Not checked:** tapping the notification's buttons on the lock screen. This Samsung didn't draw the app's notification views on its lock screen, so its lock-screen notifications appear to be set to icons or collapsed. To see the buttons there: Settings → Lock screen → Notifications → **Details** with **Show content** on, then pull the notification down to expand it.
+
+### Resume pins again, Done confirms, no Stop in the notification (5 Nov 2026)
+
+**Changed, at the user's request**
+
+- **Resume from the notification** used to restart the timer in the background, where Android won't let an app pin, so other apps stayed open. It now opens a small invisible screen (`FocusResumeActivity`) that restarts the timer and brings Habit Tracker forward. The app sees the timer running and pins. Whenever the app comes back with the timer running and the phone unpinned, it pins again. A first try sent an app link instead, which Android didn't deliver to the already-running app ("its current task has been brought to the front"), so that approach was dropped.
+- **Done from the notification** removes the countdown at once, shows "Your work is done. Read is logged. Nicely focused." for 5 seconds, and the app logs the habit. If the app was closed and the day has moved on, it's logged for the day the session was on.
+- **Stop is gone from the notification.** It has the habit, the big countdown, and Pause or Resume, and Done. Stop stays in the app.
+
+**Checked on the Samsung, in the real app:** Start pinned the phone, after Samsung's own "App is pinned" sheet with OK, which Samsung shows every time an app pins. Pause unpinned it and Home worked. In the shade, the expanded notification showed "Read 30 pages", the big paused time 04:51, and only **Resume** and **Done**. Tapping **Resume** brought the app back, Samsung's pin sheet appeared, and after OK the phone was pinned. Home and Settings then stayed in Habit Tracker, with the timer running.
+
+**Not checked:** Done from the notification. Afterwards the app had no notifications and the timer service had stopped, which is what Done leaves, but the tap wasn't observed.

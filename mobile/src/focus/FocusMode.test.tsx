@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { BackHandler } from 'react-native';
+import { AppState, BackHandler } from 'react-native';
 import { TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { isHolding } from '../services/focusHold';
@@ -269,6 +269,42 @@ describe('Tunnel Vision', () => {
     await wait(1500);
     expect(screen.queryByText(/Pausing locked your phone/)).toBeNull();
     lock.isLocked.mockReturnValue(false);
+  });
+
+  it('resumes and pins again when Resume in the notification brings the app back', async () => {
+    await open();
+    await press('Start 25 minutes');
+    await press('Pause');
+    lock.pin.mockClear();
+    lock.isPinned.mockReturnValue(false);
+    // The notification's Resume restarts the phone's timer, then opens the app.
+    lock.status.mockReturnValue({ habitId: 'h1', title: 'Read', minutes: 25, endAt: Date.now() + 25 * 60_000, paused: false, remainingMs: 0, timeUp: false });
+    await wait(500);
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(lock.pin).toHaveBeenCalled();
+    lock.isPinned.mockReturnValue(true);
+    lock.status.mockReturnValue(null);
+  });
+
+  it('pins again whenever the app comes back while the timer runs', async () => {
+    const listeners: ((state: string) => void)[] = [];
+    const addListener = AppState.addEventListener as jest.Mock;
+    const original = addListener.getMockImplementation();
+    addListener.mockImplementation((_, listener) => {
+      listeners.push(listener as (state: string) => void);
+      return { remove: jest.fn() };
+    });
+    try {
+      await open();
+      await press('Start 25 minutes');
+      lock.pin.mockClear();
+      lock.isPinned.mockReturnValue(false);
+      await act(async () => listeners.forEach((l) => l('active')));
+      expect(lock.pin).toHaveBeenCalled();
+    } finally {
+      addListener.mockImplementation(original);
+      lock.isPinned.mockReturnValue(true);
+    }
   });
 
   it('asks only for notifications, so the countdown can show', async () => {
