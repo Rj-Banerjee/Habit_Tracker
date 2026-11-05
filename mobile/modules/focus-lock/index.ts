@@ -11,11 +11,13 @@ export interface FocusSession {
 }
 
 export interface FocusLockModule {
-  hasUsageAccess(): boolean;
-  canDrawOverlays(): boolean;
-  openUsageAccessSettings(): void;
-  openOverlaySettings(): void;
-  start(habitId: string, title: string, minutes: number, endAt: number): void;
+  // Screen pinning: the app stays open, and Android turns off Home and Recents.
+  pin(): boolean;
+  unpin(): void;
+  isPinned(): boolean;
+  openPinningSettings(): void;
+  // The countdown in the notification and on the lock screen.
+  start(habitId: string, title: string, detail: string, minutes: number, endAt: number): void;
   pause(remainingMs: number): void;
   resume(endAt: number): void;
   stop(): void;

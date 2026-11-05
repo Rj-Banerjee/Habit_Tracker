@@ -6,6 +6,7 @@ import { ThemeProvider } from '@habit-tracker/ui';
 import { isHolding } from '../services/focusHold';
 import { showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
+import { sendFocusCommand } from '../services/focusCommands';
 import { FocusMode } from './FocusMode';
 
 jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }));
@@ -19,10 +20,10 @@ jest.mock('../services/tracker', () => ({ tracker: { recordFocus: jest.fn(() => 
 jest.mock('../voice/speech', () => ({ speechInput: jest.fn(() => null) }));
 jest.mock('../../modules/focus-lock', () => ({
   FocusLock: {
-    hasUsageAccess: jest.fn(() => true),
-    canDrawOverlays: jest.fn(() => true),
-    openUsageAccessSettings: jest.fn(),
-    openOverlaySettings: jest.fn(),
+    pin: jest.fn(() => true),
+    unpin: jest.fn(),
+    isPinned: jest.fn(() => true),
+    openPinningSettings: jest.fn(),
     start: jest.fn(),
     pause: jest.fn(),
     resume: jest.fn(),
@@ -72,8 +73,8 @@ describe('Tunnel Vision', () => {
   beforeEach(() => {
     jest.useFakeTimers({ now: new Date('2026-11-05T09:00:00Z') });
     jest.clearAllMocks();
-    lock.hasUsageAccess.mockReturnValue(true);
-    lock.canDrawOverlays.mockReturnValue(true);
+    lock.isPinned.mockReturnValue(true);
+    lock.status.mockReturnValue(null);
     speech.mockReturnValue(null);
   });
   afterEach(() => jest.useRealTimers());
@@ -168,34 +169,73 @@ describe('Tunnel Vision', () => {
     expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 'full');
   });
 
-  it('locks the phone while running, keeps the countdown while paused, and unlocks for questions', async () => {
+  it('pins the phone while running, so it never leaves the app, and unpins for a pause or a question', async () => {
+    lock.isPinned.mockReturnValue(false);
     await open();
     expect(lock.start).not.toHaveBeenCalled();
     await press('Start 25 minutes');
-    expect(lock.start).toHaveBeenCalledWith('h1', 'Read', 25, Date.now() + 25 * 60_000);
+    expect(lock.start).toHaveBeenCalledWith('h1', 'Read', 'Read 30 pages', 25, Date.now() + 25 * 60_000);
+    expect(lock.pin).toHaveBeenCalled();
     await press('Pause');
     expect(lock.pause).toHaveBeenCalledWith(25 * 60_000);
+    expect(lock.unpin).toHaveBeenCalled();
     await press('Resume');
     await press('Stop');
     expect(lock.stop).toHaveBeenCalled();
     lock.stop.mockClear();
+    lock.unpin.mockClear();
     await screen.unmount();
     expect(lock.stop).toHaveBeenCalled();
+    expect(lock.unpin).toHaveBeenCalled();
   });
 
-  it('asks for the two Android permissions before it can lock', async () => {
-    lock.hasUsageAccess.mockReturnValue(false);
-    lock.canDrawOverlays.mockReturnValue(false);
+  it('treats Android\'s unpin gesture as Stop', async () => {
+    lock.isPinned.mockReturnValue(true);
     await open();
-    expect(screen.getByRole('button', { name: 'Start 25 minutes' }).props.accessibilityState?.disabled).toBe(true);
-    await press('Allow usage access');
-    expect(lock.openUsageAccessSettings).toHaveBeenCalled();
-    await press('Allow display over other apps');
-    expect(lock.openOverlaySettings).toHaveBeenCalled();
-    expect(screen.getByText('Calls and emergency calls always get through.')).toBeTruthy();
+    await press('Start 25 minutes');
+    await wait(500);
+    lock.isPinned.mockReturnValue(false);
+    await wait(500);
+    expect(screen.getByText('Log the minimum version?')).toBeTruthy();
   });
 
-  it('asks for notifications too, so the countdown can show on the lock screen', async () => {
+  it('says calmly when the phone was never pinned, and can ask again', async () => {
+    lock.isPinned.mockReturnValue(false);
+    await open();
+    await press('Start 25 minutes');
+    expect(screen.queryByText(/isn't pinned/)).toBeNull();
+    await wait(9000);
+    expect(screen.getByText(/isn't pinned, so other apps can still open/)).toBeTruthy();
+    lock.pin.mockClear();
+    await press('Pin again');
+    expect(lock.pin).toHaveBeenCalled();
+    await press('Open pinning settings');
+    expect(lock.openPinningSettings).toHaveBeenCalled();
+  });
+
+  it('follows Pause and Resume tapped in the notification', async () => {
+    await open();
+    await press('Start 25 minutes');
+    await wait(60_000);
+    lock.status.mockReturnValue({ habitId: 'h1', title: 'Read', minutes: 25, endAt: 0, paused: true, remainingMs: 24 * 60_000, timeUp: false });
+    await wait(500);
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
+    lock.status.mockReturnValue({ habitId: 'h1', title: 'Read', minutes: 25, endAt: 0, paused: false, remainingMs: 0, timeUp: false });
+    await wait(500);
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+  });
+
+  it('acts on Stop and Done tapped in the notification', async () => {
+    const { onLog } = await open();
+    await press('Start 25 minutes');
+    await act(async () => sendFocusCommand('stop'));
+    expect(screen.getByText('Log the minimum version?')).toBeTruthy();
+    await press('Keep going');
+    await act(async () => sendFocusCommand('done'));
+    expect(onLog).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 'full');
+  });
+
+  it('asks only for notifications, so the countdown can show', async () => {
     const reminders = jest.requireMock('../services/reminders');
     reminders.notificationsAllowed.mockResolvedValueOnce(false);
     await open();
@@ -203,12 +243,7 @@ describe('Tunnel Vision', () => {
     expect(screen.getByRole('button', { name: 'Start 25 minutes' }).props.accessibilityState?.disabled).toBe(true);
     await press('Allow notifications');
     expect(reminders.askForNotifications).toHaveBeenCalled();
-  });
-
-  it('says minute for one', async () => {
-    await open();
-    await fireEvent.changeText(screen.getByLabelText('Minutes'), '1');
-    expect(screen.getByRole('button', { name: 'Start 1 minute' })).toBeTruthy();
+    expect(screen.getByText(/Calls and emergency calls always get through/)).toBeTruthy();
   });
 
   it('picks up a session the phone kept going while the app was closed', async () => {

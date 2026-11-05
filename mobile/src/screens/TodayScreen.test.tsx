@@ -16,8 +16,10 @@ jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
 jest.mock('../../modules/focus-lock', () => ({
   FocusLock: {
-    hasUsageAccess: jest.fn(() => true),
-    canDrawOverlays: jest.fn(() => true),
+    pin: jest.fn(() => true),
+    unpin: jest.fn(),
+    isPinned: jest.fn(() => true),
+    openPinningSettings: jest.fn(),
     start: jest.fn(),
     pause: jest.fn(),
     stop: jest.fn(),

@@ -36,6 +36,7 @@ import { Button, HabitCard, PressableState, Text, TextField, useShortcut, useThe
 import { FocusLock } from '../../modules/focus-lock';
 import { analytics } from '../services/analytics';
 import { checkOffTick } from '../services/haptics';
+import { onFocusCommand } from '../services/focusCommands';
 import { holdNotifications, releaseNotifications } from '../services/focusHold';
 import { askForNotifications, notificationsAllowed, showHeldNotifications } from '../services/reminders';
 import { tracker } from '../services/tracker';
@@ -59,26 +60,29 @@ const record = (row: TodayRow, kind: FocusEventKind, planned: number, elapsed: n
     .then(() => tracker.recordFocus(row.habit_id, kind, planned, elapsed))
     .catch(() => {});
 
-// What Android needs before it can keep other apps away and show the countdown on the
-// lock screen. Null where there's no lock.
-function useLockPermissions() {
-  const read = () =>
-    FocusLock ? { usage: FocusLock.hasUsageAccess(), overlay: FocusLock.canDrawOverlays() } : null;
-  const [granted, setGranted] = useState(read);
-  const [notifications, setNotifications] = useState(true);
+// The countdown is a notification, so Android 13 and later need permission first. Null
+// where there's no lock, as on iPhone and the web.
+function useNotificationPermission() {
+  const [allowed, setAllowed] = useState<boolean | null>(FocusLock ? true : null);
   useEffect(() => {
     if (!FocusLock) return undefined;
-    const check = () => {
-      setGranted(read());
-      void notificationsAllowed().then(setNotifications);
-    };
+    const check = () => void notificationsAllowed().then(setAllowed);
     check();
-    // Granting happens in Settings, so it's checked again on the way back.
+    // Granting can happen in Settings, so it's checked again on the way back.
     const sub = AppState.addEventListener('change', (next) => next === 'active' && check());
     return () => sub.remove();
   }, []);
-  return granted ? { ...granted, notifications } : null;
+  return allowed;
 }
+
+// The line under the app name in the notification: "Read 20 pages".
+const detailOf = (row: TodayRow) =>
+  [row.title, row.target ? `${row.target}${row.unit ? ` ${row.unit.toLowerCase()}` : ''}` : null]
+    .filter(Boolean)
+    .join(' ');
+
+// How long pinning gets to take hold before the app says it's off.
+const PIN_GRACE_MS = 8000;
 
 function initialState(row: TodayRow, saved: SavedFocus | null | undefined): FocusState {
   return saved ? focusFromSaved(saved, Date.now()) : focusStart(focusMinutes(row));
@@ -93,8 +97,11 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
   const [speech] = useState(speechInput);
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState<string | null>(null);
-  const permissions = useLockPermissions();
-  const lockReady = !permissions || (permissions.usage && permissions.overlay && permissions.notifications);
+  const notifications = useNotificationPermission();
+  const lockReady = notifications !== false;
+  // Whether Android pinned the screen this run, and whether it's off on this phone.
+  const pinned = useRef(false);
+  const [pinningOff, setPinningOff] = useState(false);
   const recorded = useRef(false);
   const closing = useRef(false);
 
@@ -118,19 +125,64 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     setTimeout(onClose, FOCUS_FADE_MS);
   }, [onClose, shown]);
 
-  // The phone's lock follows the timer: on while it runs, the countdown kept while paused,
-  // and off for every question. It always comes off when this screen goes.
+  // The phone follows the timer: pinned while it runs, so it never leaves the app; unpinned
+  // while paused and for every question. The countdown stays in the notification until the
+  // end, and everything comes off when this screen goes.
   useEffect(() => {
     if (!FocusLock) return;
     if (state.phase === 'running' && state.endsAt !== null) {
-      FocusLock.start(row.habit_id, row.title, state.minutes, state.endsAt);
+      FocusLock.start(row.habit_id, row.title, detailOf(row), state.minutes, state.endsAt);
+      pinned.current = FocusLock.isPinned();
+      if (!pinned.current) FocusLock.pin();
     } else if (state.phase === 'paused') {
       FocusLock.pause(state.remainingMs);
+      pinned.current = false;
+      FocusLock.unpin();
     } else if (state.phase !== 'setup') {
       FocusLock.stop();
+      pinned.current = false;
+      FocusLock.unpin();
     }
-  }, [state.phase, state.endsAt, state.remainingMs, state.minutes, row.habit_id, row.title]);
-  useEffect(() => () => FocusLock?.stop(), []);
+  }, [state.phase, state.endsAt, state.remainingMs, state.minutes, row]);
+  useEffect(
+    () => () => {
+      FocusLock?.stop();
+      FocusLock?.unpin();
+    },
+    []
+  );
+
+  // Pinning that never takes hold is off on this phone; one taken away by Android's unpin
+  // gesture is someone choosing to leave, which is Stop.
+  useEffect(() => {
+    if (!FocusLock || state.phase !== 'running') return undefined;
+    const started = Date.now();
+    const watch = setInterval(() => {
+      const now = FocusLock!.isPinned();
+      if (now) {
+        pinned.current = true;
+        setPinningOff(false);
+      } else if (pinned.current) {
+        pinned.current = false;
+        dispatch({ type: 'stop', now: Date.now() });
+      } else if (Date.now() - started > PIN_GRACE_MS) {
+        setPinningOff(true);
+      }
+    }, TICK_MS);
+    return () => clearInterval(watch);
+  }, [state.phase]);
+
+  // Pause and Resume from the notification: the phone's copy says what happened.
+  useEffect(() => {
+    if (!FocusLock || (state.phase !== 'running' && state.phase !== 'paused')) return undefined;
+    const watch = setInterval(() => {
+      const saved = FocusLock!.status();
+      if (!saved) return;
+      if (saved.paused && state.phase === 'running') dispatch({ type: 'pause', now: Date.now() });
+      if (!saved.paused && state.phase === 'paused') dispatch({ type: 'resume', now: Date.now() });
+    }, TICK_MS);
+    return () => clearInterval(watch);
+  }, [state.phase]);
 
   // The app's own notifications wait while focusing, and show once it ends.
   const focusing = state.phase === 'running' || state.phase === 'paused';
@@ -200,6 +252,17 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     close();
   };
 
+  // Stop and Done tapped in the notification.
+  useEffect(
+    () =>
+      onFocusCommand((command) => {
+        if (command === 'done') done();
+        else stop();
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
   // "Done my work", said while holding the mic.
   const listen = async () => {
     if (!speech) return;
@@ -260,31 +323,16 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
         </View>
         <Button label="+5" quiet onPress={() => setMinutes(state.minutes + STEP_MINUTES)} accessibilityLabel="5 minutes more" />
       </View>
-      {permissions && !lockReady ? (
+      {notifications === false ? (
         <View style={[styles.permissions, { borderColor: colors.border }]}>
-          <Text>To keep other apps closed while you focus, and show the countdown on the lock screen, allow:</Text>
-          <Button
-            label={permissions.usage ? 'Usage access: allowed' : 'Allow usage access'}
-            quiet
-            disabled={permissions.usage}
-            onPress={() => FocusLock?.openUsageAccessSettings()}
-          />
-          <Button
-            label={permissions.overlay ? 'Display over other apps: allowed' : 'Allow display over other apps'}
-            quiet
-            disabled={permissions.overlay}
-            onPress={() => FocusLock?.openOverlaySettings()}
-          />
-          <Button
-            label={permissions.notifications ? 'Notifications: allowed' : 'Allow notifications'}
-            quiet
-            disabled={permissions.notifications}
-            onPress={() => void askForNotifications()}
-          />
-          <Text variant="small" muted>
-            Calls and emergency calls always get through.
-          </Text>
+          <Text>To show the countdown in your notifications and on the lock screen, allow notifications.</Text>
+          <Button label="Allow notifications" quiet onPress={() => void askForNotifications()} />
         </View>
+      ) : null}
+      {FocusLock ? (
+        <Text variant="small" muted>
+          While it runs, your phone stays on Tunnel Vision. Calls and emergency calls always get through.
+        </Text>
       ) : null}
       <Button label={`Start ${minutesLabel(state.minutes)}`} disabled={!lockReady} onPress={start} />
       <Button label="Not now" quiet onPress={close} />
@@ -368,6 +416,16 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
               <Text variant="small" muted accessibilityLiveRegion="polite">
                 Heard “{heard}”. Say “done my work” when you&apos;re finished.
               </Text>
+            ) : null}
+            {pinningOff && state.phase === 'running' ? (
+              <View style={styles.section}>
+                <Text variant="small" muted accessibilityLiveRegion="polite">
+                  Your phone isn&apos;t pinned, so other apps can still open. Pin it to stay on Tunnel Vision. If it
+                  doesn&apos;t ask, turn on App pinning in Settings.
+                </Text>
+                <Button label="Pin again" quiet onPress={() => FocusLock?.pin()} />
+                <Button label="Open pinning settings" quiet onPress={() => FocusLock?.openPinningSettings()} />
+              </View>
             ) : null}
             <Button label="Stop" quiet onPress={stop} />
           </View>

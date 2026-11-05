@@ -2,14 +2,16 @@ package expo.modules.focuslock
 
 import android.content.Context
 
-// What the service and the app agree on, kept on disk so it survives the app being
-// closed. The JS side reads it back on the next open.
+// What the service, the notification's buttons and the app agree on, kept on disk so it
+// survives the app being closed. The JS side reads it back on every tick and every open.
 object FocusState {
   private const val PREFS = "focus-lock"
 
   data class Session(
     val habitId: String,
     val title: String,
+    // The line under the app name, such as "Read 20 pages".
+    val detail: String,
     val minutes: Int,
     val endAt: Long,
     val paused: Boolean,
@@ -22,6 +24,7 @@ object FocusState {
       .putBoolean("active", true)
       .putString("habitId", session.habitId)
       .putString("title", session.title)
+      .putString("detail", session.detail)
       .putInt("minutes", session.minutes)
       .putLong("endAt", session.endAt)
       .putBoolean("paused", session.paused)
@@ -36,6 +39,7 @@ object FocusState {
     return Session(
       habitId = prefs.getString("habitId", "") ?: "",
       title = prefs.getString("title", "") ?: "",
+      detail = prefs.getString("detail", "") ?: "",
       minutes = prefs.getInt("minutes", 25),
       endAt = prefs.getLong("endAt", 0L),
       paused = prefs.getBoolean("paused", false),
