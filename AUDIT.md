@@ -1139,7 +1139,7 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Notification cap:** the plan's limit of 2 a day holds, with one daily reminder and at most one nudge. A Sunday notification must replace one of those.
 
-**Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision.
+**Tunnel Vision isn't built.** `PLAN.md` names it with a focus timer but doesn't say what it does, so it needs a decision. (Decided and built on 5 Nov, below.)
 
 ### Phone builds reach the AI service, and Realtime sync (5 Nov 2026)
 
@@ -1184,3 +1184,19 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Frame rate on the Realme RMX2189 (2.7 GB, so low-end, sparks off):** measured on the UI thread with Reanimated's frame callback, over three rounds after the first: fracture 58 to 59 fps, weld 53 to 59 fps, Grace Day 53 to 60 fps, with 0 to 3 long frames each. The first fracture after launch ran at 30 fps while it warmed up. Android's own frame stats for one weld: 82 frames, 6 that missed their deadline, 1 missed vsync, median 16 ms and 90th percentile 20 ms. Its headline "janky" figure of 40% is mostly flagged as high input latency, which is how adb's injected taps show up, not slow drawing.
 
 **Not checked:** a fracture or weld on the real app from real data. The first open marked existing cracks as seen, as designed, so the next real miss or repair is the first chance. The habit detail and Progress chains on the phone. Reduced motion with the phone's own setting, rather than the playground toggle.
+
+### Tunnel Vision (5 Nov 2026)
+
+**Added**
+
+- A Focus action on today's cards, in the long-press sheet, and as a screen-reader action on the card. Everything else fades out over 250 ms and only that habit stays, centred, with a timer. Reduced motion is a plain fade.
+- The timer is the habit's duration target, in minutes or hours, or 25 minutes, and can be changed before starting. A big tabular countdown with Pause and Stop. It runs by the clock, so sleeping or leaving the app never loses time.
+- Finishing logs the full version, with the card's check-off and haptic, unless it was already logged. Stopping early asks "Log the minimum version?" with Yes, No and Keep going.
+- The screen stays on (`expo-keep-awake`). The app's own notifications are held while focusing and shown when it ends. Esc on a keyboard and Android's back button step out: before starting they close it, and while running they ask the stop question.
+- Migration `20261105000100_focus_events.sql`: `record_focus` writes `focus.started`, `focus.completed` and `focus.stopped` to `activity_events`, with the planned and elapsed seconds. It checks the habit is the caller's, accepts only those three kinds, a session of 1 minute to 4 hours and a fitting elapsed time, and caps a day at 200 so nothing can flood the history. Apps still can't write `activity_events` directly.
+
+**Checked live:** the dry run listed only that migration. With two temporary users, the owner's start and stop were saved and readable only by the owner. An unknown kind, a stranger's write, a signed-out call and a direct insert were all refused. Both users were deleted. The security advisor's only new line is `record_focus` in the expected group of app functions.
+
+**Limit:** notifications are held only while the app is open, which it is during focus because the screen stays on. If the person switches away, Android shows them as usual.
+
+**Not checked:** on a phone. It needs the next build, and the phone was locked.
