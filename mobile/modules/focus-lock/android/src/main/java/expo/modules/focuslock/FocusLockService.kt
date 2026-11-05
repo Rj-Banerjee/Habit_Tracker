@@ -71,10 +71,16 @@ class FocusLockService : Service() {
   private fun ensureChannels() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = getSystemService(NotificationManager::class.java)
+    // Normal importance, so phones that hide silent notifications on the lock screen still
+    // show the countdown there, but with no sound or vibration. A channel's importance is
+    // fixed once made, hence a new id rather than changing the old one.
+    manager.deleteNotificationChannel(OLD_CHANNEL_ONGOING)
     manager.createNotificationChannel(
-      NotificationChannel(CHANNEL_ONGOING, "Focus timer", NotificationManager.IMPORTANCE_LOW).apply {
+      NotificationChannel(CHANNEL_ONGOING, "Focus timer", NotificationManager.IMPORTANCE_DEFAULT).apply {
         description = "The countdown while Tunnel Vision is on"
         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        setSound(null, null)
+        enableVibration(false)
         setShowBadge(false)
       }
     )
@@ -195,7 +201,8 @@ class FocusLockService : Service() {
   }
 
   companion object {
-    const val CHANNEL_ONGOING = "focus-timer"
+    const val CHANNEL_ONGOING = "focus-countdown"
+    private const val OLD_CHANNEL_ONGOING = "focus-timer"
     const val CHANNEL_DONE = "focus-done"
     const val ONGOING_ID = 7401
     const val DONE_ID = 7402
