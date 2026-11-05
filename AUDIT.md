@@ -1285,3 +1285,14 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Checked in the real app on the Samsung Galaxy F23 (local build, Android 14):** Start pinned the screen at once; this phone didn't ask first, and showed Android's own "App is pinned" message with how to unpin. Home, Recents and opening Settings all left Habit Tracker in front, checked 0.3 seconds after Home, with no closing. The countdown notification used the custom collapsed and expanded layouts, titled "Read 30 pages", on the normal-importance channel, public on the lock screen. When the minute ran out, the screen asked "Time's up. Is Read done?" without logging, the phone was already unpinned and the service had stopped, and Home went to the launcher normally afterwards.
 
 **Not checked:** how the notification looks, and its buttons, because I don't open the shade with other people's notifications on it. Unpinning with the held gesture, and the voice "done my work".
+
+### Pause unpins, and the notification works from the lock screen (5 Nov 2026)
+
+**Changed, at the user's request**
+
+- Pause, Resume, Stop and Done in the focus notification now run in the background, on the lock screen too, without unlocking. Pause and Resume change the timer directly. Stop and Done are saved for the app, which picks them up within a quarter of a second: Done logs the habit, and Stop's "Log the minimum version?" waits in the app.
+- Pause unpins, so other apps and the notification shade can be used. Resume pins again; on the Samsung that shows Samsung's own pin request first, then pins about 3 seconds later.
+
+**Found on the Samsung:** Pause locked the phone. That's Samsung's own behaviour when any app unpins ("Lock phone when unpinning" in the Pin windows settings), and no app can change it. Tunnel Vision now notices when a pause locked the phone, checking for 4 seconds because the lock comes down slowly, and says once how to turn that setting off, with **Open settings** and **Got it**. Checked on the phone: after Pause the phone locked, and on waking, the hint was showing.
+
+**Not checked:** tapping the notification's buttons on the lock screen. This Samsung didn't draw the app's notification views on its lock screen, so its lock-screen notifications appear to be set to icons or collapsed. To see the buttons there: Settings → Lock screen → Notifications → **Details** with **Show content** on, then pull the notification down to expand it.
