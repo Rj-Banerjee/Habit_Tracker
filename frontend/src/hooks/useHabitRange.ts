@@ -8,6 +8,7 @@ import {
   HabitLevel,
   RangeHabit,
 } from '@habit-tracker/core';
+import { watchMyActivity } from '../services/live';
 import { tracker } from '../services/tracker';
 
 const key = (habitId: string, date: string) => `${habitId}|${date}`;
@@ -40,6 +41,8 @@ export function useHabitRange(from: string, to: string, today: string | null) {
 
   useEffect(() => {
     void refresh();
+    // A log from the phone, the widget or voice shows here without a reload.
+    return watchMyActivity(() => void refresh());
   }, [refresh]);
 
   const dayMap = useMemo(() => {

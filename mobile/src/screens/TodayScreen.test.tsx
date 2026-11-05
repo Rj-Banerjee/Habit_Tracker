@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
+import { watchMyActivity } from '../services/live';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
@@ -13,6 +14,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
@@ -91,6 +93,23 @@ describe('TodayScreen', () => {
     expect(api.getToday).not.toHaveBeenCalled();
     await act(async () => listeners[0]('active'));
     expect(api.getToday).toHaveBeenCalled();
+  });
+
+  it('reloads while open when a log happens on another device', async () => {
+    await open([row()]);
+    api.getToday.mockClear();
+    api.getToday.mockResolvedValue([row({ status: 'done', level_done: 'full' })]);
+    const [onChange] = (watchMyActivity as jest.Mock).mock.calls.at(-1);
+    await act(async () => onChange());
+    expect(api.getToday).toHaveBeenCalled();
+  });
+
+  it('stops listening when Today goes away', async () => {
+    const stop = jest.fn();
+    (watchMyActivity as jest.Mock).mockReturnValueOnce(stop);
+    await open([row()]);
+    await act(async () => screen.unmount());
+    expect(stop).toHaveBeenCalled();
   });
 
   beforeEach(() => jest.clearAllMocks());

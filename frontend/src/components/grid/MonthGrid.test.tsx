@@ -6,6 +6,7 @@ import { DayActionsSheet } from './DayActionsSheet';
 import { DayCell } from './DayCell';
 import { MonthGrid } from './MonthGrid';
 
+const live = vi.hoisted(() => ({ watch: vi.fn(() => () => {}) }));
 const api = vi.hoisted(() => ({
   getProfile: vi.fn(),
   listHabitsInRange: vi.fn(),
@@ -17,6 +18,7 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock('../../services/tracker', () => ({ tracker: api }));
+vi.mock('../../services/live', () => ({ watchMyActivity: live.watch }));
 
 const NOW = new Date('2026-11-10T12:00:00Z');
 
@@ -97,6 +99,25 @@ describe('MonthGrid', () => {
     expect(screen.getByText('The Athlete')).toBeTruthy();
     // Once as the 12th in the header, and once as the streak.
     expect(screen.getAllByText('12')).toHaveLength(2);
+  });
+
+  it('shows a log made on the phone without a reload', async () => {
+    await open();
+    api.getDayStatuses.mockResolvedValue(
+      statuses.map((s) => (s.date === '2026-11-10' ? { ...s, status: 'done' } : s))
+    );
+    api.listHabitsInRange.mockResolvedValue([
+      {
+        ...habit,
+        habit_logs: [
+          ...habit.habit_logs,
+          { id: 'l2', habit_id: 'h1', date: '2026-11-10', status: 'done', level_done: 'full' },
+        ],
+      },
+    ]);
+    const [onChange] = live.watch.mock.calls.at(-1) as unknown as [() => void];
+    await act(async () => onChange());
+    expect(await screen.findByRole('button', { name: 'Run, Tue, 10 Nov, Done' })).toBeTruthy();
   });
 
   it('logs with a click and undoes with another', async () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { HabitLevel, levelTarget, OFFLINE_NOTE, RepairRow, TodayRow } from '@habit-tracker/core';
+import { watchMyActivity } from '../services/live';
 import { loadToday, offlineTracker } from '../services/logQueue';
 import { tracker } from '../services/tracker';
 import { refreshWidget } from '../services/widget';
@@ -39,7 +40,12 @@ export function useToday() {
     const listener = AppState.addEventListener('change', (state) => {
       if (state === 'active') void refresh();
     });
-    return () => listener.remove();
+    // And while it's open, a log on the web or another phone shows straight away.
+    const stopWatching = watchMyActivity(() => void refresh());
+    return () => {
+      listener.remove();
+      stopWatching();
+    };
   }, [refresh]);
 
   // Shows the change at once, then lets the server have the final word.

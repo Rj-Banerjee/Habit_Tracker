@@ -182,5 +182,22 @@ select is(
   0, 'deleting an account removes its activity history'
 );
 
+-- ---------------------------------------------------------------------------
+-- Realtime sends only the activity history, never the tables behind it
+-- ---------------------------------------------------------------------------
+select is(
+  (select coalesce(array_agg(tablename::text order by tablename), '{}')
+     from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public'),
+  array['activity_events'],
+  'activity_events is the only public table sent over Realtime'
+);
+
+select is(
+  (select relrowsecurity from pg_class where oid = 'public.activity_events'::regclass),
+  true,
+  'what Realtime sends is still checked by row-level security'
+);
+
 select * from finish();
 rollback;

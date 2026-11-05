@@ -28,6 +28,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 jest.mock('../hooks/useNudges', () => ({ useNudges: jest.fn() }));
 jest.mock('../services/widget', () => ({ refreshWidget: jest.fn() }));
+jest.mock('../services/live', () => ({ watchMyActivity: () => () => {} }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
 jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
