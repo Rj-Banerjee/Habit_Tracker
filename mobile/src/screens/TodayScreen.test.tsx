@@ -160,7 +160,7 @@ describe('TodayScreen', () => {
     await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
     await fireEvent.press(screen.getByRole('button', { name: 'Skip today' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Sick' }));
-    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Sick');
+    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Sick', 'tap');
   });
 
   it('keeps a typed skip reason disabled until there is text', async () => {
@@ -171,7 +171,7 @@ describe('TodayScreen', () => {
     expect(api.skipHabit).not.toHaveBeenCalled();
     await fireEvent.changeText(screen.getByLabelText('Another reason'), 'Doctor said rest');
     await fireEvent.press(screen.getByRole('button', { name: 'Skip' }));
-    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Doctor said rest');
+    expect(api.skipHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'Doctor said rest', 'tap');
   });
 
   it('shows days that can still be back-logged', async () => {

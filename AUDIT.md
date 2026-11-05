@@ -1158,4 +1158,12 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Checked live:** the migration pushed after the dry run listed only that file. Two temporary users were made: the first got one reload for its log, the second got none, and the second could read none of the first user's activity or habits with the publishable key. Both users were deleted. The security advisor shows nothing new.
 
-**Not checked:** Realtime on the phone, which needs the next build and a log from a second device.
+**Checked on the phone:** with Today open on the phone, a log on the web grid ticked the habit on the phone without a reload.
+
+### Offline skips and repairs (5 Nov 2026)
+
+**Changed:** skips and repairs now queue on the phone with no connection, like logs. That covers Today, voice ("skip meditation, I'm sick") and the coach. A queued skip shows as skipped with its reason, and a queued repair shows as done. Each is sent with its own call when the connection is back, and one the server refuses is dropped with the same "couldn't be saved" note. A queue saved by an older build still sends as logs.
+
+**Limit:** the server takes a repair only on its repair day and goes by its own clock, so a repair made offline that syncs the next day is refused, and the person is told.
+
+**Not checked:** on the phone, because airplane mode cuts the wireless adb connection.

@@ -87,14 +87,14 @@ export function useToday() {
 
   const skip = (row: TodayRow, reason: string) =>
     change(row, { status: 'skipped', level_done: null, amount: null }, () =>
-      tracker.skipHabit(row.habit_id, row.day, reason)
+      offlineTracker.skipHabit(row.habit_id, row.day, reason)
     );
 
   const repair = (row: TodayRow) =>
     change(
       row,
       { status: 'done', level_done: 'full', amount: row.repair_amount },
-      () => tracker.repairHabit(row.habit_id, row.day, row.repair_amount)
+      () => offlineTracker.repairHabit(row.habit_id, row.day, row.repair_amount)
     );
 
   return {

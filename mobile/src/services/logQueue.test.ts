@@ -13,6 +13,7 @@ jest.mock('./tracker', () => ({
     logHabit: jest.fn(),
     undoLog: jest.fn(),
     skipHabit: jest.fn(),
+    repairHabit: jest.fn(),
   },
 }));
 
@@ -28,6 +29,8 @@ describe('offline logging', () => {
     api.getToday.mockResolvedValue([row]);
     api.logHabit.mockResolvedValue(null as never);
     api.undoLog.mockResolvedValue(null as never);
+    api.skipHabit.mockResolvedValue(null as never);
+    api.repairHabit.mockResolvedValue(null as never);
   });
 
   it('logs straight through when online', async () => {
@@ -105,5 +108,36 @@ describe('offline logging', () => {
   it("won't show yesterday's list as today", async () => {
     mockStore.set('today-rows', JSON.stringify([{ ...row, day: '2020-01-01' }]));
     await expect(cachedToday()).resolves.toEqual([]);
+  });
+
+  it('queues a skip offline, shows it as skipped, and sends it with its reason later', async () => {
+    await loadToday();
+    api.skipHabit.mockRejectedValue(offline);
+    await expect(offlineTracker.skipHabit('h1', today, 'sick', 'voice')).resolves.toBeNull();
+    api.getToday.mockRejectedValueOnce(offline);
+    const { rows } = await loadToday();
+    expect(rows[0]).toMatchObject({ status: 'skipped', skip_reason: 'sick' });
+    api.skipHabit.mockReset().mockResolvedValue(null as never);
+    await loadToday();
+    expect(api.skipHabit).toHaveBeenCalledWith('h1', today, 'sick', 'voice');
+  });
+
+  it('still shows a skip the server refused while online', async () => {
+    api.skipHabit.mockRejectedValue(new Error('You have used both skips this week'));
+    await expect(offlineTracker.skipHabit('h1', today, 'sick')).rejects.toThrow('both skips');
+  });
+
+  it('queues a repair offline and sends it later', async () => {
+    api.repairHabit.mockRejectedValueOnce(offline);
+    await offlineTracker.repairHabit('h1', '2026-11-02', 8);
+    await loadToday();
+    expect(api.repairHabit).toHaveBeenLastCalledWith('h1', '2026-11-02', 8);
+  });
+
+  it('says so when a queued repair comes in after its day', async () => {
+    api.repairHabit.mockRejectedValueOnce(offline);
+    await offlineTracker.repairHabit('h1', '2026-11-02', 8);
+    api.repairHabit.mockRejectedValueOnce(new Error('This day can no longer be repaired'));
+    expect((await loadToday()).note).toContain("couldn't be saved");
   });
 });
