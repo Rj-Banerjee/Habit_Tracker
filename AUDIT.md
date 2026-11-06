@@ -1340,4 +1340,20 @@ The 200-phrase set already existed (217 typed phrases, 98% on 3 Nov). What PLAN.
 
 **Not done:** the recordings themselves, which need the user's voice. Until they're scored, the Phase 3 gate is passed on typed phrases only.
 
-**Found while testing:** scrolling You with adb swipes twice changed the theme picker (to Moss, Dark and Lora). I put it back to System and Warm neutral. It may be adb's fast swipes landing as taps, but a real finger scrolling past the tiles should be checked.
+**Theme changes while testing:** I saw the theme change between my checks and suspected scrolling. Retested one swipe at a time: scrolling changes nothing. The user had been trying themes, as asked, and I had set their pick back to Warm neutral. It's now left as they chose it.
+
+### Hindi voice stopped at once, and the first spoken scores (6 Nov 2026)
+
+**Found by the user, from phrase 114 of the spoken test:** Hindi phrases stopped listening while the button was still held. The phone's log showed the cause: on-device recognition was asked for, and the Hindi pack isn't downloaded ("Failed to get language pack of required locale", `language-not-supported`). The app didn't listen for that error, so it looked like the button letting go. Real voice logging had the same problem with Hindi.
+
+**Fix:** that error now switches to the phone's online recogniser while they're still holding, and the language skips on-device from then on (`mobile/src/voice/speech.ts`, with tests). Checked on the Samsung: the online recogniser started 0.2 seconds after the error, in Hindi, and listened for the whole hold.
+
+**Spoken score so far (English and Hinglish, phrases 1 to 113):** 111 of 114 recordings right (97%), with 3 model outages rerun. The phone heard 85 of 114 word for word. The misses:
+
+| Said | Heard | Result |
+| --- | --- | --- |
+| "I got through some of my novel" | the same | Shrink Read, as when typed |
+| "aaj sirf thoda sa padha" | the same | Study instead of Read, without asking, as when typed |
+| "tick off study" | "take off study" | **Undid Study, without asking.** New, and caused by the mishearing |
+
+The new one matters most: a mishearing that reverses a log without asking. It's in the held-out set, so it isn't tuned against; it's the first thing to fix once the spoken run is complete.
