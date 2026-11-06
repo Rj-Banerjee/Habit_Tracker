@@ -6,7 +6,8 @@
   android:layout_height="wrap_content"
   android:orientation="vertical"
   android:paddingTop="4dp"
-  android:paddingBottom="4dp">
+  android:paddingBottom="4dp"
+  android:paddingEnd="@dimen/focus_balance_end">
 
   <TextView
     android:id="@+id/focus_detail"

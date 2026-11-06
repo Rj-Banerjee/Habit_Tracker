@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- From Android 12 the content starts past the app icon but ends near the edge, which
+       pushes a centred view to the right. Measured on a Samsung (One UI, Android 14): content
+       from 72dp to 16dp before the edge, so 46dp more on the right puts it in the middle. -->
+  <dimen name="focus_balance_end">46dp</dimen>
+</resources>
