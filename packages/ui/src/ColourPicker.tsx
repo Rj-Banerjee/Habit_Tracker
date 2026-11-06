@@ -13,7 +13,7 @@ interface ColourPickerProps {
 // Each identity owns one accent colour. The name is read out, so colour is never
 // the only way to tell them apart.
 export function ColourPicker({ value, onChange }: ColourPickerProps) {
-  const { colors, identity } = useTheme();
+  const { colors, identity, radii } = useTheme();
   return (
     <View style={styles.row}>
       {IDENTITY_TOKENS.map((token) => (
@@ -25,6 +25,7 @@ export function ColourPicker({ value, onChange }: ColourPickerProps) {
           accessibilityState={{ selected: token === value }}
           style={({ focused }: PressableState) => [
             styles.swatch,
+            { borderRadius: radii.sm },
             { borderColor: token === value || focused ? colors.text : 'transparent' },
           ]}
         >

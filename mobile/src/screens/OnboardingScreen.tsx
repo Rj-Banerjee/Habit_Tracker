@@ -29,7 +29,7 @@ interface OnboardingScreenProps {
 }
 
 export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const size = useLayoutSize();
   const flow = useOnboarding(userId, onDone);
 
@@ -108,6 +108,7 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
                     key={index}
                     style={[
                       styles.card,
+                      { borderRadius: radii.md },
                       { backgroundColor: colors.surface, borderColor: colors.border },
                     ]}
                   >

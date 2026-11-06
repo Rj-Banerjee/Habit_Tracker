@@ -12,6 +12,7 @@ import {
   SegmentedControl,
   Text,
   THEME_PREFERENCES,
+  ThemePicker,
   useShortcut,
   useTheme,
 } from '@habit-tracker/ui';
@@ -110,6 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onChange={setPreference}
           options={THEME_PREFERENCES}
         />
+        <ThemePicker />
         <Text>Streak mode</Text>
         <SegmentedControl
           value={mode}

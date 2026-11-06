@@ -66,4 +66,48 @@ describe('ThemeProvider', () => {
     await act(async () => {});
     expect(screen.getByText('light:light')).toBeTruthy();
   });
+
+  it('builds the saved theme, typeface and identity colours, and saves a new pick', async () => {
+    function Picked() {
+      const { theme, text, colors, identity, radii, setChoice } = useTheme();
+      return (
+        <Pressable onPress={() => setChoice({ themeId: 'paper' })}>
+          <PlainText>{`${theme.id}|${text.body.fontFamily}|${colors.canvas}|${identity('identity-1').accent}|${radii.md}`}</PlainText>
+        </Pressable>
+      );
+    }
+    const saveChoice = jest.fn();
+    await render(
+      <ThemeProvider
+        storage={{
+          load: () => 'light',
+          save: jest.fn(),
+          loadChoice: async () => '{"themeId":"sage","font":"lora","accents":{"identity-1":"indigo"}}',
+          saveChoice,
+        }}
+      >
+        <Picked />
+      </ThemeProvider>
+    );
+    await act(async () => {});
+    expect(screen.getByText('sage|Lora_400Regular|#ECF0EB|#3939CD|18')).toBeTruthy();
+    await fireEvent.press(screen.getByText(/^sage/));
+    await act(async () => {});
+    expect(screen.getByText('paper|Figtree_400Regular|#EEF0F1|#1D5C30|10')).toBeTruthy();
+    expect(saveChoice).toHaveBeenCalledWith('{"themeId":"paper"}');
+  });
+
+  it('starts on the default look with nothing saved', async () => {
+    function Look() {
+      const { theme } = useTheme();
+      return <PlainText>{theme.id}</PlainText>;
+    }
+    await render(
+      <ThemeProvider storage={{ load: () => null, save: jest.fn(), loadChoice: () => 'junk' }}>
+        <Look />
+      </ThemeProvider>
+    );
+    await act(async () => {});
+    expect(screen.getByText('warm-neutral')).toBeTruthy();
+  });
 });

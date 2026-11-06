@@ -48,7 +48,7 @@ export function HabitCard({
   footer,
   onFocusMode,
 }: HabitCardProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const wasLogged = useRef(LOGGED.includes(status));
 
@@ -99,6 +99,7 @@ export function HabitCard({
       accessibilityLabel={accessibilityLabel}
       style={({ pressed, hovered, focused }: PressableState) => [
         styles.card,
+        { borderRadius: radii.md },
         {
           backgroundColor: pressed || hovered ? colors.surfaceSunken : colors.surface,
           borderColor: focused ? colors.text : colors.border,

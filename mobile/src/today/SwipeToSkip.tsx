@@ -14,7 +14,7 @@ interface SwipeToSkipProps {
 // A left swipe opens the skip reasons. Skip is also in the long-press sheet and
 // is a screen-reader action on the card, so swiping is never the only way.
 export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const [offset] = useState(() => new Animated.Value(0));
   const latest = useRef({ enabled, onSkip });
 
@@ -46,7 +46,7 @@ export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
 
   return (
     <View>
-      <View style={[styles.behind, { backgroundColor: colors.surfaceSunken }]}>
+      <View style={[styles.behind, { borderRadius: radii.md }, { backgroundColor: colors.surfaceSunken }]}>
         <Text variant="small" muted>
           Skip
         </Text>

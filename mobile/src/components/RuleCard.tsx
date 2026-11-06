@@ -9,9 +9,9 @@ interface RuleCardProps {
 }
 
 export function RuleCard({ rule, onDismiss }: RuleCardProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
+    <View style={[styles.card, { borderRadius: radii.md }, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
       <Text>{RULE_CARDS[rule]}</Text>
       <Button label="Got it" quiet onPress={onDismiss} />
     </View>

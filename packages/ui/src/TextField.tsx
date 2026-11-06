@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
-import { layout, radius, space, textStyles } from '@habit-tracker/core';
+import { layout, radius, space } from '@habit-tracker/core';
 import { FormMessage } from './FormMessage';
 import { Text } from './Text';
 import { useTheme } from './ThemeProvider';
@@ -12,7 +12,7 @@ interface TextFieldProps extends TextInputProps {
 }
 
 export function TextField({ label, hint, error, style, ...rest }: TextFieldProps) {
-  const { colors } = useTheme();
+  const { colors, radii, text } = useTheme();
   return (
     <View style={styles.field}>
       <Text variant="small">{label}</Text>
@@ -21,7 +21,8 @@ export function TextField({ label, hint, error, style, ...rest }: TextFieldProps
         placeholderTextColor={colors.textMuted}
         style={[
           styles.input,
-          textStyles.body,
+          { borderRadius: radii.sm },
+          text.body,
           {
             color: colors.text,
             backgroundColor: colors.surface,

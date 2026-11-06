@@ -16,7 +16,7 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ visible, title, onClose, children }: BottomSheetProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const bottomInset = useContext(SheetInsetContext);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -33,6 +33,7 @@ export function BottomSheet({ visible, title, onClose, children }: BottomSheetPr
         <View
           style={[
             styles.sheet,
+            { borderTopLeftRadius: radii.md, borderTopRightRadius: radii.md },
             {
               paddingBottom: space.xl + bottomInset,
               backgroundColor: colors.surface,

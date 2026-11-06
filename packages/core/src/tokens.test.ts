@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { colors, identityColors, layout, motion, textStyles, ThemeName } from './tokens';
+import { layout, motion, textStyles, ThemeName, withGlow } from './tokens';
 import { contrast, CVD_TYPES, deltaE, hexToRgb, hueAndSaturation, simulateCvd } from './colorChecks';
+import { STANDARD_THEMES } from './themes/standard';
 
-const themes: ThemeName[] = ['light', 'dark'];
+const modes: ThemeName[] = ['light', 'dark'];
 
-describe.each(themes)('%s theme', (theme) => {
-  const c = colors[theme];
-  const accents = Object.values(identityColors[theme]);
+// Every bundled theme is held to the default's rules, in both modes.
+const cases = STANDARD_THEMES.flatMap((t) => modes.map((mode) => [`${t.name} ${mode}`, t, mode] as const));
+
+describe.each(cases)('%s', (_label, data, theme) => {
+  const c = data.modes[theme].colors;
+  const palette = withGlow(data.modes[theme].identity);
+  const identityColors = { [theme]: palette } as Record<ThemeName, typeof palette>;
+  const accents = Object.values(palette);
 
   it('has no pure white or black', () => {
     const all = [...Object.values(c), ...accents.flatMap((a) => [a.accent, a.onAccent])];

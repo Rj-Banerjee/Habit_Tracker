@@ -11,10 +11,10 @@ interface CoachCardProps {
 }
 
 export function CoachCard({ text, onPress, locked }: CoachCardProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   if (locked) {
     return (
-      <View style={[styles.card, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
+      <View style={[styles.card, { borderRadius: radii.md }, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
         <Text>{text}</Text>
         <Text variant="small" muted>
           Coach · {locked}
@@ -29,6 +29,7 @@ export function CoachCard({ text, onPress, locked }: CoachCardProps) {
       onPress={onPress}
       style={({ pressed, hovered, focused }: PressableState) => [
         styles.card,
+        { borderRadius: radii.md },
         {
           backgroundColor: colors.surfaceSunken,
           borderColor: focused ? colors.textMuted : colors.border,

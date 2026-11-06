@@ -20,5 +20,8 @@ export * from './habitCardStatus';
 export * from './habitForm';
 export * from './todayModel';
 export * from './theme';
+export * from './themeChoice';
 export * from './themes/default';
+export * from './themes/fonts';
+export * from './themes/standard';
 export * from './tokens';

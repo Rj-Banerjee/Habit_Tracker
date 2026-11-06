@@ -34,7 +34,7 @@ interface VoiceSheetProps {
 }
 
 export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const [speech] = useState(speechInput);
   const [listening, setListening] = useState(false);
   const [micRefused, setMicRefused] = useState(false);
@@ -150,6 +150,7 @@ export function VoiceSheet({ visible, voice, onAddHabit, onClose }: VoiceSheetPr
               onPressOut={() => speech.stop()}
               style={({ focused }: PressableState) => [
                 styles.mic,
+                { borderRadius: radii.md },
                 {
                   backgroundColor: listening ? colors.text : colors.surfaceSunken,
                   borderColor: focused ? colors.textMuted : colors.border,

@@ -9,6 +9,12 @@ import {
   Figtree_600SemiBold,
   useFonts,
 } from '@expo-google-fonts/figtree';
+import { Lora_400Regular, Lora_500Medium, Lora_600SemiBold } from '@expo-google-fonts/lora';
+import { Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold } from '@expo-google-fonts/nunito';
+import {
+  AtkinsonHyperlegible_400Regular,
+  AtkinsonHyperlegible_700Bold,
+} from '@expo-google-fonts/atkinson-hyperlegible';
 import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
 import { EntitlementsProvider } from './src/hooks/useEntitlements';
@@ -25,9 +31,12 @@ import { supabase } from './src/services/supabase';
 import { AuthForm, SheetInsetContext, ThemeProvider, useTheme } from '@habit-tracker/ui';
 
 const THEME_KEY = 'theme-preference';
+const THEME_CHOICE_KEY = 'theme-choice';
 const themeStorage = {
   load: () => AsyncStorage.getItem(THEME_KEY),
   save: (value: string) => AsyncStorage.setItem(THEME_KEY, value),
+  loadChoice: () => AsyncStorage.getItem(THEME_CHOICE_KEY),
+  saveChoice: (value: string) => AsyncStorage.setItem(THEME_CHOICE_KEY, value),
 };
 
 function ThemedStatusBar() {
@@ -148,7 +157,20 @@ function SignedInScreens({
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Figtree_400Regular, Figtree_500Medium, Figtree_600SemiBold });
+  // Every bundled typeface, so a theme or typeface switch shows at once.
+  const [fontsLoaded] = useFonts({
+    Figtree_400Regular,
+    Figtree_500Medium,
+    Figtree_600SemiBold,
+    Nunito_400Regular,
+    Nunito_500Medium,
+    Nunito_600SemiBold,
+    Lora_400Regular,
+    Lora_500Medium,
+    Lora_600SemiBold,
+    AtkinsonHyperlegible_400Regular,
+    AtkinsonHyperlegible_700Bold,
+  });
 
   if (!fontsLoaded) {
     return null;
