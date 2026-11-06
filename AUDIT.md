@@ -1357,3 +1357,19 @@ The 200-phrase set already existed (217 typed phrases, 98% on 3 Nov). What PLAN.
 | "tick off study" | "take off study" | **Undid Study, without asking.** New, and caused by the mishearing |
 
 The new one matters most: a mishearing that reverses a log without asking. It's in the held-out set, so it isn't tuned against; it's the first thing to fix once the spoken run is complete.
+
+### The full spoken test, and two voice rules (6 Nov 2026)
+
+**All 206 phrases recorded** by the user on the Samsung. The phone heard 148 word for word. The parser got 200 of 206 (97%), including all 16 Hindi phrases. Four misses acted without asking.
+
+**Fixes, both in `backend/app/voice.py` with tests:**
+
+- An undo goes ahead without asking only when an undo word was said (undo, cancel, take back, remove, delete, wapas, hata and similar). Otherwise it asks first. This covers the miss where "tick off study" was heard as "take off study" and Study was undone.
+- `log_amount` on a yes/no habit becomes a plain log. "ten minutes of meditation done" and "studied for two hours" now pass.
+
+**Rescored with the live model** (the misses plus every undo phrase in all three sets, 69 phrases): both fixes work, and no plainly worded undo was held back. With the fixes the spoken score is **202 of 206 (98%)**. Two phrases still act wrongly without asking, and they do the same when typed:
+
+- "I got through some of my novel" logs the small version of Read.
+- "aaj sirf thoda sa padha" logs Study instead of Read.
+
+Details are in `docs/voice-accuracy.md`.

@@ -615,6 +615,33 @@ def test_a_guess_at_a_misheard_word_needs_confirming(api):
     assert body["heard"] == "anduda latest update"
 
 
+def test_an_amount_on_a_yes_no_habit_is_a_plain_log(api):
+    call = ToolCall("log_amount", {"habit": "h2", "amount": 10, "confidence": "high"})
+    intents = voice_response(api, [call], "ran for 10 minutes")["intents"]
+    assert intents == [{"intent": "log_habit", "habit_id": "uuid-run", "habit_title": "Run"}]
+
+
+@pytest.mark.parametrize("heard", ["take off study", "I didn't read today", "scratch the run"])
+def test_an_undo_without_an_undo_word_asks_first(api, heard):
+    call = ToolCall("undo_habit", {"habit": "h1", "confidence": "high"})
+    assert voice_response(api, [call], heard)["level"] == "medium"
+
+
+@pytest.mark.parametrize(
+    "heard",
+    ["undo the read", "take that back", "cancel the read log", "read wapas kar do",
+     "गलती से हो गया, हटा दो", "remove my read log"],
+)  # fmt: skip
+def test_an_undo_said_plainly_goes_ahead(api, heard):
+    call = ToolCall("undo_habit", {"habit": "h1", "confidence": "high"})
+    assert voice_response(api, [call], heard)["level"] == "high"
+
+
+def test_a_low_undo_stays_low(api):
+    call = ToolCall("undo_last", {"confidence": "low"})
+    assert voice_response(api, [call], "take off")["level"] == "low"
+
+
 @pytest.mark.parametrize("sureness,level", [("high", "high"), ("medium", "medium"), ("low", "low")])
 def test_the_models_own_confidence_counts(api, sureness, level):
     call = ToolCall("log_habit", {"habit": "h1", "confidence": sureness})

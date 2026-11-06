@@ -52,3 +52,14 @@ The typed sets can't show what the phone's recogniser does to real speech. `pack
 3. Score it: `.venv/bin/python scripts/voice_accuracy.py --spoken recordings/voice_spoken.jsonl`. It says how many the phone heard word for word, then scores the parser on what it actually heard.
 
 The service only accepts samples from test accounts, sends nothing to a model, and keeps only the phrase id, the transcript and the language.
+
+### First full run (6 Nov 2026, Samsung, one speaker)
+
+All 206 recorded. The phone heard 148 word for word; most differences were numbers written as digits and capital letters. The parser got **200 of 206 (97%)**, with every Hindi phrase right (16 of 16). Four of the six misses acted without asking.
+
+Two rules came out of it. Neither is about a phrase, so the held-out phrases are still fair to measure with:
+
+- **An undo only goes ahead without asking when they used a word for undoing** (undo, cancel, take back, remove, delete, wapas, hata and similar, in what was heard or the corrected text). "tick off study" was heard as "take off study" and the model undid Study at high confidence; now it asks first.
+- **An amount on a yes/no habit is a plain log.** "ten minutes of meditation done" and "studied for two hours" came back as amounts on habits that have none. The app would have logged them in full but said "Logged 10 of Meditate".
+
+Rescored with the real model after the change, together with every undo phrase from all three sets: both amount phrases now pass, "take off study" asks first, and no undo that was said plainly started asking. **With the fixes: 202 of 206 (98%), 2 done wrong without asking**, both the same as when typed ("I got through some of my novel" as the small version of Read, and "aaj sirf thoda sa padha" as Study). "I did my cardio" says no such habit instead of asking which one.
