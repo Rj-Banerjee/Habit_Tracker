@@ -12,7 +12,8 @@ jest.mock('expo-speech-recognition', () => {
       supportsOnDeviceRecognition: mockOnDevice,
       requestPermissionsAsync: mockGranted,
       start: mockStart,
-      addListener: (name: string, listener: () => void) => {
+      stop: jest.fn(),
+      addListener: (name: string, listener: (event?: unknown) => void) => {
         mockListeners[name] = listener;
         return { remove: mockRemove };
       },
@@ -24,7 +25,7 @@ const mockOnDevice = jest.fn(() => true);
 const mockGranted = jest.fn(async () => ({ granted: true }));
 const mockStart = jest.fn();
 const mockRemove = jest.fn();
-const mockListeners: Record<string, () => void> = {};
+const mockListeners: Record<string, (event?: unknown) => void> = {};
 const nativeModule = requireOptionalNativeModule as jest.Mock;
 
 describe('speechInput', () => {
@@ -70,7 +71,7 @@ describe('speechInput', () => {
     nativeModule.mockReturnValue({});
     await speechInput()?.start({ language: 'en-IN', hints: [] }, jest.fn(), jest.fn());
     mockListeners.end();
-    expect(mockRemove).toHaveBeenCalledTimes(2);
+    expect(mockRemove).toHaveBeenCalledTimes(3);
   });
 
   it("doesn't start without microphone permission", async () => {
@@ -79,5 +80,43 @@ describe('speechInput', () => {
     const started = await speechInput()?.start({ language: 'en-IN', hints: [] }, jest.fn(), jest.fn());
     expect(started).toBe(false);
     expect(mockStart).not.toHaveBeenCalled();
+  });
+
+  it('carries on online when the language has no on-device pack, and remembers it', async () => {
+    nativeModule.mockReturnValue({});
+    const input = speechInput();
+    const onEnd = jest.fn();
+    await input?.start({ language: 'hi-IN', hints: [] }, jest.fn(), onEnd);
+    mockListeners.error({ error: 'language-not-supported' });
+    mockListeners.end();
+    expect(onEnd).not.toHaveBeenCalled();
+    expect(mockStart).toHaveBeenLastCalledWith(expect.objectContaining({ lang: 'hi-IN', requiresOnDeviceRecognition: false }));
+    mockListeners.end();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+
+    await speechInput()?.start({ language: 'hi-IN', hints: [] }, jest.fn(), jest.fn());
+    expect(mockStart).toHaveBeenLastCalledWith(expect.objectContaining({ requiresOnDeviceRecognition: false }));
+  });
+
+  it('ends normally when they let go during the switch', async () => {
+    nativeModule.mockReturnValue({});
+    const input = speechInput();
+    const onEnd = jest.fn();
+    await input?.start({ language: 'mr-IN' as never, hints: [] }, jest.fn(), onEnd);
+    mockListeners.error({ error: 'language-not-supported' });
+    input?.stop();
+    mockListeners.end();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(mockStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats other errors as the end of listening', async () => {
+    nativeModule.mockReturnValue({});
+    const onEnd = jest.fn();
+    await speechInput()?.start({ language: 'en-IN', hints: [] }, jest.fn(), onEnd);
+    mockListeners.error({ error: 'no-speech' });
+    mockListeners.end();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(mockStart).toHaveBeenCalledTimes(1);
   });
 });
