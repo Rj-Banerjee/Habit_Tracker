@@ -12,9 +12,9 @@ import { StreakHistory } from '../progress/StreakHistory';
 const PROGRESS_CHAIN_DAYS = 14;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   return (
-    <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.section, { borderRadius: radii.md }, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text variant="small" muted accessibilityRole="header">
         {title}
       </Text>

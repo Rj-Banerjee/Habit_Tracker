@@ -40,7 +40,7 @@ export function DayCell({
   onPress,
   onActions,
 }: DayCellProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const [hovered, setHovered] = useState(false);
 
   if (status === null) {
@@ -69,6 +69,7 @@ export function DayCell({
       onHoverOut={() => setHovered(false)}
       style={({ hovered: pointerOver }: PressableState) => [
         styles.cell,
+        { borderRadius: radii.sm },
         {
           width: size,
           height: size,
@@ -80,7 +81,7 @@ export function DayCell({
     >
       <StatusMark status={status} identity={identity} size={22} />
       {hovered && status === 'repaired' && repairedLabel ? (
-        <View style={[styles.tip, { backgroundColor: colors.surface, borderColor: colors.border }]} pointerEvents="none">
+        <View style={[styles.tip, { borderRadius: radii.sm }, { backgroundColor: colors.surface, borderColor: colors.border }]} pointerEvents="none">
           <Text variant="small" numeric numberOfLines={1}>
             {repairedLabel}
           </Text>

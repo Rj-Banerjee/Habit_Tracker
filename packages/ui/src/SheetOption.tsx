@@ -12,7 +12,7 @@ interface SheetOptionProps {
 }
 
 export function SheetOption({ label, description, onPress }: SheetOptionProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -20,6 +20,7 @@ export function SheetOption({ label, description, onPress }: SheetOptionProps) {
       accessibilityLabel={description ? `${label}, ${description}` : label}
       style={({ pressed, hovered, focused }: PressableState) => [
         styles.option,
+        { borderRadius: radii.sm },
         {
           backgroundColor: pressed || hovered ? colors.surfaceSunken : 'transparent',
           borderColor: focused ? colors.text : colors.border,

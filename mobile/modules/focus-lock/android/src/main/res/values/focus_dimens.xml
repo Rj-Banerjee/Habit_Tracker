@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Evens out the notification's own margins, so the expanded view sits in the middle of the
+       whole notification. Before Android 12 the margins are the same on both sides. -->
+  <dimen name="focus_balance_end">0dp</dimen>
+</resources>

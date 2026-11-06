@@ -12,6 +12,7 @@ export * from './SkipSheet';
 export * from './StatusMark';
 export * from './Text';
 export * from './TextField';
+export * from './ThemePicker';
 export * from './ThemeProvider';
 export * from './WeekdayPicker';
 export * from './chainGeometry';

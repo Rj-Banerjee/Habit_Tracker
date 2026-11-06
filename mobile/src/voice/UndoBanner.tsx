@@ -11,7 +11,7 @@ interface UndoBannerProps {
 }
 
 export function UndoBanner({ banner, onUndo, onExpire }: UndoBannerProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
 
   useEffect(() => {
     const timer = setTimeout(onExpire, VOICE_UNDO_SECONDS * 1000);
@@ -23,7 +23,7 @@ export function UndoBanner({ banner, onUndo, onExpire }: UndoBannerProps) {
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={[styles.banner, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.banner, { borderRadius: radii.md }, { backgroundColor: colors.surface, borderColor: colors.border }]}
     >
       <View style={styles.text}>
         <Text variant="small" numeric>

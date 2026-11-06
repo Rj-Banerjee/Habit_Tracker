@@ -10,11 +10,12 @@ interface WhyCardProps {
 }
 
 export function WhyCard({ name, why, identity }: WhyCardProps) {
-  const { colors, identity: identityColor } = useTheme();
+  const { colors, identity: identityColor, radii } = useTheme();
   return (
     <View
       style={[
         styles.card,
+        { borderRadius: radii.sm },
         { backgroundColor: colors.surfaceSunken, borderLeftColor: identityColor(identity).accent },
       ]}
     >

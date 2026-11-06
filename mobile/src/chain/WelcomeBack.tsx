@@ -27,7 +27,7 @@ interface WelcomeBackProps {
 // Several things changed while they were away: one calm card with still chains, instead
 // of a run of animations.
 export function WelcomeBack({ moments, habits, onDismiss }: WelcomeBackProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const shown = moments.flatMap((moment) => {
     const habit = habits.find((h) => h.habitId === moment.habitId);
     return habit ? [{ moment, habit }] : [];
@@ -35,7 +35,7 @@ export function WelcomeBack({ moments, habits, onDismiss }: WelcomeBackProps) {
   if (shown.length === 0) return null;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
+    <View style={[styles.card, { borderRadius: radii.md }, { backgroundColor: colors.surfaceSunken, borderColor: colors.border }]}>
       <Text>{WELCOME_BACK_TITLE}</Text>
       {shown.map(({ moment, habit }) => {
         const repairOn = habit.chain.nodes.find((n) => n.date === moment.date)?.repairOn ?? null;

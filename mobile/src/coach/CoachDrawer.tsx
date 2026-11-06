@@ -20,7 +20,7 @@ export function CoachDrawer({
   onCreateHabit,
   onClose,
 }: CoachDrawerProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
   const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -80,6 +80,7 @@ export function CoachDrawer({
               key={index}
               style={[
                 styles.turn,
+                { borderRadius: radii.md },
                 turn.role === 'user'
                   ? [styles.mine, { backgroundColor: colors.surfaceSunken }]
                   : styles.theirs,

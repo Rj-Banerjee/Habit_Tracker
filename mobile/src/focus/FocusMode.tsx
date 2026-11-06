@@ -101,7 +101,7 @@ function initialState(row: TodayRow, saved: SavedFocus | null | undefined): Focu
 
 export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusModeProps) {
   useKeepAwake('tunnel-vision');
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   const [state, dispatch] = useReducer(focusReducer, saved, (s) => initialState(row, s));
   const [now, setNow] = useState(() => Date.now());
   const [typed, setTyped] = useState(String(state.minutes));
@@ -374,7 +374,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
         <Button label="+5" quiet onPress={() => setMinutes(state.minutes + STEP_MINUTES)} accessibilityLabel="5 minutes more" />
       </View>
       {notifications === false ? (
-        <View style={[styles.permissions, { borderColor: colors.border }]}>
+        <View style={[styles.permissions, { borderRadius: radii.md }, { borderColor: colors.border }]}>
           <Text>To show the countdown in your notifications and on the lock screen, allow notifications.</Text>
           <Button label="Allow notifications" quiet onPress={() => void askForNotifications()} />
         </View>
@@ -451,6 +451,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
                 onPressOut={() => speech.stop()}
                 style={({ focused }: PressableState) => [
                   styles.mic,
+                  { borderRadius: radii.md },
                   {
                     backgroundColor: listening ? colors.text : colors.surfaceSunken,
                     borderColor: focused ? colors.textMuted : colors.border,
@@ -468,7 +469,7 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
               </Text>
             ) : null}
             {unpinLocks && !unpinHintSeen ? (
-              <View style={[styles.permissions, { borderColor: colors.border }]}>
+              <View style={[styles.permissions, { borderRadius: radii.md }, { borderColor: colors.border }]}>
                 <Text variant="small" accessibilityLiveRegion="polite">
                   Pausing locked your phone. That&apos;s your phone&apos;s &quot;Lock phone when unpinning&quot;
                   setting. To pause without locking, turn it off in Settings → Security and privacy → More

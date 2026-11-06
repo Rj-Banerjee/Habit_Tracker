@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import {
-  DEFAULT_THEME,
+  buildTheme,
+  DEFAULT_THEME_CHOICE,
   identityColors,
   IdentityToken,
   textStylesFor,
   ThemeColors,
   ThemeData,
+  ThemeChoice,
   ThemeName,
+  parseThemeChoice,
   withGlow,
 } from '@habit-tracker/core';
 
@@ -23,6 +26,9 @@ export const THEME_PREFERENCES: { value: ThemePreference; label: string }[] = [
 export interface ThemeStorage {
   load: () => Promise<string | null> | string | null;
   save: (value: ThemePreference) => unknown;
+  // The theme picked in Settings, as JSON.
+  loadChoice?: () => Promise<string | null> | string | null;
+  saveChoice?: (value: string) => unknown;
 }
 
 const isPreference = (value: unknown): value is ThemePreference =>
@@ -32,6 +38,9 @@ interface ThemeContextValue {
   name: ThemeName;
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => void;
+  // Which theme, typeface and identity colours were picked.
+  choice: ThemeChoice;
+  setChoice: (choice: ThemeChoice) => void;
   colors: ThemeColors;
   identity: (token: IdentityToken) => (typeof identityColors)['light'][IdentityToken];
   // The theme as data, and its text styles and corner radii, for components to read.
@@ -46,16 +55,19 @@ export function ThemeProvider({
   children,
   forced,
   storage,
-  theme = DEFAULT_THEME,
+  theme: given,
 }: {
   children: React.ReactNode;
   forced?: ThemeName;
   storage?: ThemeStorage;
-  // Checked with validateTheme before it gets here. The default is today's look.
+  // Checked with validateTheme before it gets here. Without one, the saved choice decides.
   theme?: ThemeData;
 }) {
   const system = useColorScheme();
-  const [preference, setChoice] = useState<ThemePreference>('system');
+  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [choice, setChoiceState] = useState<ThemeChoice>(DEFAULT_THEME_CHOICE);
+  const built = useMemo(() => buildTheme(choice), [choice]);
+  const theme = given ?? built;
   const chosen = preference === 'system' ? system : preference;
   const name: ThemeName = forced ?? (chosen === 'dark' ? 'dark' : 'light');
 
@@ -65,7 +77,13 @@ export function ThemeProvider({
     Promise.resolve()
       .then(() => storage?.load())
       .then((saved) => {
-        if (current && isPreference(saved)) setChoice(saved);
+        if (current && isPreference(saved)) setPreferenceState(saved);
+      })
+      .catch(() => {});
+    Promise.resolve()
+      .then(() => storage?.loadChoice?.())
+      .then((saved) => {
+        if (current && saved) setChoiceState(parseThemeChoice(saved));
       })
       .catch(() => {});
     return () => {
@@ -84,9 +102,16 @@ export function ThemeProvider({
       name,
       preference,
       setPreference: (next: ThemePreference) => {
-        setChoice(next);
+        setPreferenceState(next);
         Promise.resolve()
           .then(() => storage?.save(next))
+          .catch(() => {});
+      },
+      choice,
+      setChoice: (next: ThemeChoice) => {
+        setChoiceState(next);
+        Promise.resolve()
+          .then(() => storage?.saveChoice?.(JSON.stringify(next)))
           .catch(() => {});
       },
       colors: theme.modes[name].colors,
@@ -95,7 +120,7 @@ export function ThemeProvider({
       text,
       radii: theme.radii,
     }),
-    [name, preference, storage, theme, accents, text]
+    [name, preference, choice, storage, theme, accents, text]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

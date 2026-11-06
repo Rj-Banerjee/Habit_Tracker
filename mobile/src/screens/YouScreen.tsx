@@ -7,6 +7,7 @@ import {
   Button,
   FormMessage,
   SegmentedControl,
+  ThemePicker,
   SheetOption,
   Text,
   THEME_PREFERENCES,
@@ -112,6 +113,7 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
             value={preference}
             onChange={setPreference}
           />
+          <ThemePicker />
         </View>
         {reminder !== undefined ? (
           <View style={styles.group}>

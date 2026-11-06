@@ -13,7 +13,7 @@ interface ChipProps {
 }
 
 export function Chip({ label, selected, onPress, accessibilityLabel }: ChipProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -22,6 +22,7 @@ export function Chip({ label, selected, onPress, accessibilityLabel }: ChipProps
       accessibilityState={{ selected }}
       style={({ hovered, focused }: PressableState) => [
         styles.chip,
+        { borderRadius: radii.sm },
         {
           backgroundColor: selected ? colors.text : hovered ? colors.surfaceSunken : colors.surface,
           borderColor: focused ? colors.text : colors.border,

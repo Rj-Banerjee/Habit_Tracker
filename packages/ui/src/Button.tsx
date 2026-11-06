@@ -14,7 +14,7 @@ interface ButtonProps {
 }
 
 export function Button({ label, onPress, disabled, quiet, accessibilityLabel }: ButtonProps) {
-  const { colors } = useTheme();
+  const { colors, radii } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -24,6 +24,7 @@ export function Button({ label, onPress, disabled, quiet, accessibilityLabel }: 
       accessibilityState={{ disabled: !!disabled }}
       style={({ pressed, hovered, focused }: PressableState) => [
         styles.button,
+        { borderRadius: radii.md },
         {
           backgroundColor: quiet ? 'transparent' : colors.text,
           borderColor: focused ? colors.textMuted : colors.border,

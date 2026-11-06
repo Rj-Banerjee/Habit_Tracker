@@ -16,6 +16,54 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Nunito_400Regular';
+  src: url('../../../node_modules/@expo-google-fonts/nunito/400Regular/Nunito_400Regular.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nunito_500Medium';
+  src: url('../../../node_modules/@expo-google-fonts/nunito/500Medium/Nunito_500Medium.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nunito_600SemiBold';
+  src: url('../../../node_modules/@expo-google-fonts/nunito/600SemiBold/Nunito_600SemiBold.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora_400Regular';
+  src: url('../../../node_modules/@expo-google-fonts/lora/400Regular/Lora_400Regular.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora_500Medium';
+  src: url('../../../node_modules/@expo-google-fonts/lora/500Medium/Lora_500Medium.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora_600SemiBold';
+  src: url('../../../node_modules/@expo-google-fonts/lora/600SemiBold/Lora_600SemiBold.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AtkinsonHyperlegible_400Regular';
+  src: url('../../../node_modules/@expo-google-fonts/atkinson-hyperlegible/400Regular/AtkinsonHyperlegible_400Regular.ttf');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AtkinsonHyperlegible_700Bold';
+  src: url('../../../node_modules/@expo-google-fonts/atkinson-hyperlegible/700Bold/AtkinsonHyperlegible_700Bold.ttf');
+  font-display: swap;
+}
+
 /* The page behind the app, before it loads. These match the canvas tokens. */
 html,
 body {

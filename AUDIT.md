@@ -1308,3 +1308,19 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Checked on the Samsung, in the real app:** Start pinned the phone, after Samsung's own "App is pinned" sheet with OK, which Samsung shows every time an app pins. Pause unpinned it and Home worked. In the shade, the expanded notification showed "Read 30 pages", the big paused time 04:51, and only **Resume** and **Done**. Tapping **Resume** brought the app back, Samsung's pin sheet appeared, and after OK the phone was pinned. Home and Settings then stayed in Habit Tracker, with the timer running.
 
 **Not checked:** Done from the notification. Afterwards the app had no notifications and the timer service had stopped, which is what Done leaves, but the tap wasn't observed.
+
+### Notification centred, and eleven standard themes (6 Nov 2026)
+
+**Notification, at the user's request:** the expanded countdown looked pushed to the right. From Android 12 the notification body starts past the app icon but ends near the edge, so centred content sat right of the middle. The expanded layout now has a balancing end padding (`focus_balance_end`, 0 before Android 12). Measured on the Samsung over adb, reading only this app's views: with stock Android's 36dp the content still sat 14px right (One UI's inset is wider), so it's 46dp, which centres it there.
+
+**Themes, the Free plan's "10+ normal themes, each customizable":**
+
+- `packages/core/src/themes/standard.ts` has 11: Warm neutral (the default), Paper, Sage, Dusk, Sand, Blush, Slate, Lavender, Linen, Moss and Ink. Each tints the default's neutrals with its own hue at the same lightness, so text and accents stay exactly as readable, and pairs them with a typeface and corner shape. `tokens.test.ts` now holds every theme, in both modes, to the default's rules: contrast, the hollow dot, colour-blind separation, no red, and the weld glow.
+- Customisation (`themeChoice.ts`): another bundled typeface (Figtree, Nunito, Lora, Atkinson Hyperlegible), and any identity's colour from 12 swatches (the 8 defaults plus Jade, Indigo, Orchid and Olive), each checked on every theme. `buildTheme` validates the result and falls back if anything fails; a saved choice that names something unknown is cleaned up.
+- The choice is saved on the device (`theme-choice`), on the phone and on the web. It isn't synced between devices yet, which would need a column on `users`.
+- `ThemePicker` (shared) sits under Theme on You and in web Settings: theme tiles drawn in each theme's own colours and typeface, typeface chips, and identity colours behind a button.
+- Components took corner radii and text field styles from the default directly; they now take them from the theme, so a theme's shape shows.
+
+**Checked:** core 1001, web 28 and mobile 846 tests pass, and lint has no errors. In Chrome, a saved Sage + Lora choice gave the login page Sage's canvas, Lora and Sage's rounder corners, and Ink in dark mode switched to Atkinson Hyperlegible.
+
+**Not covered:** the Android home-screen widget keeps the default colours, since it's drawn outside the app. Colours other than the identity accents (the neutrals) change by picking a theme, not one by one.

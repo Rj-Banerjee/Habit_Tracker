@@ -7,9 +7,12 @@ import { AuthProvider } from '../hooks/useAuth';
 const subscribe = () => () => {};
 
 const THEME_KEY = 'theme-preference';
+const THEME_CHOICE_KEY = 'theme-choice';
 const themeStorage = {
   load: () => localStorage.getItem(THEME_KEY),
   save: (value: string) => localStorage.setItem(THEME_KEY, value),
+  loadChoice: () => localStorage.getItem(THEME_CHOICE_KEY),
+  saveChoice: (value: string) => localStorage.setItem(THEME_CHOICE_KEY, value),
 };
 
 // The stylesheet can only see the system setting, so a choice in Settings is applied
