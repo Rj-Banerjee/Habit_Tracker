@@ -1323,4 +1323,6 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Checked:** core 1001, web 28 and mobile 846 tests pass, and lint has no errors. In Chrome, a saved Sage + Lora choice gave the login page Sage's canvas, Lora and Sage's rounder corners, and Ink in dark mode switched to Atkinson Hyperlegible.
 
+**Checked on the Samsung, in the real app (local build):** the expanded notification's content now spans 204 to 876 px on a 1080 px screen, so it's centred. On You, all 11 theme tiles, the typeface chips and Change identity colours show; picking Blush recoloured the app and switched to Nunito at once. The phone was set back to System and Warm neutral afterwards, and the test sessions were stopped without logging.
+
 **Not covered:** the Android home-screen widget keeps the default colours, since it's drawn outside the app. Colours other than the identity accents (the neutrals) change by picking a theme, not one by one.
