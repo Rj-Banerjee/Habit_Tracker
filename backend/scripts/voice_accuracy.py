@@ -6,6 +6,11 @@ made-up habits only. Run from backend/:
     .venv/bin/python scripts/voice_accuracy.py --set tests/voice_phrases_heldout.json
 
 The held-out set is for measuring only. Tuning against it would make its score mean nothing.
+
+The spoken test scores what the phone actually heard when the phrases in
+packages/core/src/voiceSpoken.json were said aloud, saved by the app's Voice test screen:
+
+    .venv/bin/python scripts/voice_accuracy.py --spoken recordings/voice_spoken.jsonl
 """
 
 import argparse
@@ -90,9 +95,33 @@ async def current(provider, tracker, heard) -> tuple[list[str], str]:
     return summarise(parsed["intents"]), parsed["level"]
 
 
+def spoken_phrases(path: str) -> list[dict]:
+    """The last recording of each phrase, as the phrase with what was heard in place."""
+    wanted = {p["id"]: p for p in json.loads(Path("../packages/core/src/voiceSpoken.json").read_text())["phrases"]}
+    heard: dict[str, str] = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        sample = json.loads(line)
+        if sample["phrase_id"] in wanted:
+            heard[sample["phrase_id"]] = sample["heard"]
+    return [{**wanted[i], "heard": heard[i]} for i in wanted if i in heard]
+
+
+def words(text: str) -> list[str]:
+    return "".join(c for c in text.lower() if c.isalnum() or c.isspace()).split()
+
+
+def same_words(a: str, b: str) -> bool:
+    return words(a) == words(b)
+
+
 async def run(args) -> None:
     data = json.loads(Path("tests/voice_phrases.json").read_text())
-    data["phrases"] = json.loads(Path(args.set).read_text())["phrases"]
+    if args.spoken:
+        data["phrases"] = spoken_phrases(args.spoken)
+        exact = sum(same_words(p["say"], p["heard"]) for p in data["phrases"])
+        print(f"{len(data['phrases'])} phrases recorded; the phone heard {exact} word for word.\n")
+    else:
+        data["phrases"] = json.loads(Path(args.set).read_text())["phrases"]
     provider = build_provider(get_settings(), Counters())
     tracker = Fixture(data["habits"])
     scores: dict[str, list[int]] = defaultdict(lambda: [0, 0])
@@ -115,7 +144,8 @@ async def run(args) -> None:
         scores[phrase["group"]][0] += good
         scores[phrase["group"]][1] += 1
         results.append({**phrase, "got": got, "level": level, "good": good})
-        print("ok  " if good else "MISS", phrase["heard"], "->", got, level, flush=True)
+        said = f' (said "{phrase["say"]}")' if "say" in phrase and not same_words(phrase["say"], phrase["heard"]) else ""
+        print("ok  " if good else "MISS", phrase["heard"] + said, "->", got, level, flush=True)
         await asyncio.sleep(PAUSE_SECONDS)
 
     right = sum(s[0] for s in scores.values())
@@ -135,5 +165,6 @@ async def run(args) -> None:
 parser = argparse.ArgumentParser()
 parser.add_argument("--baseline", action="store_true")
 parser.add_argument("--set", default="tests/voice_phrases.json")
+parser.add_argument("--spoken", help="a recordings file from the app's Voice test screen")
 parser.add_argument("--out", default="/tmp/voice_accuracy.json")
 asyncio.run(run(parser.parse_args()))

@@ -98,6 +98,11 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
     parseVoice: async (transcript: string): Promise<VoiceParse> =>
       (await post('/voice/parse', { transcript })).json(),
 
+    // The spoken voice test: what the phone heard for one phrase, kept on the AI service.
+    voiceSample: async (phraseId: string, heard: string, language: string) => {
+      await post('/voice/samples', { phrase_id: phraseId, heard, language });
+    },
+
     // Yields the reply as it arrives, or what the coach decided to do.
     nudgeOutcome: async (habitId: string, date: string, outcome: 'logged' | 'ignored') => {
       await post('/coach/nudge-outcome', { habit_id: habitId, date, outcome });

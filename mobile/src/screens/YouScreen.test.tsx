@@ -8,6 +8,9 @@ import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import { YouScreen } from './YouScreen';
 
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
 jest.mock('../services/supabase', () => ({
   supabase: { auth: { signOut: jest.fn() } },
 }));
@@ -66,6 +69,11 @@ describe('YouScreen', () => {
   it('shows the signed-in email', async () => {
     await open();
     expect(screen.getByText('me+test@example.test')).toBeTruthy();
+  });
+
+  it('keeps the voice test out of normal builds', async () => {
+    await open();
+    expect(screen.queryByText('Voice test (test builds only)')).toBeNull();
   });
 
   it('offers System, Light and Dark, applied at once', async () => {

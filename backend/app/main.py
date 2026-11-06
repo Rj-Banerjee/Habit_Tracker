@@ -307,6 +307,30 @@ async def voice_parse(
         await request.app.state.db.spend(allowance_scope(user), metered.tokens, DAY)
 
 
+class VoiceSample(BaseModel):
+    phrase_id: str = Field(pattern=r"^[a-z][0-9]{3}$")
+    heard: str = Field(max_length=500)
+    language: Literal["en-IN", "hi-IN"]
+
+
+@app.post("/voice/samples", status_code=204)
+async def voice_sample(
+    body: VoiceSample,
+    user: CurrentUser = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """The spoken voice test: what the phone's recogniser heard for one phrase from
+    packages/core/src/voiceSpoken.json, saved for scripts/voice_accuracy.py --spoken. Nothing here
+    reaches a model, and nothing about the person is kept."""
+    if not settings.voice_samples_path:
+        raise HTTPException(404, "Not found")
+    if user.id not in settings.ai_test_user_ids:
+        raise Denied(403, "test_only", "The voice test is only open to test accounts.")
+    line = json.dumps(body.model_dump(), ensure_ascii=False)
+    with open(settings.voice_samples_path, "a", encoding="utf-8") as out:
+        out.write(line + "\n")
+
+
 class NudgeOutcome(BaseModel):
     habit_id: str = Field(max_length=64)
     date: date

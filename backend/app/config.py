@@ -47,6 +47,10 @@ class Settings(BaseSettings):
 
     ai_allowed_origins: CommaList = []
 
+    # Where the spoken voice test saves what the phone heard, one JSON line per phrase.
+    # Empty turns it off. Only test accounts can send to it, and nothing goes to a model.
+    voice_samples_path: str = ""
+
     # Scheduled jobs. Supabase's pg_cron sends this secret with each call. Empty turns the
     # /jobs endpoints off.
     job_secret: str = ""

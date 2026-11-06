@@ -696,3 +696,46 @@ def test_voice_busy(api):
 def test_voice_length_limit(api):
     use(FakeProvider())
     assert api.post("/voice/parse", json={"transcript": "x" * 501}).status_code == 422
+
+
+SAMPLE = {"phrase_id": "n001", "heard": "done with gym", "language": "en-IN"}
+
+
+@pytest.fixture
+def samples(tmp_path, monkeypatch):
+    path = tmp_path / "spoken.jsonl"
+    monkeypatch.setenv("VOICE_SAMPLES_PATH", str(path))
+    get_settings.cache_clear()
+    yield path
+    monkeypatch.delenv("VOICE_SAMPLES_PATH")
+    get_settings.cache_clear()
+
+
+def test_the_spoken_test_saves_what_was_heard_and_nothing_else(api, samples):
+    provider = use(FakeProvider(["ok"]))
+    assert api.post("/voice/samples", json=SAMPLE).status_code == 204
+    assert api.post("/voice/samples", json={**SAMPLE, "phrase_id": "h002", "heard": "जिम"}).status_code == 204
+    lines = [json.loads(line) for line in samples.read_text(encoding="utf-8").splitlines()]
+    assert lines == [SAMPLE, {**SAMPLE, "phrase_id": "h002", "heard": "जिम"}]
+    assert provider.opened == 0
+
+
+def test_the_spoken_test_is_for_test_accounts_only(api, samples):
+    app.dependency_overrides[current_user] = lambda: CurrentUser("real-person", "token")
+    assert api.post("/voice/samples", json=SAMPLE).status_code == 403
+    assert not samples.exists()
+
+
+def test_the_spoken_test_is_off_unless_a_path_is_set(api, monkeypatch):
+    monkeypatch.setenv("VOICE_SAMPLES_PATH", "")
+    get_settings.cache_clear()
+    try:
+        assert api.post("/voice/samples", json=SAMPLE).status_code == 404
+    finally:
+        get_settings.cache_clear()
+
+
+def test_the_spoken_test_takes_only_known_shapes(api, samples):
+    assert api.post("/voice/samples", json={**SAMPLE, "phrase_id": "../x"}).status_code == 422
+    assert api.post("/voice/samples", json={**SAMPLE, "language": "fr-FR"}).status_code == 422
+    assert not samples.exists()

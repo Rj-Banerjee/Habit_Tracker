@@ -1,0 +1,1849 @@
+{
+ "about": "Phrases to say aloud, for the spoken voice test. h-ids repeat the held-out typed set; n-ids were written on 6 Nov 2026 before any recording and are never tuned against. Scored against the habits in voice_phrases.json.",
+ "phrases": [
+  {
+   "id": "h001",
+   "group": "plan_examples",
+   "say": "Read 15 pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h002",
+   "group": "plan_examples",
+   "say": "Did the minimum version of my run",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:run"
+   ]
+  },
+  {
+   "id": "h003",
+   "group": "plan_examples",
+   "say": "Skip meditation today, I'm sick",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:meditate"
+   ]
+  },
+  {
+   "id": "h004",
+   "group": "plan_examples",
+   "say": "Undo that",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h005",
+   "group": "plain_log",
+   "say": "just got back from the gym",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h006",
+   "group": "plain_log",
+   "say": "gym is done for today",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h007",
+   "group": "plain_log",
+   "say": "hit the gym this morning",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h008",
+   "group": "plain_log",
+   "say": "I worked out",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h009",
+   "group": "plain_log",
+   "say": "finished my workout",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h010",
+   "group": "plain_log",
+   "say": "went for my morning run",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h011",
+   "group": "plain_log",
+   "say": "morning run done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h012",
+   "group": "plain_log",
+   "say": "I went jogging before breakfast",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h013",
+   "group": "plain_log",
+   "say": "completed my jog",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h014",
+   "group": "plain_log",
+   "say": "I meditated",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h015",
+   "group": "plain_log",
+   "say": "just finished meditating",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h016",
+   "group": "plain_log",
+   "say": "meditation is done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h017",
+   "group": "plain_log",
+   "say": "took my evening walk",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h018",
+   "group": "plain_log",
+   "say": "back from my walk",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h019",
+   "group": "plain_log",
+   "say": "evening walk finished",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h020",
+   "group": "plain_log",
+   "say": "studied for the exam",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h021",
+   "group": "plain_log",
+   "say": "I finished studying",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h022",
+   "group": "plain_log",
+   "say": "study session is over",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h023",
+   "group": "plain_log",
+   "say": "read my book",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "h024",
+   "group": "plain_log",
+   "say": "I finished reading for today",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "h025",
+   "group": "plain_log",
+   "say": "I got through some of my novel",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "h026",
+   "group": "plain_log",
+   "say": "mark gym as done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h027",
+   "group": "plain_log",
+   "say": "tick off study",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h028",
+   "group": "plain_log",
+   "say": "check off my morning run",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h029",
+   "group": "amount",
+   "say": "read twenty pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h030",
+   "group": "amount",
+   "say": "I read 30 pages of my book",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h031",
+   "group": "amount",
+   "say": "finished 12 pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h032",
+   "group": "amount",
+   "say": "read five pages before bed",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h033",
+   "group": "amount",
+   "say": "got through forty pages tonight",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h034",
+   "group": "amount",
+   "say": "I read 8 pages of the novel",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h035",
+   "group": "amount",
+   "say": "drank 3 glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h036",
+   "group": "amount",
+   "say": "had four glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h037",
+   "group": "amount",
+   "say": "two glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h038",
+   "group": "amount",
+   "say": "I've had 6 glasses so far",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h039",
+   "group": "amount",
+   "say": "log 5 glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h040",
+   "group": "amount",
+   "say": "water, one glass",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h041",
+   "group": "amount",
+   "say": "eight glasses of water today",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h042",
+   "group": "shrink",
+   "say": "just the small version of gym",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:gym"
+   ]
+  },
+  {
+   "id": "h043",
+   "group": "shrink",
+   "say": "only did a little reading",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:read"
+   ]
+  },
+  {
+   "id": "h044",
+   "group": "shrink",
+   "say": "did the short version of my run",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:run"
+   ]
+  },
+  {
+   "id": "h045",
+   "group": "shrink",
+   "say": "minimum version of study today",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:study"
+   ]
+  },
+  {
+   "id": "h046",
+   "group": "shrink",
+   "say": "I only did the minimum at the gym",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:gym"
+   ]
+  },
+  {
+   "id": "h047",
+   "group": "shrink",
+   "say": "a quick version of meditate",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:meditate"
+   ]
+  },
+  {
+   "id": "h048",
+   "group": "shrink",
+   "say": "just a tiny walk tonight",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:walk"
+   ]
+  },
+  {
+   "id": "h049",
+   "group": "shrink",
+   "say": "do the minimum for reading",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:read"
+   ]
+  },
+  {
+   "id": "h050",
+   "group": "shrink",
+   "say": "small version of meditation",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:meditate"
+   ]
+  },
+  {
+   "id": "h051",
+   "group": "shrink",
+   "say": "smaller version of my evening walk",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:walk"
+   ]
+  },
+  {
+   "id": "h052",
+   "group": "shrink",
+   "say": "I only managed the minimum on my run",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:run"
+   ]
+  },
+  {
+   "id": "h053",
+   "group": "shrink",
+   "say": "barely studied, count it as the minimum",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:study"
+   ]
+  },
+  {
+   "id": "h054",
+   "group": "skip",
+   "say": "skip gym today",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:gym"
+   ]
+  },
+  {
+   "id": "h055",
+   "group": "skip",
+   "say": "skipping my run, my knee hurts",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:run"
+   ]
+  },
+  {
+   "id": "h056",
+   "group": "skip",
+   "say": "skip reading tonight",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:read"
+   ]
+  },
+  {
+   "id": "h057",
+   "group": "skip",
+   "say": "not doing the gym today, I'm travelling",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:gym"
+   ]
+  },
+  {
+   "id": "h058",
+   "group": "skip",
+   "say": "I'm skipping study, exam got cancelled",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:study"
+   ]
+  },
+  {
+   "id": "h059",
+   "group": "skip",
+   "say": "no walk today, it's raining",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:walk"
+   ]
+  },
+  {
+   "id": "h060",
+   "group": "skip",
+   "say": "skip my evening walk",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:walk"
+   ]
+  },
+  {
+   "id": "h061",
+   "group": "skip",
+   "say": "I can't meditate today, skip it",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:meditate"
+   ]
+  },
+  {
+   "id": "h062",
+   "group": "skip",
+   "say": "skip the run, it's raining",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:run"
+   ]
+  },
+  {
+   "id": "h063",
+   "group": "skip",
+   "say": "taking a rest day from gym",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:gym"
+   ]
+  },
+  {
+   "id": "h064",
+   "group": "skip",
+   "say": "skip water today",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:water"
+   ]
+  },
+  {
+   "id": "h065",
+   "group": "skip",
+   "say": "skip study today I have a fever",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:study"
+   ]
+  },
+  {
+   "id": "h066",
+   "group": "skip",
+   "say": "I'm too tired, skip reading",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:read"
+   ]
+  },
+  {
+   "id": "h067",
+   "group": "undo",
+   "say": "undo",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h068",
+   "group": "undo",
+   "say": "undo the last one",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h069",
+   "group": "undo",
+   "say": "take that back",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h070",
+   "group": "undo",
+   "say": "that was a mistake, undo it",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h071",
+   "group": "undo",
+   "say": "cancel the last log",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h072",
+   "group": "undo",
+   "say": "remove the last entry",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h073",
+   "group": "undo",
+   "say": "undo gym",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:gym"
+   ]
+  },
+  {
+   "id": "h074",
+   "group": "undo",
+   "say": "undo my run",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:run"
+   ]
+  },
+  {
+   "id": "h075",
+   "group": "undo",
+   "say": "I didn't actually read, undo it",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:read"
+   ]
+  },
+  {
+   "id": "h076",
+   "group": "undo",
+   "say": "take back meditate",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:meditate"
+   ]
+  },
+  {
+   "id": "h077",
+   "group": "undo",
+   "say": "remove my evening walk log",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:walk"
+   ]
+  },
+  {
+   "id": "h078",
+   "group": "undo",
+   "say": "undo study",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:study"
+   ]
+  },
+  {
+   "id": "h079",
+   "group": "undo",
+   "say": "cancel the gym log",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:gym"
+   ]
+  },
+  {
+   "id": "h080",
+   "group": "several",
+   "say": "I did gym and study",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym",
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h081",
+   "group": "several",
+   "say": "finished my run and meditated",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run",
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h082",
+   "group": "several",
+   "say": "read and meditated this morning",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read",
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h083",
+   "group": "several",
+   "say": "gym done, walk done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym",
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h084",
+   "group": "several",
+   "say": "skip gym and skip my run",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:gym",
+    "skip_habit:run"
+   ]
+  },
+  {
+   "id": "h085",
+   "group": "several",
+   "say": "I went for my walk and read 10 pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read",
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h086",
+   "group": "several",
+   "say": "meditated, then studied",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate",
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h087",
+   "group": "coach",
+   "say": "why do I keep skipping gym",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h088",
+   "group": "coach",
+   "say": "how can I read more consistently",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h089",
+   "group": "coach",
+   "say": "what should I focus on this week",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h090",
+   "group": "coach",
+   "say": "how am I doing",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h091",
+   "group": "coach",
+   "say": "give me advice on my morning routine",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h092",
+   "group": "coach",
+   "say": "should I make my run easier",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h093",
+   "group": "coach",
+   "say": "can you help me stop missing study",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "h094",
+   "group": "hinglish",
+   "say": "aaj gym kar liya",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h095",
+   "group": "hinglish",
+   "say": "run kar liya subah",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h096",
+   "group": "hinglish",
+   "say": "meditation ho gayi",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h097",
+   "group": "hinglish",
+   "say": "padhai ho gayi",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h098",
+   "group": "hinglish",
+   "say": "padhai kar li aaj",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h099",
+   "group": "hinglish",
+   "say": "walk kar ke aaya",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h100",
+   "group": "hinglish",
+   "say": "book padh li",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "h101",
+   "group": "hinglish",
+   "say": "do glass paani piya",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h102",
+   "group": "hinglish",
+   "say": "teen glass paani pi liya",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h103",
+   "group": "hinglish",
+   "say": "bees pages padhe",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h104",
+   "group": "hinglish",
+   "say": "das pages padh liye",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h105",
+   "group": "hinglish",
+   "say": "aaj gym skip kar do",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:gym"
+   ]
+  },
+  {
+   "id": "h106",
+   "group": "hinglish",
+   "say": "aaj run nahi hoga, skip karo",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:run"
+   ]
+  },
+  {
+   "id": "h107",
+   "group": "hinglish",
+   "say": "meditation skip kar do",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:meditate"
+   ]
+  },
+  {
+   "id": "h108",
+   "group": "hinglish",
+   "say": "padhai aaj nahi, skip",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:study"
+   ]
+  },
+  {
+   "id": "h109",
+   "group": "hinglish",
+   "say": "aaj sirf thoda sa padha",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:read"
+   ]
+  },
+  {
+   "id": "h110",
+   "group": "hinglish",
+   "say": "gym ka chhota version kiya",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:gym"
+   ]
+  },
+  {
+   "id": "h111",
+   "group": "hinglish",
+   "say": "undo kar do",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h112",
+   "group": "hinglish",
+   "say": "galti se ho gaya, hata do",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h113",
+   "group": "hinglish",
+   "say": "gym wala hata do",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:gym"
+   ]
+  },
+  {
+   "id": "h114",
+   "group": "hindi",
+   "say": "मैंने जिम कर लिया",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "h115",
+   "group": "hindi",
+   "say": "आज दौड़ लगा ली",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "h116",
+   "group": "hindi",
+   "say": "ध्यान कर लिया",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "h117",
+   "group": "hindi",
+   "say": "पढ़ाई हो गई",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "h118",
+   "group": "hindi",
+   "say": "शाम की सैर हो गई",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "h119",
+   "group": "hindi",
+   "say": "बीस पन्ने पढ़े",
+   "language": "hi-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "h120",
+   "group": "hindi",
+   "say": "तीन गिलास पानी पिया",
+   "language": "hi-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "h121",
+   "group": "hindi",
+   "say": "आज जिम छोड़ दो",
+   "language": "hi-IN",
+   "expect": [
+    "skip_habit:gym"
+   ]
+  },
+  {
+   "id": "h122",
+   "group": "hindi",
+   "say": "आखिरी वाला हटा दो",
+   "language": "hi-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "h123",
+   "group": "hindi",
+   "say": "आज ध्यान नहीं होगा, मैं बीमार हूँ",
+   "language": "hi-IN",
+   "expect": [
+    "skip_habit:meditate"
+   ]
+  },
+  {
+   "id": "h124",
+   "group": "which",
+   "say": "I did my cardio",
+   "language": "en-IN",
+   "expect": [
+    "ask_which"
+   ]
+  },
+  {
+   "id": "h125",
+   "group": "which",
+   "say": "finished my evening and morning thing, one of them",
+   "language": "en-IN",
+   "expect": [
+    "ask_which"
+   ]
+  },
+  {
+   "id": "h126",
+   "group": "no_habit",
+   "say": "I did my yoga session",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "h127",
+   "group": "no_habit",
+   "say": "finished piano practice",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "h128",
+   "group": "no_habit",
+   "say": "went cycling this morning",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "h129",
+   "group": "no_habit",
+   "say": "skip dance class today",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "h130",
+   "group": "no_habit",
+   "say": "journaling ho gaya",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "h131",
+   "group": "no_habit",
+   "say": "I cooked dinner as my habit",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "h132",
+   "group": "off_topic",
+   "say": "what time is it in London",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "h133",
+   "group": "off_topic",
+   "say": "the bus was late again",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "h134",
+   "group": "off_topic",
+   "say": "call my mother",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "h135",
+   "group": "off_topic",
+   "say": "play some music",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "h136",
+   "group": "off_topic",
+   "say": "I love this song",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "h137",
+   "group": "off_topic",
+   "say": "my phone battery is low",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "h138",
+   "group": "off_topic",
+   "say": "order a pizza",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "n001",
+   "group": "plain_log",
+   "say": "done with gym",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "n002",
+   "group": "plain_log",
+   "say": "I just did my morning run",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "n003",
+   "group": "plain_log",
+   "say": "finished meditate",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "n004",
+   "group": "plain_log",
+   "say": "wrapped up my study session",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "n005",
+   "group": "plain_log",
+   "say": "did my reading",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "n006",
+   "group": "plain_log",
+   "say": "came back from the evening walk",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "n007",
+   "group": "plain_log",
+   "say": "log my workout",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "n008",
+   "group": "plain_log",
+   "say": "ran this morning",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "n009",
+   "group": "plain_log",
+   "say": "ten minutes of meditation done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "n010",
+   "group": "plain_log",
+   "say": "studied for two hours",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "n011",
+   "group": "plain_log",
+   "say": "mark my evening walk done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "n012",
+   "group": "plain_log",
+   "say": "read a chapter of my book",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "n013",
+   "group": "amount",
+   "say": "read fifteen pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "n014",
+   "group": "amount",
+   "say": "I read 50 pages today",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "n015",
+   "group": "amount",
+   "say": "drank seven glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "n016",
+   "group": "amount",
+   "say": "one glass of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "n017",
+   "group": "amount",
+   "say": "add two glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "n018",
+   "group": "amount",
+   "say": "twenty five pages of my novel",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "n019",
+   "group": "shrink",
+   "say": "just the minimum for my run today",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:run"
+   ]
+  },
+  {
+   "id": "n020",
+   "group": "shrink",
+   "say": "only a short meditation",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:meditate"
+   ]
+  },
+  {
+   "id": "n021",
+   "group": "shrink",
+   "say": "did a small workout",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:gym"
+   ]
+  },
+  {
+   "id": "n022",
+   "group": "shrink",
+   "say": "a little bit of study",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:study"
+   ]
+  },
+  {
+   "id": "n023",
+   "group": "shrink",
+   "say": "minimum version of my walk",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:walk"
+   ]
+  },
+  {
+   "id": "n024",
+   "group": "skip",
+   "say": "skip meditation, I overslept",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:meditate"
+   ]
+  },
+  {
+   "id": "n025",
+   "group": "skip",
+   "say": "skip the gym, I have a headache",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:gym"
+   ]
+  },
+  {
+   "id": "n026",
+   "group": "skip",
+   "say": "no studying today, it is a holiday",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:study"
+   ]
+  },
+  {
+   "id": "n027",
+   "group": "skip",
+   "say": "skip my morning run today",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:run"
+   ]
+  },
+  {
+   "id": "n028",
+   "group": "skip",
+   "say": "skip drinking water tracking today",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:water"
+   ]
+  },
+  {
+   "id": "n029",
+   "group": "undo",
+   "say": "undo the last thing",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "n030",
+   "group": "undo",
+   "say": "oops, undo that",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "n031",
+   "group": "undo",
+   "say": "undo my reading",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:read"
+   ]
+  },
+  {
+   "id": "n032",
+   "group": "undo",
+   "say": "undo the walk",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:walk"
+   ]
+  },
+  {
+   "id": "n033",
+   "group": "undo",
+   "say": "remove the meditation log",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:meditate"
+   ]
+  },
+  {
+   "id": "n034",
+   "group": "several",
+   "say": "gym and meditation both done",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym",
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "n035",
+   "group": "several",
+   "say": "I studied and went for my evening walk",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study",
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "n036",
+   "group": "several",
+   "say": "drank two glasses of water and read ten pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read",
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "n037",
+   "group": "several",
+   "say": "skip study and skip reading today",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:read",
+    "skip_habit:study"
+   ]
+  },
+  {
+   "id": "n038",
+   "group": "coach",
+   "say": "how do I stop skipping meditation",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "n039",
+   "group": "coach",
+   "say": "is my streak going well",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "n040",
+   "group": "coach",
+   "say": "what is a good time to study",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "n041",
+   "group": "coach",
+   "say": "I keep missing the gym, any tips",
+   "language": "en-IN",
+   "expect": [
+    "ask_coach"
+   ]
+  },
+  {
+   "id": "n042",
+   "group": "hinglish",
+   "say": "gym ho gaya",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:gym"
+   ]
+  },
+  {
+   "id": "n043",
+   "group": "hinglish",
+   "say": "subah ki run ho gayi",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:run"
+   ]
+  },
+  {
+   "id": "n044",
+   "group": "hinglish",
+   "say": "aaj dhyan kar liya",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:meditate"
+   ]
+  },
+  {
+   "id": "n045",
+   "group": "hinglish",
+   "say": "evening walk ho gayi",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:walk"
+   ]
+  },
+  {
+   "id": "n046",
+   "group": "hinglish",
+   "say": "aaj ki padhai khatam",
+   "language": "en-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "n047",
+   "group": "hinglish",
+   "say": "paanch pages padhe",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "n048",
+   "group": "hinglish",
+   "say": "chaar glass paani piya",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "n049",
+   "group": "hinglish",
+   "say": "aaj walk skip karo, baarish ho rahi hai",
+   "language": "en-IN",
+   "expect": [
+    "skip_habit:walk"
+   ]
+  },
+  {
+   "id": "n050",
+   "group": "hinglish",
+   "say": "study ka minimum kar liya",
+   "language": "en-IN",
+   "expect": [
+    "shrink_habit:study"
+   ]
+  },
+  {
+   "id": "n051",
+   "group": "hinglish",
+   "say": "pichla wala undo karo",
+   "language": "en-IN",
+   "expect": [
+    "undo_last"
+   ]
+  },
+  {
+   "id": "n052",
+   "group": "hinglish",
+   "say": "run wala hata do",
+   "language": "en-IN",
+   "expect": [
+    "undo_habit:run"
+   ]
+  },
+  {
+   "id": "n053",
+   "group": "hindi",
+   "say": "मैंने किताब पढ़ ली",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:read"
+   ]
+  },
+  {
+   "id": "n054",
+   "group": "hindi",
+   "say": "आज की पढ़ाई पूरी हुई",
+   "language": "hi-IN",
+   "expect": [
+    "log_habit:study"
+   ]
+  },
+  {
+   "id": "n055",
+   "group": "hindi",
+   "say": "दस पन्ने पढ़ लिए",
+   "language": "hi-IN",
+   "expect": [
+    "log_amount:read"
+   ]
+  },
+  {
+   "id": "n056",
+   "group": "hindi",
+   "say": "दो गिलास पानी पी लिया",
+   "language": "hi-IN",
+   "expect": [
+    "log_amount:water"
+   ]
+  },
+  {
+   "id": "n057",
+   "group": "hindi",
+   "say": "आज दौड़ नहीं होगी, छोड़ दो",
+   "language": "hi-IN",
+   "expect": [
+    "skip_habit:run"
+   ]
+  },
+  {
+   "id": "n058",
+   "group": "hindi",
+   "say": "जिम वाला हटा दो",
+   "language": "hi-IN",
+   "expect": [
+    "undo_habit:gym"
+   ]
+  },
+  {
+   "id": "n059",
+   "group": "which",
+   "say": "I did my exercise",
+   "language": "en-IN",
+   "expect": [
+    "ask_which"
+   ]
+  },
+  {
+   "id": "n060",
+   "group": "which",
+   "say": "finished my walk or run, the outdoor one",
+   "language": "en-IN",
+   "expect": [
+    "ask_which"
+   ]
+  },
+  {
+   "id": "n061",
+   "group": "no_habit",
+   "say": "I did twenty push ups",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "n062",
+   "group": "no_habit",
+   "say": "practised guitar for an hour",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "n063",
+   "group": "no_habit",
+   "say": "skip swimming today",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "n064",
+   "group": "no_habit",
+   "say": "yoga kar liya",
+   "language": "en-IN",
+   "expect": [],
+   "level": "no_habit"
+  },
+  {
+   "id": "n065",
+   "group": "off_topic",
+   "say": "set an alarm for six",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "n066",
+   "group": "off_topic",
+   "say": "what is the weather today",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "n067",
+   "group": "off_topic",
+   "say": "send a message to Rahul",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  },
+  {
+   "id": "n068",
+   "group": "off_topic",
+   "say": "I am so hungry right now",
+   "language": "en-IN",
+   "expect": [],
+   "level": "off_topic"
+  }
+ ]
+}

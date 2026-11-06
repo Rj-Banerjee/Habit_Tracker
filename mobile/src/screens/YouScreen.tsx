@@ -25,6 +25,7 @@ import {
 } from '../services/reminders';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
+import { VoiceTest, voiceTestEnabled } from '../voice/VoiceTest';
 
 const COMING_SOON = ['Coach tone'];
 
@@ -37,6 +38,7 @@ interface YouScreenProps {
 export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const { colors, preference, setPreference } = useTheme();
   const [confirming, setConfirming] = useState(false);
+  const [testingVoice, setTestingVoice] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   // Undefined until loaded, so the picker doesn't flash a choice they didn't make.
   const [reminder, setReminder] = useState<string | null | undefined>(undefined);
@@ -142,9 +144,16 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
             </Text>
           </View>
         ))}
+        {voiceTestEnabled ? (
+          <Button label="Voice test (test builds only)" quiet onPress={() => setTestingVoice(true)} />
+        ) : null}
+        {voiceTestEnabled ? (
+          <Button label="Voice test (test builds only)" quiet onPress={() => setTestingVoice(true)} />
+        ) : null}
         <FormMessage message={problem ?? undefined} />
         <Button label="Sign out" quiet onPress={() => setConfirming(true)} />
       </ScrollView>
+      {voiceTestEnabled ? <VoiceTest visible={testingVoice} onClose={() => setTestingVoice(false)} /> : null}
       <BottomSheet visible={confirming} title="Sign out?" onClose={() => setConfirming(false)}>
         <SheetOption label="Sign out" onPress={() => void signOut()} />
         <SheetOption label="Stay signed in" onPress={() => setConfirming(false)} />
