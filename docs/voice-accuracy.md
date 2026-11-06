@@ -38,3 +38,17 @@ After the fix, 9 of the 10 undo-by-name phrases pass with the live model. The mi
 - **Treat 98% with care.** I wrote these phrases and tuned the matcher against them, so a fresh set will score lower. PLAN.md's bar is 95% on 200+ real phrases, and that needs recordings of real speech.
 - **Why the total hid the problem.** The first version scored 91% too, but one of its errors logged Read for "I bought a red car". Count wrong actions, not only the total.
 - **The set is typed, not recorded.** Hindi and Hinglish did well, but real recordings may not.
+
+**Re-run, 6 Nov 2026:** 150 of 153 held-out phrases (98%), the same three misses as on 3 Nov: "I got through some of my novel" (a shrink, fair), "aaj sirf thoda sa padha" (Study instead of Read, without asking) and "I did my cardio" (no match, safe). Five phrases hit a model outage and were rerun. So nothing has slipped since.
+
+**The phone matcher:** Free uses it with no AI. On all 220 typed phrases it acts on 14, every one correctly, and never on half of a sentence that named two habits (`packages/core/src/voicePhrases.test.ts`). Everything else goes to "didn't catch that", the safe way to fail.
+
+## Spoken test
+
+The typed sets can't show what the phone's recogniser does to real speech. `packages/core/src/voiceSpoken.json` has 206 phrases to say aloud: the 138 held-out phrases that make sense spoken (not the deliberate mishearings), and 68 written on 6 Nov before any recording, never tuned against.
+
+1. Start the AI service with `VOICE_SAMPLES_PATH` set in `backend/.env` (it's set on this Mac), so it saves to `backend/recordings/voice_spoken.jsonl`, which git ignores.
+2. In a preview build, signed in as a test account: You → **Voice test (test builds only)**. Hold to talk and say each phrase. What the phone heard is saved; nothing is logged. Progress is kept between sittings.
+3. Score it: `.venv/bin/python scripts/voice_accuracy.py --spoken recordings/voice_spoken.jsonl`. It says how many the phone heard word for word, then scores the parser on what it actually heard.
+
+The service only accepts samples from test accounts, sends nothing to a model, and keeps only the phrase id, the transcript and the language.

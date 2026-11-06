@@ -1326,3 +1326,18 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 **Checked on the Samsung, in the real app (local build):** the expanded notification's content now spans 204 to 876 px on a 1080 px screen, so it's centred. On You, all 11 theme tiles, the typeface chips and Change identity colours show; picking Blush recoloured the app and switched to Nunito at once. The phone was set back to System and Warm neutral afterwards, and the test sessions were stopped without logging.
 
 **Not covered:** the Android home-screen widget keeps the default colours, since it's drawn outside the app. Colours other than the identity accents (the neutrals) change by picking a theme, not one by one.
+
+### Voice: the spoken test and the phone matcher (6 Nov 2026)
+
+The 200-phrase set already existed (217 typed phrases, 98% on 3 Nov). What PLAN.md's gate still needed is real speech, and the Free matcher had never been scored.
+
+- **Phone matcher scored:** on all 220 typed phrases it acts on 14, all correctly, and never on half of a two-habit sentence. A test keeps it that way.
+- **Typed re-run on today's model:** 150 of 153 held out (98%), the same three misses as on 3 Nov, so nothing has slipped.
+- **Spoken test:** test builds have **Voice test (test builds only)** on You. It shows 206 phrases one at a time (138 held out, 68 new and never tuned against), records with the same recogniser, languages and word hints as the voice sheet, and sends what was heard to the AI service's new `/voice/samples`. That endpoint is off unless `VOICE_SAMPLES_PATH` is set, takes test accounts only, never calls a model, and keeps only phrase id, transcript and language, in a gitignored file. `voice_accuracy.py --spoken` scores the transcripts with the real parser. Steps are in `docs/voice-accuracy.md`.
+- Preview builds turn the screen on with `EXPO_PUBLIC_VOICE_TEST=1`; other builds never show it.
+
+**Checked:** core 1009, web 28, mobile 856 and backend 184 tests pass, and lint has no errors. On the Samsung, the new build's Voice test opened on "Read 15 pages", showing 0 of 206. The service on this Mac answers at the phone's address.
+
+**Not done:** the recordings themselves, which need the user's voice. Until they're scored, the Phase 3 gate is passed on typed phrases only.
+
+**Found while testing:** scrolling You with adb swipes twice changed the theme picker (to Moss, Dark and Lora). I put it back to System and Warm neutral. It may be adb's fast swipes landing as taps, but a real finger scrolling past the tiles should be checked.
