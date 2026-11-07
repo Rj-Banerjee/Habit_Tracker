@@ -1543,5 +1543,19 @@ select is(
 );
 select set_config('request.jwt.claims', '', true);
 
+
+-- The order habits are dragged into.
+select t.make_user(140);
+select t.make_habit(510, 140, '2026-11-02');
+select t.make_habit(511, 140, '2026-11-02');
+select set_config('request.jwt.claims', json_build_object('sub', t.u(140), 'role', 'authenticated')::text, true);
+select public.set_habit_order(array[t.h(511), t.h(510)]);
+select is(
+  (select array_agg(habit_id order by sort_order) from tracker.today_rows(t.u(140), t.noon(140, '2026-11-03')) where is_today),
+  array[t.h(511), t.h(510)], 'Today returns habits with the order they were dragged into'
+);
+select throws_like($$ select public.set_habit_order(array[t.h(1)]) $$, '%not found%', 'only your own habits can be ordered');
+select set_config('request.jwt.claims', '', true);
+
 select * from finish();
 rollback;

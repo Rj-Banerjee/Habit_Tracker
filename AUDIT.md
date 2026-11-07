@@ -1565,3 +1565,23 @@ Chosen by the user from three options: fit the existing Tunnel Vision to the new
 - **Other habits are unchanged:** yes/no and count habits are logged as done, and a times-per-week habit logs a session.
 - **Known:** a "Done" tapped in the notification while the app is closed, for a session whose habit is no longer on Today, still logs the habit as done rather than adding minutes. It's rare: the session has to outlive its day.
 - **Tests:** core 1332 (focus helpers), mobile 914 (the timer starting at what's left, finishing, stopping early, hours). Lint is unchanged.
+
+### Dragging habits on Today (8 Nov 2026)
+
+Asked for by the user: no "Move to…" options in the long-press sheet. Instead, hold a card and drag it, while the other cards make room with a bouncy animation.
+
+- **The drag:**
+  - Hold a card, then move it up or down. It lifts slightly (3% larger, with a soft shadow) and follows the finger.
+  - Every card and section title it passes slides out of the way on a soft, bouncy spring (`mobile/src/today/useDragBoard.ts`).
+  - Letting go, it springs into its place, and the new section and order are saved.
+  - Letting go without moving still opens the long-press sheet, and the page doesn't scroll while dragging.
+- **Where it lands:** a pure function, `dragTarget` in `packages/core/src/dragOrder.ts`, works out the place and how far everything moves, and is tested on its own.
+  - It can land between any two cards, or into another part of the day.
+  - Habits keep the order they're dragged into (new `habits.sort_order` and `set_habit_order`; migration `20261108000100_habit_order.sql`), then go by reminder time.
+  - Order isn't dated: it's only where a card sits.
+- **Every part of the day is shown:** an empty one has a quiet line ("Nothing in the afternoon yet"), so there's always somewhere to drop. Showing them only during a drag would have made the cards jump away from the finger. PLAN.md says so now.
+- **Without dragging:** the habit's edit screen still has its time-of-day chips.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 3 checks passed with temporary users, who were then deleted: an evening section kept the order it was given, another user couldn't reorder it, and the publishable key alone couldn't either.
+- **Tests:** SQL 438, core 1340 (the drag math), mobile 920 (the drag board's springs and landing, no "Move to", empty sections). The gesture itself needs a real finger, so it's on the phone checklist.

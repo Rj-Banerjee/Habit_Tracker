@@ -8,7 +8,10 @@ import {
   localDate,
   eveningNote,
   greeting,
+  DragTarget,
+  emptySectionLine,
   groupByTimeOfDay,
+  orderAfterDrop,
   radius,
   HABIT_TIP_TEXT,
   HabitLevel,
@@ -21,7 +24,6 @@ import {
   RepairRow,
   showYesterdayFirst,
   space,
-  TimeOfDay,
   TodayRow,
   VOICE_LINK,
 } from '@habit-tracker/core';
@@ -59,37 +61,13 @@ import { useTimeSuggestion } from '../hooks/useTimeSuggestion';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
 import { ShrinkSheet } from '../today/ShrinkSheet';
-import { DragToMove } from '../today/DragToMove';
+import { DragSpacer, DragToMove } from '../today/DragToMove';
+import { useDragBoard } from '../today/useDragBoard';
 import { SwipeToSkip } from '../today/SwipeToSkip';
 import { TodayCard } from '../today/TodayCard';
 import { HabitDetailScreen } from './HabitDetailScreen';
 import { UndoBanner } from '../voice/UndoBanner';
 import { VoiceSheet } from '../voice/VoiceSheet';
-
-type SectionView = React.ComponentRef<typeof View>;
-type Box = { time: TimeOfDay; top: number; bottom: number };
-
-// Where the finger let go: the section under it, or the nearest one.
-async function sectionAt(views: Map<TimeOfDay, SectionView | null>, pageY: number) {
-  const boxes = await Promise.all(
-    [...views].map(
-      ([time, view]) =>
-        new Promise<Box | null>((resolve) => {
-          if (!view) return resolve(null);
-          view.measureInWindow((_x: number, y: number, _width: number, height: number) =>
-            resolve({ time, top: y, bottom: y + height })
-          );
-        })
-    )
-  );
-  const found = boxes
-    .filter((box): box is Box => box !== null)
-    .sort((a, b) => distance(a, pageY) - distance(b, pageY))[0];
-  return found?.time ?? null;
-}
-
-const distance = (box: { top: number; bottom: number }, y: number) =>
-  y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0;
 
 // iOS drops a sheet opened while another is still closing.
 const SHEET_CLOSE_MS = 400;
@@ -108,9 +86,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
   // A long-pressed card can be dragged to another part of the day while the finger stays down.
   const [armed, setArmed] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-  // Each section's view, so a drop can find the one under the finger.
-  const [sections] = useState(() => new Map<TimeOfDay, SectionView | null>());
+  const board = useDragBoard(space.md);
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
   const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
@@ -220,25 +196,47 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     return isLogged(row) ? undo(row) : log(row, 'full');
   };
 
-  const dropAt = (row: TodayRow, pageY: number) => {
-    setDragging(false);
+  // Today's sections, each with its title and its cards (or its quiet empty line), in
+  // screen order: what a drag measures against.
+  const groups = groupByTimeOfDay(today, true);
+  const boardOrder = groups.flatMap((group) => [
+    `head:${group.time}`,
+    ...(group.rows.length > 0 ? group.rows.map((row) => `card:${row.habit_id}`) : [`empty:${group.time}`]),
+  ]);
+
+  // Where the card landed: its section and place, saved together.
+  const land = (row: TodayRow, target: DragTarget | null) => {
     setArmed(null);
-    void sectionAt(sections, pageY).then((time) => time && moveTo(row, time));
+    const section = groups.find((group) => group.time === target?.time);
+    if (!target || !section) return board.settle();
+    const before = section.rows.map((r) => r.habit_id);
+    const order = orderAfterDrop(before, row.habit_id, target.index);
+    const moved = target.time !== (row.time_of_day ?? 'anytime');
+    if (!moved && order.join() === before.join()) return board.settle();
+    void moveTo(row, target.time, order);
+    // The new order is drawn first, then the cards drop their offsets, so nothing jumps.
+    requestAnimationFrame(() => requestAnimationFrame(board.settle));
   };
 
   const renderCard = (row: TodayRow) => (
     <DragToMove
       key={`${row.habit_id}-${row.day}`}
       armed={row.is_today && armed === row.habit_id}
+      offset={board.offsetOf(row.is_today ? `card:${row.habit_id}` : `past:${row.habit_id}`)}
+      onLayout={(y, height) =>
+        row.is_today && board.place(`card:${row.habit_id}`, { kind: 'card', time: row.time_of_day ?? 'anytime', y, height })
+      }
       onDragStart={() => {
         setShrinkRow(null);
-        setDragging(true);
+        board.start(`card:${row.habit_id}`);
       }}
-      onDrop={(pageY) => void dropAt(row, pageY)}
+      onMove={(dy) => board.move(`card:${row.habit_id}`, dy, boardOrder)}
+      onDrop={(dy) => board.drop(`card:${row.habit_id}`, dy, boardOrder, (target) => land(row, target))}
       onCancel={() => {
-        setDragging(false);
         setArmed(null);
+        board.cancel();
       }}
+      onDisarm={() => setArmed(null)}
     >
     <SwipeToSkip
       enabled={!isLogged(row) && !isWeekly(row)}
@@ -308,7 +306,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   return (
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.canvas }]}>
       <ScrollView
-        scrollEnabled={!dragging}
+        scrollEnabled={board.dragged === null}
         contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}
       >
         <View style={styles.header}>
@@ -421,25 +419,33 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         ) : (
           <>
             {showYesterdayFirst(part) ? yesterdaySection : null}
-            {groupByTimeOfDay(today, dragging).map((group) => (
+            {groups.map((group) => (
               <View
                 key={group.time}
-                ref={(view) => {
-                  sections.set(group.time, view);
-                }}
+                onLayout={(event) => board.placeSection(group.time, event.nativeEvent.layout.y)}
                 style={styles.group}
               >
-                <Text variant="small" muted accessibilityRole="header">
-                  {group.name}
-                </Text>
+                <DragSpacer
+                  offset={board.offsetOf(`head:${group.time}`)}
+                  onLayout={(y, height) => board.place(`head:${group.time}`, { kind: 'header', time: group.time, y, height })}
+                >
+                  <Text variant="small" muted accessibilityRole="header">
+                    {group.name}
+                  </Text>
+                </DragSpacer>
                 {group.rows.length > 0 ? (
                   group.rows.map(renderCard)
                 ) : (
-                  <View style={[styles.dropHere, { borderColor: colors.border, borderRadius: radius.md }]}>
-                    <Text variant="small" muted>
-                      Move here
-                    </Text>
-                  </View>
+                  <DragSpacer
+                    offset={board.offsetOf(`empty:${group.time}`)}
+                    onLayout={(y, height) => board.place(`empty:${group.time}`, { kind: 'empty', time: group.time, y, height })}
+                  >
+                    <View style={[styles.emptySection, { borderColor: colors.border, borderRadius: radius.md }]}>
+                      <Text variant="small" muted>
+                        {emptySectionLine(group.time)}
+                      </Text>
+                    </View>
+                  </DragSpacer>
                 )}
               </View>
             ))}
@@ -464,10 +470,6 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onRepair={(row) => {
           setShrinkRow(null);
           repair(row);
-        }}
-        onMove={(row, time) => {
-          setShrinkRow(null);
-          void moveTo(row, time);
         }}
         onAddAmount={async (row, text) => {
           const added = await addAmount(row, text);
@@ -570,7 +572,7 @@ const styles = StyleSheet.create({
   header: { gap: space.xs, paddingTop: space.lg },
   actions: { flexDirection: 'row', gap: space.sm },
   action: { flex: 1 },
-  dropHere: {
+  emptySection: {
     minHeight: layout.minTouchTarget,
     alignItems: 'center',
     justifyContent: 'center',

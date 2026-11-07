@@ -18,6 +18,7 @@ export * from './widget';
 export * from './api';
 export * from './colorChecks';
 export * from './dates';
+export * from './dragOrder';
 export * from './habitCardStatus';
 export * from './habitForm';
 export * from './habitLibrary';

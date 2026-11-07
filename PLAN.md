@@ -223,8 +223,9 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 ### Time of day
 
 - Each habit has a time of day: Morning, Afternoon, Evening or Anytime. It's asked in the form, with the AI (Pro) or the library (Free) pre-selecting one.
-- Today shows a section for each, in that order, ordered within by reminder time. Empty sections are hidden.
-- The user can change it any time: drag the card between sections on Today, use "Move to…" on its long-press sheet, or edit the habit.
+- Today shows a section for each, in that order. An empty one shows a quiet line, so a habit can be dragged into it.
+- Within a section, habits keep the order they were dragged into, then go by reminder time.
+- The user can change it any time: hold a card and drag it up or down (the other cards make room with a soft bounce, and it lands where it's dropped), or edit the habit.
 - Pro: when peak hours show a habit is usually done in another part of the day, a coach card suggests moving it. It moves only if the user accepts, and a "Keep" is remembered.
 
 ### Progress definitions

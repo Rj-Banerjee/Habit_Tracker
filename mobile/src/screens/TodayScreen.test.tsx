@@ -186,22 +186,17 @@ describe('TodayScreen', () => {
   });
 
   describe('time of day', () => {
-    it('moves a habit to another part of the day from the long-press sheet', async () => {
-      await open([row({ time_of_day: 'morning', reminder_time: '08:00:00' })]);
+    it('has no Move to options in the long-press sheet: cards are dragged instead', async () => {
+      await open([row({ time_of_day: 'morning' })]);
       await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
-      expect(screen.queryByRole('button', { name: 'Move to Morning' })).toBeNull();
-      await fireEvent.press(screen.getByRole('button', { name: 'Move to Evening' }));
-      await act(async () => {});
-      // Its reminder was the morning default, so it moves to the evening's.
-      expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'evening', reminderTime: '19:00' });
+      expect(screen.queryByRole('button', { name: /^Move to/ })).toBeNull();
     });
 
-    it("keeps a reminder they set themselves", async () => {
-      await open([row({ time_of_day: 'morning', reminder_time: '06:45:00' })]);
-      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
-      await fireEvent.press(screen.getByRole('button', { name: 'Move to Anytime' }));
-      await act(async () => {});
-      expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'anytime' });
+    it('shows every part of the day, with a quiet line where nothing is, to drag into', async () => {
+      await open([row({ time_of_day: 'morning' })]);
+      expect(screen.getByText('Nothing in the afternoon yet')).toBeTruthy();
+      expect(screen.getByText('Nothing in the evening yet')).toBeTruthy();
+      expect(screen.getByText('Nothing for anytime yet')).toBeTruthy();
     });
 
     describe('on Pro', () => {

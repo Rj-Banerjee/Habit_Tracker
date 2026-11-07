@@ -46,6 +46,8 @@ export interface TodayRow {
   week_quota?: number | null;
   week_days_left?: number | null;
   ends_on?: string | null;
+  // Where it was dragged to in its section, top first; null if never moved.
+  sort_order?: number | null;
 }
 
 // One week of a times-per-week habit, for its chain.
@@ -497,6 +499,9 @@ export function createTrackerApi(client: SupabaseClient) {
       ),
 
     listCompletedHabits: () => call<CompletedHabit[]>('get_completed_habits'),
+
+    // The order of habits in one section of Today, top first.
+    setHabitOrder: (habitIds: string[]) => call('set_habit_order', { p_habit_ids: habitIds }),
 
     getWeekStatuses: (from: string, to: string) =>
       call<WeekStatusRow[]>('get_week_statuses', { p_from: from, p_to: to }),
