@@ -16,6 +16,7 @@ jest.mock('../services/tracker', () => ({
     getReflection: jest.fn(),
     getLatestLetter: jest.fn(),
     saveReflection: jest.fn(),
+    getAnalytics: jest.fn(),
   },
 }));
 
@@ -65,6 +66,66 @@ describe('SundayReviewScreen', () => {
     api.getLatestLetter.mockResolvedValue(null as never);
     api.saveReflection.mockResolvedValue(null as never);
     coach.letter.mockImplementation(writes('Dear you,', ' keep going.'));
+    api.getAnalytics.mockImplementation((from, to) =>
+      Promise.resolve({
+        from,
+        to,
+        today: to,
+        habits: [
+          {
+            id: 'h1',
+            title: 'Read',
+            type: 'boolean',
+            unit: null,
+            frequency: 'days',
+            per_week: null,
+            target: null,
+            schedule_days: [1, 2, 3, 4, 5, 6, 7],
+            identity_id: 'i1',
+            identity_name: 'The Reader',
+            colour_token: 'identity-1',
+            starts_on: from,
+            ends_on: null,
+            reminder_time: null,
+            time_of_day: 'evening',
+            milestone_amount: null,
+            milestone_label: null,
+            current_streak: 1,
+            longest_streak: 1,
+          },
+        ],
+        days: [addDays(monday, -7), addDays(monday, -6), monday].map((date, i) => ({
+          habit_id: 'h1',
+          date,
+          status: i === 1 ? 'missed' : 'done',
+          log_status: i === 1 ? null : 'done',
+          level_done: i === 1 ? null : 'full',
+          amount: null,
+          source: i === 1 ? null : 'tap',
+          skip_reason: null,
+          target: null,
+          minimum: null,
+          logged_minute: null,
+        })),
+        weeks: [],
+        grace_spent: [],
+      } as never)
+    );
+  });
+
+  it('leads with the week in numbers, against the week before', async () => {
+    await open();
+    expect(api.getAnalytics).toHaveBeenCalledWith(addDays(monday, -7), addDays(monday, 6));
+    expect(screen.getByText('Your week in numbers')).toBeTruthy();
+    expect(screen.getByText('100% done this week, up from 50% the week before.')).toBeTruthy();
+    expect(screen.getByText('Strongest: Read, 1 of 1 day.')).toBeTruthy();
+  });
+
+  it('still opens without the numbers', async () => {
+    api.getAnalytics.mockRejectedValue(new Error('offline'));
+    await open();
+    expect(screen.queryByText('Your week in numbers')).toBeNull();
+    expect(screen.getByText('1 of 1 day')).toBeTruthy();
   });
 
   it('summarises the week', async () => {

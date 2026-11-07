@@ -1,9 +1,11 @@
 from collections.abc import AsyncIterator
+from datetime import date, timedelta
 from typing import Any
 
+from . import insights
 from .config import Settings
 from .llm.base import LLMProvider, Message, Tier
-from .tracker import Tracker
+from .tracker import Tracker, TrackerUnavailable
 
 MAX_REPLY_TOKENS = 1000
 CHARS_PER_TOKEN = 4
@@ -38,7 +40,16 @@ Last 14 days:
 {logs}
 
 Their patterns:
-{patterns}"""
+{patterns}
+
+Their numbers, last 30 days (strength is out of 100 and builds over time):
+{numbers}
+
+Insights already found from their numbers:
+{insights}
+
+If they ask why something slipped or what's working, answer from these numbers and \
+insights. Say what the numbers show; never claim one habit causes another."""
 
 
 LETTER_SYSTEM = """Write a short letter to this person from themselves, one year from \
@@ -124,6 +135,29 @@ def describe_identities(rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines) or "Not set yet."
 
 
+# A quarter loaded, so strength has its history; the numbers cover the last 30 days.
+ANALYTICS_DAYS = 90
+NUMBER_DAYS = 30
+
+
+async def describe_analytics(tracker: Tracker) -> str:
+    """The same numbers the analytics screens show. The chat still works without them."""
+    end = date.today()
+    try:
+        data = await tracker.analytics(end - timedelta(days=ANALYTICS_DAYS - 1), end)
+    except TrackerUnavailable:
+        return "Not available right now."
+    return insights.describe_numbers(data, (end - timedelta(days=NUMBER_DAYS - 1)).isoformat())
+
+
+async def describe_insights(tracker: Tracker) -> str:
+    try:
+        rows = await tracker.insights()
+    except TrackerUnavailable:
+        return "Not available right now."
+    return "\n".join(f"- {row['text']}" for row in rows) or "None yet."
+
+
 async def letter(
     provider: LLMProvider, tracker: Tracker, wins: list[str], mood: str | None
 ) -> AsyncIterator[str]:
@@ -153,6 +187,8 @@ async def reply(
         today=describe_today(today),
         logs=describe_logs(logs),
         patterns=describe_patterns(await tracker.patterns()),
+        numbers=await describe_analytics(tracker),
+        insights=await describe_insights(tracker),
     )
     if miss_review:
         system = f"{system}\n\n{MISS_NOTE}"

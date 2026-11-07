@@ -17,7 +17,9 @@ const isSunday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay() ===
 export function coachCard(
   rows: TodayRow[],
   repairs: RepairRow[],
-  part: DayPart
+  part: DayPart,
+  // On Sundays, the weekly report's headline, once it has loaded.
+  weekHeadline?: string
 ): CoachCardContent | null {
   if (repairs.length > 0) {
     const { title } = repairs[0];
@@ -36,7 +38,7 @@ export function coachCard(
     return {
       id: 'sunday',
       opens: 'sunday',
-      text: 'Your week is ready to look back on.',
+      text: weekHeadline ?? 'Your week is ready to look back on.',
       prompt: '',
     };
   }

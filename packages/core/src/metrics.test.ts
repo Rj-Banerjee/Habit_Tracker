@@ -7,18 +7,29 @@ import {
   AnalyticsWeek,
   compareHeadlines,
   consistency,
+  dayBarLabel,
   dayKind,
+  forHabit,
   habitPairs,
   habitStrength,
   headline,
+  headlineCards,
+  overviewPeriods,
+  pairLines,
   PAIR_MIN_DAYS,
+  percentLabel,
   previousRange,
+  progressHabitOf,
   rangeDates,
   ranking,
+  strengthInRange,
   strengthSeries,
   timing,
   volume,
   weekBars,
+  weekDonutLabel,
+  weekdayHourGrid,
+  withinRange,
 } from './metrics';
 
 // 2 Nov 2026 is a Monday.
@@ -31,6 +42,8 @@ const habit = (patch: Partial<AnalyticsHabit> = {}): AnalyticsHabit => ({
   unit: null,
   frequency: 'days',
   per_week: null,
+  target: null,
+  schedule_days: [1, 2, 3, 4, 5, 6, 7],
   identity_id: 'i1',
   identity_name: 'The Reader',
   colour_token: 'identity-1',
@@ -294,6 +307,9 @@ describe('the overview', () => {
     const weeks = weekBars(
       data({
         habits: [weekly],
+        days: run(['done', 'unscheduled', 'unscheduled', 'unscheduled', 'unscheduled', 'unscheduled', 'unscheduled', 'done'], {
+          habit_id: 'gym',
+        }),
         weeks: [
           { habit_id: 'gym', week_start: FROM, status: 'missed', quota: 3, sessions: 1 },
           { habit_id: 'gym', week_start: addDays(FROM, 7), status: 'met', quota: 3, sessions: 5 },
@@ -301,6 +317,9 @@ describe('the overview', () => {
       })
     );
     expect(weeks.map((w) => [w.done, w.due])).toEqual([[1, 3], [3, 3]]);
+    // Its sessions show as bars on their days, without making the day due.
+    expect(weeks[0].days[0]).toMatchObject({ done: 1, due: 0, sessions: 1 });
+    expect(weeks[0].days[0].stacks[0]).toMatchObject({ full: 1, minimum: 0 });
   });
 });
 
@@ -345,5 +364,148 @@ describe('ended habits', () => {
       completionRate: 1,
       bestStreak: 3,
     });
+  });
+});
+
+describe('one habit, one range', () => {
+  const two = data({
+    habits: [habit(), habit({ id: 'run', title: 'Run' })],
+    days: [...run(['done', 'missed', 'done']), ...run(['done', 'done'], { habit_id: 'run' })],
+    grace_spent: [{ habit_id: 'run', date: FROM }],
+  });
+
+  it('keeps only that habit', () => {
+    const read = forHabit(two, 'read');
+    expect(read.habits.map((h) => h.id)).toEqual(['read']);
+    expect(read.days).toHaveLength(3);
+    expect(read.grace_spent).toEqual([]);
+  });
+
+  it('keeps only the days and weeks in a range', () => {
+    const weekly = data({
+      days: run(['done', 'missed', 'done']),
+      weeks: [
+        { habit_id: 'read', week_start: FROM, status: 'met', quota: 3, sessions: 3 },
+        { habit_id: 'read', week_start: addDays(FROM, 7), status: 'missed', quota: 3, sessions: 1 },
+      ],
+    });
+    const later = withinRange(weekly, addDays(FROM, 1), addDays(FROM, 2));
+    expect(later.days.map((d) => d.status)).toEqual(['missed', 'done']);
+    expect(later.weeks.map((w) => w.week_start)).toEqual([FROM]);
+    expect(later.from).toBe(addDays(FROM, 1));
+    // Never earlier than what was loaded.
+    expect(withinRange(weekly, addDays(FROM, -30), FROM).from).toBe(FROM);
+  });
+
+  it("starts a short range's strength line where the habit really was", () => {
+    const history = data({ days: run(Array.from({ length: 10 }, () => 'done')) });
+    const line = strengthInRange(habit(), history, addDays(FROM, 8));
+    expect(line).toHaveLength(2);
+    expect(line[0].strength).toBeGreaterThan(30);
+    expect(line[0].strength).toBe(strengthSeries(habit(), history)[8].strength);
+  });
+
+  it('counts when in the week and the day it gets done', () => {
+    const grid = weekdayHourGrid(
+      data({
+        days: [
+          day(FROM, 'done', { logged_minute: 7 * 60 + 30 }),
+          day(addDays(FROM, 7), 'done', { logged_minute: 7 * 60 }),
+          day(addDays(FROM, 1), 'done', { level_done: 'minimum', logged_minute: 21 * 60 }),
+          // A back-log has no time, and a repair is when they caught up: neither counts.
+          day(addDays(FROM, 2), 'done', { logged_minute: null }),
+          day(addDays(FROM, 3), 'repaired', { logged_minute: 9 * 60 }),
+        ],
+      }),
+      'read'
+    );
+    expect(grid.counts[0][7]).toBe(2);
+    expect(grid.counts[1][21]).toBe(1);
+    expect(grid.total).toBe(3);
+    expect(grid.max).toBe(2);
+  });
+
+  it('hands the forecast the shape it works from', () => {
+    const shaped = progressHabitOf(habit({ type: 'count', target: 20, unit: 'pages', schedule_days: [1, 3] }));
+    expect(shaped).toMatchObject({ id: 'read', target: 20, schedule_days: [1, 3], identities: { name: 'The Reader' } });
+  });
+
+  it('writes rates as whole percentages, and a dash for none', () => {
+    expect(percentLabel(0.726)).toBe('73%');
+    expect(percentLabel(null)).toBe('–');
+  });
+});
+
+describe('bar and donut labels', () => {
+  it('say what each day and week was', () => {
+    const bar = { date: FROM, stacks: [{ identityId: 'i1', colourToken: 'identity-1' as const, full: 1, minimum: 1 }], done: 2, due: 3, sessions: 0 };
+    expect(dayBarLabel(bar)).toBe('Mon 2 Nov: 2 of 3 done (1 at the minimum)');
+    expect(dayBarLabel({ ...bar, stacks: [], done: 1, due: 0, sessions: 1 })).toBe('Mon 2 Nov: 1 weekly session');
+    expect(dayBarLabel({ ...bar, stacks: [], done: 0, due: 0 })).toBe('Mon 2 Nov: nothing due');
+    expect(weekDonutLabel({ weekStart: FROM, days: [], done: 5, due: 7 })).toBe('Week of 2 Nov: 5 of 7 done, 71%');
+    expect(weekDonutLabel({ weekStart: FROM, days: [], done: 0, due: 0 })).toBe('Week of 2 Nov: nothing due yet');
+  });
+});
+
+describe('the Overview', () => {
+  const today = '2026-11-08';
+
+  it('loads at least a year, and the period before the range', () => {
+    expect(overviewPeriods('7d', today)).toEqual({
+      load: { from: '2025-11-09', to: today },
+      current: { from: '2026-11-02', to: today },
+      previous: { from: '2026-10-26', to: '2026-11-01' },
+    });
+    expect(overviewPeriods('1y', today).load.from).toBe('2024-11-09');
+    expect(overviewPeriods('all', today, '2026-06-01').previous).toBeNull();
+  });
+
+  it('gives each headline card its trend against the period before', () => {
+    const now = { completionRate: 0.8, averageStrength: 60, totalDone: 40, bestActiveStreak: { habitId: 'read', title: 'Read', streak: 12, unit: 'day' as const } };
+    const before = { completionRate: 0.7, averageStrength: 60.2, totalDone: 45, bestActiveStreak: null };
+    const cards = headlineCards(now, before);
+    expect(cards.map((c) => [c.label, c.value, c.trend, c.before])).toEqual([
+      ['Completion', '80%', 'up', '70%'],
+      ['Average strength', '60', 'same', '60.2'],
+      ['Total done', '40', 'down', '45'],
+      ['Best active streak', '12 days', null, null],
+    ]);
+    expect(cards[3].note).toBe('Read');
+    expect(headlineCards(now, null)[0].trend).toBeNull();
+  });
+
+  it('starts strength from the history before the range', () => {
+    const history = data({ days: run(Array.from({ length: 14 }, () => 'done')) });
+    const lastDay = withinRange(history, addDays(FROM, 13), addDays(FROM, 13));
+    expect(headline(lastDay).averageStrength).toBeLessThan(headline(lastDay, history).averageStrength!);
+  });
+
+  it('words habit pairs with how often they go together', () => {
+    const together = Array.from({ length: PAIR_MIN_DAYS + 4 }, (_, i) => (i % 3 === 0 ? 'missed' : 'done'));
+    const lines = pairLines(
+      data({
+        to: addDays(FROM, together.length),
+        habits: [habit(), habit({ id: 'run', title: 'Run' })],
+        days: [...run(together), ...run(together, { habit_id: 'run' })],
+      })
+    );
+    expect(lines).toEqual(['When you do Read, you do Run 100% of the time (over 24 days).']);
+  });
+});
+
+describe('the same numbers as the AI service', () => {
+  // backend/tests/test_insights.py checks this fixture too.
+  it('works out strength and weekday rates the same way', async () => {
+    const fixture = (await import('./fixtures/analyticsParity.json')).default as unknown as {
+      data: AnalyticsData;
+      expected: { habit_id: string; strength: number; weekday: number[][] }[];
+    };
+    for (const expected of fixture.expected) {
+      const h = fixture.data.habits.find((x) => x.id === expected.habit_id)!;
+      expect(habitStrength(h, fixture.data)).toBe(expected.strength);
+      if (h.frequency === 'days') {
+        expect(timing(fixture.data, [h.id]).byWeekday.map((slot) => [slot.done, slot.judged])).toEqual(expected.weekday);
+      }
+    }
   });
 });

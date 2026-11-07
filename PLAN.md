@@ -24,11 +24,11 @@ The launch release (v1) is the core tracker, the AI coach and voice logging. Eve
 | --- | --- | --- | --- |
 | Tracking | Today screen grouped by time of day; identities; yes/no, count, duration and quit habits; specific days or times per week; ending a habit; tap / long-press / swipe logging; amounts that add up through the day; Shrink It ladder (full, minimum, setup-only); evening back-log; built-in habit library and a four-field habit form | Monthly goals; archetype routine templates; CSV import | — |
 | Streaks | Fractured chain view; Grace Day bank; 24-hour back-log; 1.5x Streak Repair | — | — |
-| Progress | Analytics: Overview with ranges and comparisons, habit detail, habit strength, timing and volume stats, weekly report, AI insights with one-tap actions (Pro); identity score; yearly heatmap; streak history; Compound Forecaster; desktop 31-day grid | Exportable reports | — |
+| Progress | Analytics: Overview with ranges and comparisons, habit detail, habit strength, timing and volume stats, weekly report, AI insights with one-tap actions (Pro); Habit connections: daily check-in (all plans), pattern engine, AI explanations and fixes, heads-up on Today, Habit map, optional Autopilot (Pro); identity score; yearly heatmap; streak history; Compound Forecaster; desktop 31-day grid | Exportable reports | — |
 | AI coach | Coach cards on Today; coach chat; miss review; preemptive nudges; peak hours from completion times; Sunday Review; Future-Self letter; "Why" card | Next-physical-action mode; worst-case prompts | — |
 | Voice | Siri via App Intents; in-app voice (hold-to-talk + wake word while open); Android voice tile and widget | Gemini on Android via AppFunctions; Apple Watch | Opt-in always-listening wake word on Android |
 | Reminders | A reminder per habit at its own time, plus at most one preemptive nudge a day, actionable from the lock screen; home and lock-screen widgets | — | — |
-| Focus | Tunnel Vision mode with a focus timer | Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
+| Focus | Tunnel Vision mode with a focus timer | Focus and Screen Time (Pro, Android first, then iPhone and desktop); Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
 | Social and game | — | Accountability pods | Gamification (RPG, rewards) |
 
 ## Plans
@@ -37,8 +37,8 @@ Pricing is still undecided, and these plans may change. Payments aren't built ye
 
 | Plan | What it includes |
 | --- | --- |
-| **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. Habit setup uses the built-in habit library and simple parsing, with no model calls. 10+ normal themes, each customizable (colours, fonts, accent per identity). |
-| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions, AI habit setup (targets, minimums, days, time of day and identity suggested for habits the library doesn't know), and suggestions to move a habit to the time of day it's actually done. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
+| **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. Habit setup uses the built-in habit library and simple parsing, with no model calls. The optional daily check-in (energy, sleep, mood). 10+ normal themes, each customizable (colours, fonts, accent per identity). |
+| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions, AI habit setup (targets, minimums, days, time of day and identity suggested for habits the library doesn't know), and suggestions to move a habit to the time of day it's actually done. Habit connections: explanations and one-tap fixes for how habits affect each other, a heads-up on Today, the Habit map and optional Autopilot (see "Habit connections"). Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. After v1 launch: Focus and Screen Time, which connects phone app usage to habits (see "Focus and Screen Time" below). Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
 | **Ultra** | Everything in Pro, plus the AI-powered workspace (design not decided yet). Habits sync with the workspace: for example a "Work" habit updates automatically from work done in the workspace, via the activity log. |
 | **Enterprise** | Team workspaces and the features teams need: roles, a manager view of company work, audit history. Personal habits stay private from managers, always. |
 
@@ -78,7 +78,7 @@ The apps never call the LLM directly. Every AI request goes through the FastAPI 
 
 ## Data model
 
-Nine core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
+Fourteen core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
 
 | Table | Key fields | Notes |
 | --- | --- | --- |
@@ -91,6 +91,11 @@ Nine core tables in Postgres cover v1. Streaks are computed from `habit_logs`, n
 | `reflections` | user\_id, week\_start, wins\[3\], month\_note, mood\_line | Sunday Review and evening line |
 | `coach_events` | id, user\_id, kind (nudge / miss\_review / letter / chat), payload, sent\_at, outcome | Every coach action and whether it helped; feeds the patterns |
 | `activity_events` | id, user\_id, occurred\_at, kind, subject\_id, payload (jsonb), source, actor (user / ai\_assisted / ai) | Append-only; written in the same transaction as every `habit_logs` change |
+| `checkins` | user\_id, date, energy (1–5), sleep\_hours, mood (1–5), source (tap / voice / wearable) | One row a day, all fields optional. Owner-only, never shared with groups or teams. See Habit connections |
+| `findings` | id, user\_id, kind, subjects, direction, effect, sample, confidence, range, numbers (jsonb), found\_at | What the pattern engine measured. Owner-only |
+| `insights` | id, user\_id, habit\_id (null for the Overview), kind, key, text, numbers, action, made\_on, applied\_at, undo | Tonight's insights, worded. Owner-read only; only the nightly job writes them. `undo` holds what an applied action changed |
+| `insight_dismissals` | user\_id, key, until | "Not useful" hides a finding for 30 days |
+| `finding_answers` | user\_id, finding\_key, answer (yes / no / not\_sure), answered\_at | Feedback on a link; "No" hides it for 60 days |
 
 Schedules, times per week, targets, Shrink level definitions, time of day and end dates are dated, so a change never rewrites the past. See Streak rules. `users.seen_tips` records one-time tips and celebrations, so they show once on every device.
 
@@ -192,7 +197,8 @@ A habit is set to specific days (the default: all seven, untick days to skip) or
 
 ### Changing a habit
 
-- A change to a schedule, times per week, target, Shrink level, time of day or end date takes effect from the day it's made. Earlier days keep the settings they had.
+- A change to a schedule, times per week, target, Shrink level, time of day, lighter days or end date takes effect from the day it's made. Earlier days keep the settings they had.
+- **Lighter days:** weekdays when the minimum is the habit's goal. On those days the day's target is the minimum's amount, and doing the minimum counts as the full version. They're set in the habit's edit screen (under More), or by an insight's action.
 - Streak Repair uses the target that applied on the missed day.
 - The Compound Forecaster uses the target that applied on each day it reads.
 
@@ -318,13 +324,104 @@ Every chart can be tapped or hovered for the exact value and date, has a screen-
 
 2–3 insights per view (overall and per habit), generated in the nightly job from the computed metrics and cached, so opening analytics never waits on the AI. Each states the number behind it ("You complete Read 40% of Thursdays vs 85% overall"). Free sees every chart and metric, with a calm "Insights are available on Pro" card in their place, and the server refuses insights without the entitlement.
 
-- **Kinds:** weak weekday, wrong time of day, target too high (mostly minimum), getting stronger (a celebration), declining trend (a gentle check-in), helpful habit pairs, a reminder that isn't working.
-- **One action each**, done in one tap after a confirmation: move the time of day, change the target, switch to times per week, add a reminder, or use the minimum on a given weekday.
+- **How they're found:** plain arithmetic over the last 8 weeks of analytics data, in the AI service, with the same formulas as `packages/core` (a shared fixture checks both). No habit gets an insight before it has 3 weeks of history.
+
+  | Kind | Found when | Action |
+  | --- | --- | --- |
+  | Weak weekday | One weekday, due at least 4 times, is done 30 points or more below the other days (which need at least 12 due days) | Make that weekday a lighter day |
+  | Wrong time of day | Of at least 8 same-day logs, 60% or more fall in another part of the day | Move it there |
+  | Target too high | An amount habit with at least 10 judged days, the target reached on 30% or fewer, but done on at least half | Set the target to the usual amount (above the minimum) |
+  | Better as times per week | An every-day habit with at least 21 judged days, done on 35–70% of them, about the same number of days each week (2–6) | Switch to that many times a week |
+  | Getting stronger | Strength up 15 or more over 4 weeks, to 50 or more | None: a celebration |
+  | Declining | Strength down 15 or more over 4 weeks, and under 60% done in the last 2 weeks | None: a gentle check-in |
+  | Habits that go together | As the Overview's pairs: at least 20 shared days and phi of 0.4 or more | None |
+  | Reminder not working | At least 8 same-day logs, usually 2 hours or more after the reminder | Move the reminder to the usual time |
+
+- **Per view:** up to 3 for each habit, in that order of priority. The Overview gets the most useful one for each habit, then one pair, up to 3.
+- **Wording:** the fast model rewords each finding, given only the measured sentence. Its words are used only if every number in them was measured and all of them are still there, with nothing shaming and no claim of a cause. Otherwise the plain sentence stands. Free accounts never reach the model.
+- **One action each**, done in one tap after a confirmation: move the time of day, change the target, switch to times per week, move the reminder, or make a weekday lighter.
   - Actions are recorded in `activity_events` with actor `ai_assisted`.
   - The insight then offers Undo.
   - A dismissed insight isn't shown again for 30 days.
 - **Coach chat** can answer questions about the person's own analytics ("Why did my reading drop this month?") from the same metrics.
 - **Tone:** calm, specific, never shaming.
+
+## Habit connections
+
+Pro (the daily check-in is on every plan). Built after Analytics. It finds how habits affect each other, explains it, and fixes the cause.
+
+**The principle:** statistics find the patterns; the AI only explains patterns that were measured, and suggests fixes; the person confirms. The AI never invents a connection the data doesn't show. It only ever sees the stored findings and the person's habit setup, and every number it writes must match a finding.
+
+### Daily check-in (all plans, optional)
+
+- **The card:** a one-tap card on Today, in the morning or the evening (the person chooses), with energy 1–5, hours slept (a stepper) and mood 1–5. Under 5 seconds. Skippable, shown at most once a day, and never nags: dismissing it on 3 days in a row asks once whether to turn it off.
+- **By voice:** "slept 6 hours, energy low" fills it in. Low, okay and high map to 2, 3 and 4.
+- **Private:** stored in `checkins` (owner-only RLS, never shared with groups or teams) and recorded in `activity_events` as `checkin.daily`.
+- **Later:** wearable sleep (Health Connect, HealthKit) fills the same fields, with source `wearable`.
+
+### Pattern engine (no AI)
+
+A deterministic nightly job in the database, per person. A link is found only with **at least 21 days of data**, enough of each kind of day, and a clear effect.
+
+| Finding | What's compared | Reported only when |
+| --- | --- | --- |
+| Same-day and next-day effect between habits | Habit B's completion on days after (or the same day as) habit A was done vs not done; for amounts, A above its median vs below | Each group has at least 8 days; the difference is at least 20 percentage points; and it passes the significance check below |
+| Amount to amount | Habit A's amount vs habit B's amount, the same or the next day | At least 21 days with both; Spearman ρ of 0.3 or more either way; passes the check below |
+| Check-in signal to habit | A habit's completion on days with low vs normal sleep (under 6 hours), energy (1–2) or mood (1–2) | As for habits: 8 days a side, 20 points, significant |
+| Habit to next-day energy | Next-day energy after a habit was done vs not | 8 days a side; at least 0.75 points on the 1–5 scale; significant |
+| Skip-reason cluster | How often a reason (for example "tired") is given the day after a habit, vs other days | The reason appears at least 3 times; at least half of them follow that habit; at least twice its usual rate |
+| Time-of-day clash | Two habits in the same part of the day that are rarely both done | Both due on at least 14 days; done together at least 25 points less often than if they were unrelated |
+| Overload | Older habits' completion in the 14 days after a new habit was added or a target raised by over 20%, vs the 14 days before | Two or more older habits each drop 15 points or more, or one drops 25 or more |
+| Positive link | The same tests as above, where doing A makes B more likely | As above |
+
+- **Significance:** Fisher's exact test for completion rates and a permutation test for amounts and energy, with p below 0.05 after a Benjamini–Hochberg correction across all the tests run for that person that night. This is what stops random noise from becoming a finding.
+- **Confidence:** high when p is below 0.01 and every group has 15 days or more, otherwise medium.
+- **Stored:** in `findings`: the habits or signals involved, direction (helps or competes), effect size, sample size, confidence, the date range, and the supporting numbers (for example 40% of 12 days vs 85% of 26 days).
+- **Later inputs:** `screen.usage_daily` from Android and workspace activity are just more signals into the same tests.
+
+### AI explanations and fixes (Pro, checked on the server)
+
+- **What the AI gets:** only the findings and the person's habit setup.
+- **What it writes for each finding:**
+  - one line in "seems linked" language with the real numbers ("After runs over 15 km, you complete Study 40% of the time, against 85% otherwise");
+  - a question to confirm it (Yes, No, Not sure);
+  - 1–3 fixes, each a one-tap action: move a habit's time or order, lower or shrink a target on certain days, add a rest day, use the minimum version after a draining habit, switch to times per week, add a reminder, and later set an app limit.
+- **The output is checked in code:** every number must be in the finding, and every action must be one from the list. Otherwise it's dropped.
+- **Answers count:** "No" hides that link for 60 days. "Yes" puts it first. "Not sure" changes nothing.
+- These share the insight card, actions and Undo with the analytics insights. Connection findings are the "helpful habit pairs" kind, measured more fully.
+
+### Where it shows up
+
+- **Insight cards:** in the Overview and Habit detail.
+- **Heads-up on Today:** in the morning, when today's plan matches a known pattern that competes (for example a long run, and Study in the evening), with the fix as a button. At most one a day.
+- **Warnings:** only for serious, sustained patterns: several habits declining for 2 weeks or more, or one habit clearly dragging others down. Firm but kind, never shaming. At most one a week, and snoozable.
+- **Habit map:** habits as nodes and links between them.
+  - A link that helps uses a calm green theme token; one that competes uses an amber token, so there's still no red. Thicker means stronger.
+  - Tap a link for its numbers and fixes.
+  - Works on phones and wide screens.
+- **Coach chat:** explains any link, and answers "why are my habits slipping?" from the findings.
+
+### Control
+
+- **By default** the AI proposes and the person approves with one tap.
+- **Autopilot** (a setting, off by default): the AI may make small changes that can be undone on its own (reorder, move the time of day, use the minimum for a day), always with a notification and Undo. Target changes over 25%, new limits, and ending or deleting a habit always need approval.
+- **Recorded:** every AI change goes in `activity_events` with actor `ai` (Autopilot) or `ai_assisted` (approved), and appears in an "AI changes" history in settings.
+
+### Safety
+
+- **No causation, no medical advice:** links are only "seems linked".
+- **When to suggest a doctor:** if sleep under 5 or over 10 hours, or energy of 1–2, goes on for 2 weeks or more, it gently suggests talking to a doctor, and stops suggesting harder targets.
+- **Nothing extreme:** it never suggests extreme exercise, fasting or less sleep. The same safety limits as habit setup apply.
+
+### Build order
+
+Check-in → pattern engine with tests → AI explanations and actions → insight cards and the heads-up → Habit map → Autopilot. Each part is committed and pushed with a phone checklist.
+
+**Tests:**
+- **Pattern engine:** on seeded data, a real run → study link is found; random noise finds nothing; and the thresholds hold.
+- **AI output:** with mocked findings, it only refers to real findings, and every number matches.
+- **Behaviour:** confirm and reject feedback, Autopilot's limits and Undo, how often warnings appear, and the safety rules.
+- **Test data:** the +test seed script adds check-ins and a hidden run → tiredness → study pattern.
 
 ## Voice assistant
 
@@ -370,6 +467,50 @@ Users will be able to log by voice without opening the app, but not with our own
 
 **Privacy rules:** wake-word detection runs on the device; no recordings are kept; transcripts are deleted after the log is written.
 
+## Focus and Screen Time (Pro, after v1)
+
+Planned for after the v1 launch, as part of Pro. **Nothing here is built yet.**
+
+The goal is to connect phone app usage to habits, not to copy Digital Wellbeing. Usage matters here only where it helps or hurts a habit.
+
+### Features
+
+- **Per-app usage:** a view of time spent in each app, by day and week.
+- **Quit habits tracked from usage:** a quit habit like "Less than 1 hour of Instagram" is logged automatically from that day's usage, with no tap needed.
+- **App limits:** a daily limit per app or category.
+- **Tunnel Vision blocks apps:** chosen apps are blocked while a focus session runs.
+- **Earn your scroll** (optional): chosen apps unlock only after chosen habits are done for the day.
+- **AI insights:** usage linked to habit performance, in the analytics style ("On days with over 2 hours of Instagram, you finish Read 30% less often").
+
+### Android first
+
+- **Usage:** `UsageStatsManager`, with the Usage Access permission the user grants in system settings.
+- **Blocking:** an overlay activity, kept running by a foreground service of the special-use type.
+- **Not AccessibilityService:** Play reviewers reject blockers that use it.
+
+### iPhone later
+
+- **API:** the Screen Time API (`FamilyControls`, `DeviceActivity`, `ManagedSettings`).
+- **Needs:** Apple's Family Controls distribution entitlement, applied for early since it's a separate process from App Review, and the paid developer account.
+- **Limits:** usage numbers can only be shown inside a `DeviceActivityReport` extension. They can't be read by the app or sent to our server, so AI usage insights are Android and desktop only. Limits, blocking and earn-your-scroll still work on iPhone.
+
+### Desktop
+
+The future desktop app can track app usage on Mac and Windows, with permission, linked to the workspace.
+
+### Privacy
+
+- Opt-in per person, and off by default.
+- Processed on the device. Only daily totals per app or category are stored, never screen content.
+- People can see everything stored, and delete it.
+
+### Data
+
+New `activity_events` kinds, so it plugs into analytics and game progress later:
+
+- `screen.usage_daily`: one day's totals per app or category.
+- `screen.limit_reached`: an app limit was hit.
+
 ## Long-term direction
 
 A desktop app (Mac and Windows, likely wrapping the web app, for example with Tauri) comes later, followed by a Notion-like workspace whose design is not decided. Neither is being built now. Everything from now on must work for mobile and the future desktop app:
@@ -391,7 +532,7 @@ Launch lands at about week 24, assuming 2 developers and 1 designer. Each phase 
 | 2 · AI coach | 11–16 | Coach cards and chat, miss review, preemptive nudges, peak hours, Sunday Review, Future-Self letter, Why card, per-user AI cost limits | Coach nudges lead to a log more often than plain reminders |
 | 3 · Voice assistant | 17–20 | Siri via App Intents, in-app voice with wake word, Android tile and voice widget, intent parser, 10-second undo, 200-phrase test set | 95% correct habit match on the voice test set |
 | 4 · Beta and launch | 21–24 | Closed beta (50–100 users, 4 weeks), fixes, store listings, launch | Day-7 retention of 40% or more in the beta |
-| v2 onward | after launch | Chrome blocker, pods, Gemini hand-off, Apple Watch; then gamification | — |
+| v2 onward | after launch | Focus and Screen Time (Android first), Chrome blocker, pods, Gemini hand-off, Apple Watch; then gamification | — |
 
 If the timeline slips, Phase 3 is the cut line: ship Siri and widgets, and move the in-app wake word to v2.
 

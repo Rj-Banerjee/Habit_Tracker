@@ -51,6 +51,7 @@ jest.mock('../services/tracker', () => ({
     createHabit: jest.fn(),
     getHabit: jest.fn(),
     updateHabit: jest.fn(),
+    setLightDays: jest.fn(() => Promise.resolve()),
     archiveHabit: jest.fn(),
     getToday: jest.fn(),
     getRepairs: jest.fn(() => Promise.resolve([])),
@@ -547,6 +548,28 @@ describe('HabitFormScreen', () => {
       expect(screen.queryByRole('button', { name: 'Yes or no' })).toBeNull();
       expect(screen.getByRole('button', { name: 'Mon', selected: true })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Sun', selected: false })).toBeTruthy();
+    });
+
+    it('makes a day lighter, saved on its own', async () => {
+      api.getHabit.mockResolvedValue({ ...readHabit, light_days: [3] });
+      await openForm('h1');
+      await press('More');
+      expect(screen.getByRole('button', { name: 'Lighter Wed', selected: true })).toBeTruthy();
+      await press('Lighter Fri');
+      await press('Save');
+      await settle();
+      expect(api.setLightDays).toHaveBeenCalledWith('h1', [3, 5]);
+      expect(api.updateHabit).not.toHaveBeenCalled();
+    });
+
+    it('leaves lighter days alone when they did not change', async () => {
+      await openForm('h1');
+      await press('More');
+      await press('Lighter Mon');
+      await press('Lighter Mon');
+      await press('Save');
+      await settle();
+      expect(api.setLightDays).not.toHaveBeenCalled();
     });
 
     it('shows the note about past days above the save button', async () => {

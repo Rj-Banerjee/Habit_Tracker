@@ -1,15 +1,34 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { buildWeekChain, habitChain, habitPatterns, heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
-import { Button, Chip, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
-import { useProgress } from '../hooks/useProgress';
-import { Forecaster } from '../progress/Forecaster';
-import { Heatmap } from '../progress/Heatmap';
-import { StreakHistory } from '../progress/StreakHistory';
+import {
+  AnalyticsRange,
+  HeadlineCard,
+  headline,
+  headlineCards,
+  identityScores,
+  layout,
+  overviewPeriods,
+  pairLines,
+  percentLabel,
+  progressHabitOf,
+  radius,
+  RANGE_LABELS,
+  ranking,
+  space,
+  trendArrow,
+  weekBars,
+  withinRange,
+} from '@habit-tracker/core';
+import { Button, Chip, SegmentedControl, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
+import { DayBars } from '../analytics/DayBars';
+import { InsightCards } from '../analytics/InsightCards';
+import { Stat, StatGrid } from '../analytics/StatGrid';
+import { useOverview } from '../hooks/useOverview';
+import { HabitDetailScreen } from './HabitDetailScreen';
 
-// Two weeks of scheduled days, still, with what each repair took.
-const PROGRESS_CHAIN_DAYS = 14;
+const RANGES: AnalyticsRange[] = ['7d', '30d', '90d', '1y', 'all'];
+const TREND_WORDS = { up: 'up', down: 'down', same: 'about the same as' } as const;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const { colors, radii } = useTheme();
@@ -23,25 +42,67 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// A headline card as a tile: the arrow beside the value, what it was under it when comparing.
+const tileOf = (card: HeadlineCard, compare: boolean): Stat => {
+  const arrow = card.trend ? ` ${trendArrow(card.trend)}` : '';
+  const before = compare && card.before !== null ? `was ${card.before}` : undefined;
+  const note = [card.note, before].filter(Boolean).join(' · ') || undefined;
+  const trend = card.trend && card.before !== null ? `, ${TREND_WORDS[card.trend]} ${card.trend === 'same' ? '' : 'from '}${card.before} before` : '';
+  return {
+    label: card.label,
+    value: `${card.value}${arrow}`,
+    note,
+    spoken: `${card.label}: ${card.value}${card.note ? `, ${card.note}` : ''}${trend}`,
+  };
+};
+
 interface ProgressScreenProps {
   active: boolean;
   onOpenReview: () => void;
+  onEditHabit?: (habitId: string) => void;
 }
 
-export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
+export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressScreenProps) {
   const { colors, identity: identityColor } = useTheme();
   const size = useLayoutSize();
-  const { habits, days, statuses, weeks, today, loading, loadFailed, load } = useProgress(active);
-  const [chosen, setChosen] = useState<string | null>(null);
-
+  const [range, setRange] = useState<AnalyticsRange>('30d');
+  const [compare, setCompare] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const { loaded, loading, failed, load } = useOverview(active, range);
   const wide = size !== 'compact';
-  const habit = habits.find((h) => h.id === chosen) ?? habits[0];
+
+  const view = useMemo(() => {
+    if (!loaded || loaded.data.habits.length === 0) return null;
+    const { data, today } = loaded;
+    const firstDay = data.habits.map((h) => h.starts_on).sort()[0];
+    const periods = overviewPeriods(range, today, firstDay);
+    const now = withinRange(data, periods.current.from, periods.current.to);
+    const before = periods.previous ? withinRange(data, periods.previous.from, periods.previous.to) : null;
+    // Strength as it stood at the end of each period, from all the history before it.
+    const beforeHistory = periods.previous ? withinRange(data, data.from, periods.previous.to) : null;
+    return {
+      today,
+      cards: headlineCards(
+        headline(now, data),
+        before && beforeHistory ? headline(before, beforeHistory) : null
+      ),
+      bars: weekBars(now),
+      // Strength as it stands now, from all the history; completion for the range.
+      ranked: ranking(now, data),
+      pairs: pairLines(now),
+      identity: identityScores(data.habits.map(progressHabitOf), loaded.identityDays, today),
+      habits: data.habits,
+      titles: Object.fromEntries(data.habits.map((h) => [h.id, h.title])),
+    };
+  }, [loaded, range]);
+
+  const detail = view?.habits.find((h) => h.id === detailId);
 
   const body = () => {
-    if (loading) {
+    if (loading && !loaded) {
       return <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading your progress" />;
     }
-    if (loadFailed) {
+    if (failed && !loaded) {
       return (
         <View style={styles.notice}>
           <Text>Your progress couldn&apos;t load.</Text>
@@ -49,91 +110,82 @@ export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
         </View>
       );
     }
-    if (!habit) return <Text>Add a habit, and your progress will show up here.</Text>;
+    if (!view) return <Text>Add a habit, and your progress will show up here.</Text>;
 
-    const top = topHabits(habits, days, today);
     return (
       <>
+        <View style={styles.controls}>
+          <SegmentedControl
+            options={RANGES.map((value) => ({ value, label: RANGE_LABELS[value] }))}
+            value={range}
+            onChange={setRange}
+          />
+          {range === 'all' ? null : (
+            <Chip
+              label="Compare to previous period"
+              selected={compare}
+              onPress={() => setCompare((on) => !on)}
+            />
+          )}
+        </View>
+
+        <StatGrid stats={view.cards.map((card) => tileOf(card, compare && range !== 'all'))} />
+
+        <Section title="Day by day">
+          <DayBars weeks={view.bars} />
+        </Section>
+
         <View style={[styles.grid, wide && styles.gridWide]}>
           <View style={[styles.column, wide && styles.columnWide]}>
+            <Section title="Your habits, strongest first">
+              {view.ranked.map((item, index) => (
+                <Pressable
+                  key={item.habitId}
+                  onPress={() => setDetailId(item.habitId)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${index + 1}. ${item.title}: strength ${item.strength}, ${percentLabel(item.completionRate)} done. Open details`}
+                  style={styles.rank}
+                >
+                  <View style={[styles.dot, { backgroundColor: identityColor(item.colourToken).accent }]} />
+                  <Text style={styles.rankName}>{item.title}</Text>
+                  <Text numeric muted variant="small">
+                    {percentLabel(item.completionRate)}
+                  </Text>
+                  <Text numeric style={styles.rankStrength}>
+                    {item.strength}
+                  </Text>
+                </Pressable>
+              ))}
+              <Text variant="small" muted>
+                Strength out of 100, and how often each was done in this range.
+              </Text>
+            </Section>
+          </View>
+          <View style={[styles.column, wide && styles.columnWide]}>
             <Section title="Identity score, last 30 days">
-              {identityScores(habits, days, today).map((score) => (
-                <View key={score.identityId} style={styles.score}>
-                  <View
-                    style={[
-                      styles.dot,
-                      { backgroundColor: identityColor(score.colourToken).accent },
-                    ]}
-                  />
-                  <Text style={styles.scoreName}>{score.name}</Text>
+              {view.identity.map((score) => (
+                <View key={score.identityId} style={styles.rank}>
+                  <View style={[styles.dot, { backgroundColor: identityColor(score.colourToken).accent }]} />
+                  <Text style={styles.rankName}>{score.name}</Text>
                   <Text numeric>{score.label}</Text>
                 </View>
               ))}
             </Section>
-          </View>
-          <View style={[styles.column, wide && styles.columnWide]}>
-            <Section title="Top habits this month">
-              {top.length === 0 ? (
-                <Text variant="small" muted>
-                  Nothing logged this month yet.
-                </Text>
+            <Section title="Habits that go together">
+              {view.pairs.length ? (
+                view.pairs.map((line) => <Text key={line}>{line}</Text>)
               ) : (
-                top.map((item) => (
-                  <View key={item.habitId} style={styles.score}>
-                    <Text style={styles.scoreName}>{item.title}</Text>
-                    <Text numeric>
-                      {item.done} of {item.due}
-                    </Text>
-                  </View>
-                ))
+                <Text variant="small" muted>
+                  After about 3 weeks of two habits being due on the same days, the ones that go together show up here.
+                </Text>
               )}
             </Section>
           </View>
         </View>
 
-        <View style={styles.chips}>
-          {habits.map((item) => (
-            <Chip
-              key={item.id}
-              label={item.title}
-              selected={item.id === habit.id}
-              onPress={() => setChosen(item.id)}
-            />
-          ))}
-        </View>
-
-        {habitPatterns(days, habit).length > 0 ? (
-          <Section title="Your pattern">
-            {habitPatterns(days, habit).map((line) => (
-              <Text key={line}>{line}</Text>
-            ))}
-          </Section>
-        ) : null}
-
-        <Section title="The last year">
-          <Heatmap data={heatmap(days, habit.id, today)} identity={habit.identities.colour_token} />
+        <Section title="Insights">
+          <InsightCards habitId={null} titles={view.titles} onChanged={() => void load()} />
         </Section>
-
-        <View style={[styles.grid, wide && styles.gridWide]}>
-          <View style={[styles.column, wide && styles.columnWide]}>
-            <Section title="Streak history">
-              <StreakHistory
-                runs={streakHistory(days, habit.id)}
-                chain={
-                  habit.frequency === 'per_week'
-                    ? buildWeekChain(habit.id, weeks)
-                    : habitChain(habit.id, days, today, PROGRESS_CHAIN_DAYS, statuses)
-                }
-                habit={{ ...habit, identity: habit.identities.colour_token }}
-              />
-            </Section>
-          </View>
-          <View style={[styles.column, wide && styles.columnWide]}>
-            <Section title="A year from now">
-              <Forecaster key={habit.id} habit={habit} days={days} today={today} />
-            </Section>
-          </View>
-        </View>
       </>
     );
   };
@@ -147,6 +199,19 @@ export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
         <Button label="Sunday Review" quiet onPress={onOpenReview} />
         {body()}
       </ScrollView>
+      {detail && view ? (
+        <HabitDetailScreen
+          habitId={detail.id}
+          title={detail.title}
+          identityName={detail.identity_name}
+          today={view.today}
+          onClose={() => setDetailId(null)}
+          onEdit={() => {
+            setDetailId(null);
+            onEditHabit?.(detail.id);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -163,6 +228,7 @@ const styles = StyleSheet.create({
   },
   contentWide: { maxWidth: layout.breakpoints.desktop },
   notice: { gap: space.md },
+  controls: { gap: space.sm },
   grid: { gap: space.lg },
   gridWide: { flexDirection: 'row', alignItems: 'stretch' },
   column: { gap: space.lg },
@@ -174,8 +240,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  score: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  scoreName: { flex: 1 },
+  rank: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: layout.minTouchTarget },
+  rankName: { flex: 1 },
+  rankStrength: { width: 32, textAlign: 'right' },
   dot: { width: space.md, height: space.md, borderRadius: radius.full },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
 });

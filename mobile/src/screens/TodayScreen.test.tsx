@@ -60,6 +60,39 @@ jest.mock('../services/tracker', () => ({
     listCompletedHabits: jest.fn(() => Promise.resolve([])),
     updateHabit: jest.fn(() => Promise.resolve()),
     getWeekStatuses: jest.fn(() => Promise.resolve([])),
+    getAnalytics: jest.fn((from: string, to: string) =>
+      Promise.resolve({
+        from,
+        to,
+        today: to,
+        habits: [
+          {
+            id: 'h1',
+            title: 'Run',
+            type: 'boolean',
+            unit: null,
+            frequency: 'days',
+            per_week: null,
+            target: null,
+            schedule_days: [1, 2, 3, 4, 5, 6, 7],
+            identity_id: 'i1',
+            identity_name: 'The Runner',
+            colour_token: 'identity-1',
+            starts_on: from,
+            ends_on: null,
+            reminder_time: null,
+            time_of_day: 'morning',
+            milestone_amount: null,
+            milestone_label: null,
+            current_streak: 0,
+            longest_streak: 0,
+          },
+        ],
+        days: [],
+        weeks: [],
+        grace_spent: [],
+      })
+    ),
   },
 }));
 
@@ -283,6 +316,37 @@ describe('TodayScreen', () => {
       api.getProfile.mockResolvedValue({ seen_tips: ['habit-tip'] } as never);
       await open([row()]);
       expect(screen.queryByText(tip)).toBeNull();
+    });
+  });
+
+  describe('the Sunday card', () => {
+    it("leads with the week's numbers on a Sunday", async () => {
+      const sunday = '2026-11-08';
+      const base = await api.getAnalytics('2026-10-26', sunday);
+      api.getAnalytics.mockResolvedValueOnce({
+        ...base,
+        days: ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05'].map((date, i) => ({
+          habit_id: 'h1',
+          date,
+          status: i === 3 ? 'missed' : 'done',
+          log_status: i === 3 ? null : 'done',
+          level_done: i === 3 ? null : 'full',
+          amount: null,
+          source: i === 3 ? null : 'tap',
+          skip_reason: null,
+          target: null,
+          minimum: null,
+          logged_minute: null,
+        })),
+      } as never);
+      await open([row({ day: sunday })]);
+      expect(api.getAnalytics).toHaveBeenLastCalledWith('2026-10-26', sunday);
+      expect(screen.getByText('75% done this week. Ready to look back?')).toBeTruthy();
+    });
+
+    it('asks for no numbers on other days', async () => {
+      await open([row()]);
+      expect(api.getAnalytics).not.toHaveBeenCalled();
     });
   });
 

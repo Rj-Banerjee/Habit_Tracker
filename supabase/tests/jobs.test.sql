@@ -236,8 +236,8 @@ select is(
 -- ---------------------------------------------------------------------------
 select is(
   (select array_agg(jobname order by jobname) from cron.job where jobname like 'ai-%'),
-  array['ai-nightly-patterns', 'ai-reminders-and-nudges', 'ai-sunday-letters'],
-  'all three jobs are scheduled'
+  array['ai-nightly-insights', 'ai-nightly-patterns', 'ai-reminders-and-nudges', 'ai-sunday-letters'],
+  'all four jobs are scheduled'
 );
 select is(tracker.call_job('nightly-patterns'), null, 'and they do nothing until the AI service is hosted');
 

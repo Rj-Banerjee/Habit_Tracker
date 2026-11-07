@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  isoWeekday,
+  reviewWeekStart,
   coachCard,
   dayPart,
   FOCUS_LINK,
@@ -38,6 +40,7 @@ import {
 } from '@habit-tracker/ui';
 import { repairHabitOf } from '../chain/CardChain';
 import { useMotionSettings } from '../chain/useMotionSettings';
+import { useWeeklyReport } from '../hooks/useWeeklyReport';
 import { FinishCard } from '../chain/FinishCard';
 import { WelcomeBack } from '../chain/WelcomeBack';
 import { FocusLock, FocusSession } from '../../modules/focus-lock';
@@ -272,7 +275,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
 
   useShortcut('r', refreshNow);
 
-  const card = coachCard(rows, repairs, part);
+  // On Sundays, the card that opens the Sunday Review leads with the week's numbers.
+  const todayDate = today[0]?.day ?? '';
+  const sunday = todayDate !== '' && isoWeekday(todayDate) === 7;
+  const report = useWeeklyReport(sunday ? reviewWeekStart(todayDate) : '');
+  const card = coachCard(rows, repairs, part, report?.headline);
 
   const repairSection =
     repairs.length > 0 ? (
@@ -547,7 +554,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       ) : null}
       {detailRow ? (
         <HabitDetailScreen
-          row={detailRow}
+          habitId={detailRow.habit_id}
+          title={detailRow.title}
+          identityName={detailRow.identity_name}
+          today={detailRow.day}
           onClose={() => setDetailRow(null)}
           onEdit={() => {
             setDetailRow(null);

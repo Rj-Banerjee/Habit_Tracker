@@ -112,3 +112,12 @@ class JobDb(ServiceDb):
 
     async def push_tokens(self, user_id: str) -> list[str]:
         return await self.rpc("job_push_tokens", {"p_user": user_id})
+
+    async def insight_people(self) -> list[dict[str, Any]]:
+        return await self.rpc("job_insight_people")
+
+    async def insight_data(self, user_id: str) -> dict[str, Any]:
+        return await self.rpc("job_insight_data", {"p_user": user_id})
+
+    async def save_insights(self, user_id: str, items: list[dict[str, Any]]) -> int:
+        return int(await self.rpc("job_save_insights", {"p_user": user_id, "p_items": items}))

@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 import json
 
 import pytest
@@ -57,6 +58,31 @@ class FakeTracker:
     async def patterns(self):
         return {"best_hours": [19, 7], "weak_weekdays": [2], "common_skip_reasons": ["Sick"]}
 
+    async def analytics(self, start, end):
+        return ANALYTICS
+
+    async def insights(self):
+        return [{"text": "You do Read on 40% of Wednesdays, against 85% on other days."}]
+
+
+def analytics_day(day: str, status: str) -> dict:
+    return {
+        "habit_id": "h1",
+        "date": day,
+        "status": status,
+        "level_done": "full" if status == "done" else None,
+        "amount": None,
+        "logged_minute": None,
+    }
+
+
+_today = date.today()
+ANALYTICS = {
+    "habits": [{"id": "h1", "title": "Read", "frequency": "days"}],
+    "days": [analytics_day((_today - timedelta(days=i)).isoformat(), "missed" if i % 4 == 0 else "done") for i in range(1, 29)],
+    "weeks": [],
+}
+
 
 @pytest.fixture
 def api(monkeypatch):
@@ -107,6 +133,28 @@ def test_chat_gives_the_coach_their_data_and_tone(api):
     assert "Read (The Reader): open, 4-day streak" in system
     assert "2026-11-01 Run: skipped, Sick" in system
     assert "Plain and to the point" in system
+
+
+def test_chat_can_answer_from_their_analytics(api):
+    provider = use(FakeProvider(["ok"]))
+    api.post("/coach/chat", json=ASK)
+    system = provider.seen[-1]["system"]
+    # 28 days, every fourth one missed.
+    assert "- Read: done 21 of 28 days (21 full, 0 minimum)" in system
+    assert ", strength " in system
+    assert "You do Read on 40% of Wednesdays, against 85% on other days." in system
+    assert "never claim one habit causes another" in system
+
+
+def test_chat_still_works_without_the_analytics(api, monkeypatch):
+    async def down(self, *_):
+        raise tracker_module.TrackerUnavailable
+
+    monkeypatch.setattr(FakeTracker, "analytics", down)
+    monkeypatch.setattr(FakeTracker, "insights", down)
+    provider = use(FakeProvider(["ok"]))
+    assert api.post("/coach/chat", json=ASK).status_code == 200
+    assert "Not available right now." in provider.seen[-1]["system"]
 
 
 def test_chat_never_sends_ids_or_the_token(api):

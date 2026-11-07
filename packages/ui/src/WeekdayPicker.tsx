@@ -6,16 +6,18 @@ import { Chip } from './Chip';
 interface WeekdayPickerProps {
   days: number[];
   onChange: (days: number[]) => void;
+  // Said before each day, where a screen has more than one picker ("Lighter Mon").
+  name?: string;
 }
 
-export function WeekdayPicker({ days, onChange }: WeekdayPickerProps) {
+export function WeekdayPicker({ days, onChange, name }: WeekdayPickerProps) {
   return (
     <View style={styles.row}>
       {ALL_DAYS.map((day) => (
         <Chip
           key={day}
           label={WEEKDAY_LABELS[day - 1].charAt(0)}
-          accessibilityLabel={WEEKDAY_LABELS[day - 1]}
+          accessibilityLabel={name ? `${name} ${WEEKDAY_LABELS[day - 1]}` : WEEKDAY_LABELS[day - 1]}
           selected={days.includes(day)}
           onPress={() => onChange(toggleDay(days, day))}
         />

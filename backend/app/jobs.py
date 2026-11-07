@@ -2,17 +2,18 @@
 twice: work is claimed before it's done, and a claim is given back if it fails."""
 
 import hmac
+from datetime import date
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
-from . import coach
+from . import coach, insights
 from .auth import CurrentUser
 from .config import Settings, get_settings
 from .data_policy import may_reach_provider
 from .entitlements import as_plan, effective_plan, has_feature
-from .llm.base import LLMError, LLMProvider
+from .llm.base import LLMError, LLMProvider, Unavailable
 from .llm.metered import MeteredProvider
 from .push import Push
 
@@ -64,6 +65,41 @@ class ContextTracker:
 @router.post("/nightly-patterns", dependencies=[Depends(job_secret)])
 async def nightly_patterns(request: Request) -> dict:
     return {"job": "nightly-patterns", "people": await request.app.state.db.rebuild_patterns()}
+
+
+@router.post("/nightly-insights", dependencies=[Depends(job_secret)])
+async def nightly_insights(request: Request, settings: Settings = Depends(get_settings)) -> dict:
+    """Finds each Pro person's insights from their numbers, has the model word them, and
+    saves them, so opening analytics never waits on the AI. Anyone without Pro has theirs
+    cleared."""
+    db = request.app.state.db
+    provider: LLMProvider = request.app.state.provider
+    saved = cleared = failed = 0
+    day = date.today().isoformat()
+    for person in await db.insight_people():
+        user = CurrentUser(person["user_id"], "")
+        plan = effective_plan(user, as_plan(person["plan"]), settings)
+        if not has_feature(plan, "ai.insights"):
+            await db.save_insights(user.id, [])
+            cleared += 1
+            continue
+        if not await db.claim("nightly-insights", f"{user.id}:{day}"):
+            continue
+        try:
+            data = await db.insight_data(user.id)
+            rows = insights.choose(data["analytics"], data["setup"], data["dismissed"])
+            # Without a provider this person may use, the plain wording stands.
+            if rows and may_reach_provider(user, settings, provider):
+                metered = MeteredProvider(provider)
+                rows = await insights.word(metered, rows)
+                await db.spend(f"user:{user.id}:tokens", metered.tokens, DAY)
+            await db.save_insights(user.id, rows)
+            saved += 1
+        except Unavailable as error:
+            log.warning("Insights not made: %s", type(error).__name__)
+            await db.release("nightly-insights", f"{user.id}:{day}")
+            failed += 1
+    return {"job": "nightly-insights", "saved": saved, "cleared": cleared, "failed": failed}
 
 
 @router.post("/sunday-letters", dependencies=[Depends(job_secret)])

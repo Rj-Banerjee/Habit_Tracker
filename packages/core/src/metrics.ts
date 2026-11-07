@@ -1,5 +1,5 @@
-import type { HabitFrequency, HabitLevel, HabitType, LogSource, LogStatus, TimeOfDay } from './api';
-import { addDays, isoWeekday } from './dates';
+import type { HabitFrequency, HabitLevel, HabitType, LogSource, LogStatus, ProgressHabit, TimeOfDay } from './api';
+import { addDays, dayName, isoWeekday, shortDate, weekLabel } from './dates';
 import type { IdentityToken } from './tokens';
 
 // Analytics, from the days and weeks the database works out (get_analytics). Every
@@ -13,6 +13,9 @@ export interface AnalyticsHabit {
   unit: string | null;
   frequency: HabitFrequency;
   per_week: number | null;
+  // Today's target and schedule, for the forecast.
+  target: number | null;
+  schedule_days: number[];
   identity_id: string;
   identity_name: string;
   colour_token: IdentityToken;
@@ -362,7 +365,9 @@ export interface Headline {
   bestActiveStreak: { habitId: string; title: string; streak: number; unit: 'day' | 'week' } | null;
 }
 
-export function headline(data: AnalyticsData): Headline {
+// Strength is worked out over strengthData, which can start before the range, so a short
+// range doesn't start every habit from zero.
+export function headline(data: AnalyticsData, strengthData: AnalyticsData = data): Headline {
   let done = 0;
   let judged = 0;
   for (const habit of data.habits) {
@@ -370,7 +375,7 @@ export function headline(data: AnalyticsData): Headline {
     done += c.full + c.minimum + c.repaired;
     judged += c.judged;
   }
-  const strengths = data.habits.map((h) => habitStrength(h, data));
+  const strengths = data.habits.map((h) => habitStrength(h, strengthData));
   const best = data.habits.reduce<AnalyticsHabit | null>(
     (a, b) => (b.current_streak > 0 && (!a || b.current_streak > a.current_streak) ? b : a),
     null
@@ -422,14 +427,15 @@ export interface Ranked {
   completionRate: number | null;
 }
 
-// Strongest first, then by completion rate.
-export function ranking(data: AnalyticsData): Ranked[] {
+// Strongest first, then by completion rate. Completion is for the range; strength comes
+// from strengthData, which can start before it.
+export function ranking(data: AnalyticsData, strengthData: AnalyticsData = data): Ranked[] {
   return data.habits
     .map((habit) => ({
       habitId: habit.id,
       title: habit.title,
       colourToken: habit.colour_token,
-      strength: habitStrength(habit, data),
+      strength: habitStrength(habit, strengthData),
       completionRate: consistency(habit, data).completionRate,
     }))
     .sort((a, b) => b.strength - a.strength || (b.completionRate ?? -1) - (a.completionRate ?? -1) || a.title.localeCompare(b.title));
@@ -441,10 +447,13 @@ export function ranking(data: AnalyticsData): Ranked[] {
 
 export interface DayBar {
   date: string;
-  // Completions stacked by identity: full and minimum separately.
+  // Completions stacked by identity: full and minimum separately. A times-per-week
+  // habit's sessions are in the stack but not in due.
   stacks: { identityId: string; colourToken: IdentityToken; full: number; minimum: number }[];
   done: number;
   due: number;
+  // Of done, the times-per-week sessions, which count toward their week instead.
+  sessions: number;
 }
 
 export interface WeekBars {
@@ -459,17 +468,20 @@ export function weekBars(data: AnalyticsData): WeekBars[] {
   const habits = new Map(data.habits.map((h) => [h.id, h]));
   const bars = new Map<string, DayBar>();
   for (let date = data.from; date <= data.to; date = addDays(date, 1)) {
-    bars.set(date, { date, stacks: [], done: 0, due: 0 });
+    bars.set(date, { date, stacks: [], done: 0, due: 0, sessions: 0 });
   }
   for (const day of data.days) {
     const habit = habits.get(day.habit_id);
     const bar = bars.get(day.date);
-    if (!habit || !bar || isWeeklyHabit(habit)) continue;
+    if (!habit || !bar) continue;
     const kind = dayKind(day);
     if (!kind || !JUDGED.includes(kind)) continue;
-    bar.due += 1;
+    // A times-per-week habit's session shows on its day, but no day of it is due: its week
+    // counts toward the donut below.
+    if (!isWeeklyHabit(habit)) bar.due += 1;
     if (!COMPLETED.includes(kind)) continue;
     bar.done += 1;
+    if (isWeeklyHabit(habit)) bar.sessions += 1;
     let stack = bar.stacks.find((s) => s.identityId === habit.identity_id);
     if (!stack) {
       stack = { identityId: habit.identity_id, colourToken: habit.colour_token, full: 0, minimum: 0 };
@@ -483,7 +495,7 @@ export function weekBars(data: AnalyticsData): WeekBars[] {
     const start = weekStart(bar.date);
     const week = weeks.get(start) ?? { weekStart: start, days: [], done: 0, due: 0 };
     week.days.push(bar);
-    week.done += bar.done;
+    week.done += bar.done - bar.sessions;
     week.due += bar.due;
     weeks.set(start, week);
   }
@@ -495,6 +507,24 @@ export function weekBars(data: AnalyticsData): WeekBars[] {
     bucket.done += week.status === 'missed' ? Math.min(week.sessions, week.quota) : week.quota;
   }
   return [...weeks.values()];
+}
+
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+// What a bar says when tapped, and to a screen reader.
+export function dayBarLabel(bar: DayBar): string {
+  const date = `${dayName(bar.date)} ${shortDate(bar.date)}`;
+  const minimum = bar.stacks.reduce((sum, stack) => sum + stack.minimum, 0);
+  const parts: string[] = [];
+  if (bar.due > 0) parts.push(`${bar.done - bar.sessions} of ${bar.due} done`);
+  if (bar.sessions > 0) parts.push(plural(bar.sessions, 'weekly session'));
+  if (parts.length === 0) return `${date}: nothing due`;
+  return `${date}: ${parts.join(', ')}${minimum > 0 ? ` (${minimum} at the minimum)` : ''}`;
+}
+
+export function weekDonutLabel(week: WeekBars): string {
+  if (week.due === 0) return `${weekLabel(week.weekStart)}: nothing due yet`;
+  return `${weekLabel(week.weekStart)}: ${week.done} of ${week.due} done, ${percentLabel(week.done / week.due)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -550,6 +580,158 @@ export function habitPairs(data: AnalyticsData): HabitPair[] {
     }
   }
   return pairs.sort((x, y) => y.phi - x.phi);
+}
+
+// ---------------------------------------------------------------------------
+// One habit, one range
+// ---------------------------------------------------------------------------
+
+// Only this habit's part of the data, so every metric above reads as that habit's.
+export function forHabit(data: AnalyticsData, habitId: string): AnalyticsData {
+  return {
+    ...data,
+    habits: data.habits.filter((h) => h.id === habitId),
+    days: daysOf(data, habitId),
+    weeks: weeksOf(data, habitId),
+    grace_spent: data.grace_spent.filter((grace) => grace.habit_id === habitId),
+  };
+}
+
+// Only the days and weeks within a range. Streaks are left as they are: they run over the
+// whole history. A week is in the range if any of its days is.
+export function withinRange(data: AnalyticsData, from: string, to: string): AnalyticsData {
+  const start = from < data.from ? data.from : from;
+  return {
+    ...data,
+    from: start,
+    to,
+    days: data.days.filter((day) => day.date >= start && day.date <= to),
+    weeks: data.weeks.filter((week) => addDays(week.week_start, 6) >= start && week.week_start <= to),
+    grace_spent: data.grace_spent.filter((grace) => grace.date >= start && grace.date <= to),
+  };
+}
+
+// The strength line for a range. It's worked out over everything loaded, so a short range
+// starts where the habit really was, not from zero.
+export function strengthInRange(habit: AnalyticsHabit, data: AnalyticsData, from: string): StrengthPoint[] {
+  const weekly = isWeeklyHabit(habit);
+  return strengthSeries(habit, data).filter((point) => (weekly ? addDays(point.date, 6) : point.date) >= from);
+}
+
+export interface HourGrid {
+  // Monday first, then each hour of the day: completions logged then.
+  counts: number[][];
+  max: number;
+  total: number;
+}
+
+// When in the week and the day a habit gets done, from logs made on the day itself.
+export function weekdayHourGrid(data: AnalyticsData, habitId: string): HourGrid {
+  const counts = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+  let total = 0;
+  for (const day of daysOf(data, habitId)) {
+    const kind = dayKind(day);
+    if (day.logged_minute === null || (kind !== 'full' && kind !== 'minimum')) continue;
+    counts[isoWeekday(day.date) - 1][Math.floor(day.logged_minute / 60)] += 1;
+    total += 1;
+  }
+  return { counts, max: Math.max(0, ...counts.flat()), total };
+}
+
+// For the Compound Forecaster, which works from Progress's shapes.
+export const progressHabitOf = (habit: AnalyticsHabit): ProgressHabit => ({
+  id: habit.id,
+  identity_id: habit.identity_id,
+  title: habit.title,
+  type: habit.type,
+  target: habit.target,
+  unit: habit.unit,
+  schedule_days: habit.schedule_days,
+  milestone_amount: habit.milestone_amount,
+  milestone_label: habit.milestone_label,
+  reminder_time: habit.reminder_time,
+  frequency: habit.frequency,
+  per_week: habit.per_week,
+  identities: { name: habit.identity_name, colour_token: habit.colour_token },
+});
+
+// A rate as a whole percentage, or a dash when nothing was judged.
+export const percentLabel = (value: number | null) => (value === null ? '–' : `${Math.round(value * 100)}%`);
+
+// ---------------------------------------------------------------------------
+// The Overview
+// ---------------------------------------------------------------------------
+
+export interface OverviewPeriods {
+  // What to load: at least a year, so strength has history, and the period before.
+  load: { from: string; to: string };
+  current: { from: string; to: string };
+  // Null for all time, which has nothing before it.
+  previous: { from: string; to: string } | null;
+}
+
+const YEAR_DAYS = 365;
+
+export function overviewPeriods(range: AnalyticsRange, today: string, firstDay?: string): OverviewPeriods {
+  const current = rangeDates(range, today, firstDay);
+  const previous = range === 'all' ? null : previousRange(current.from, current.to);
+  const yearAgo = addDays(today, 1 - YEAR_DAYS);
+  const earliest = [current.from, previous?.from ?? current.from, yearAgo].sort()[0];
+  return { load: { from: earliest, to: today }, current, previous };
+}
+
+export interface HeadlineCard {
+  label: string;
+  value: string;
+  // Against the period before: up, down or the same, and what it was.
+  trend: Trend | null;
+  before: string | null;
+  note?: string;
+}
+
+const ARROWS: Record<Trend, string> = { up: '↑', down: '↓', same: '→' };
+export const trendArrow = (trend: Trend) => ARROWS[trend];
+
+export function headlineCards(now: Headline, before: Headline | null): HeadlineCard[] {
+  const compared = before ? compareHeadlines(now, before) : null;
+  const best = now.bestActiveStreak;
+  return [
+    {
+      label: 'Completion',
+      value: percentLabel(now.completionRate),
+      trend: compared?.completionRate.trend ?? null,
+      before: before ? percentLabel(before.completionRate) : null,
+    },
+    {
+      label: 'Average strength',
+      value: now.averageStrength === null ? '–' : String(now.averageStrength),
+      trend: compared?.averageStrength.trend ?? null,
+      before: before?.averageStrength == null ? null : String(before.averageStrength),
+      note: 'out of 100',
+    },
+    {
+      label: 'Total done',
+      value: now.totalDone.toLocaleString('en-IN'),
+      trend: compared?.totalDone.trend ?? null,
+      before: before ? before.totalDone.toLocaleString('en-IN') : null,
+    },
+    {
+      label: 'Best active streak',
+      value: best ? `${best.streak} ${best.unit}${best.streak === 1 ? '' : 's'}` : '–',
+      trend: null,
+      before: null,
+      note: best?.title,
+    },
+  ];
+}
+
+// "Read and Meditate go together: when you do Read, you do Meditate 85% of the time."
+export function pairLines(data: AnalyticsData): string[] {
+  const titles = new Map(data.habits.map((h) => [h.id, h.title]));
+  return habitPairs(data).map(
+    (pair) =>
+      `When you do ${titles.get(pair.a)}, you do ${titles.get(pair.b)} ${percentLabel(pair.bWhenA)} of the time (over ${pair.days} days).`
+  );
 }
 
 // ---------------------------------------------------------------------------

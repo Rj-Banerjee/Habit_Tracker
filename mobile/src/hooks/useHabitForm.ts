@@ -116,6 +116,8 @@ const toNewIdentity = (draft: NewIdentity): NewIdentityInput => ({
   whyText: draft.whyText.trim() || undefined,
 });
 
+const lightKey = (days: number[]) => [...days].sort((a, b) => a - b).join(',');
+
 const snapshot = (values: HabitFormValues) =>
   JSON.stringify({ ...values, scheduleDays: [...values.scheduleDays].sort((a, b) => a - b) });
 
@@ -149,6 +151,9 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
   const [attempt, setAttempt] = useState(0);
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [initial, setInitial] = useState(emptyHabitForm);
+  // Lighter days are saved on their own, as they're not part of updateHabit.
+  const [lightDays, setLightDays] = useState<number[]>([]);
+  const [initialLightDays, setInitialLightDays] = useState<number[]>([]);
   const [values, setValues] = useState(emptyHabitForm);
   const [draft, setDraft] = useState<NewIdentity | null>(null);
   // A new habit starts today, on this phone's clock, so "after 30 days" counts from here.
@@ -180,6 +185,8 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
           : { ...emptyHabitForm(list.length === 1 ? list[0].id : null), title: initialTitle };
         setIdentities(list);
         setInitial(start);
+        setLightDays(habit?.light_days ?? []);
+        setInitialLightDays(habit?.light_days ?? []);
         setValues(start);
         setDraft(null);
         if (habit?.starts_on) setStartsOn(habit.starts_on);
@@ -290,6 +297,7 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
         const changes = changedFields(toHabitInput(visibleValues(initial), startsOn), input);
         if (newIdentity) changes.newIdentity = newIdentity;
         if (Object.keys(changes).length > 0) await tracker.updateHabit(habitId, changes);
+        if (lightKey(lightDays) !== lightKey(initialLightDays)) await tracker.setLightDays(habitId, lightDays);
         return;
       }
       await tracker.createHabit(input, newIdentity);
@@ -304,6 +312,7 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
 
   const dirty =
     snapshot(values) !== snapshot(initial) ||
+    lightKey(lightDays) !== lightKey(initialLightDays) ||
     (draft !== null && identityChanged && (draft.name.trim() !== '' || draft.whyText.trim() !== ''));
 
   const identityName = draft
@@ -318,6 +327,8 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
     values,
     initial,
     set,
+    lightDays,
+    setLightDays,
     errors: attempted ? findProblems(prepared(), draft) : {},
     draft,
     setDraft: changeDraft,
