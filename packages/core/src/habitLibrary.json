@@ -1,0 +1,4013 @@
+{
+ "habits": [
+  {
+   "id": "run",
+   "name": "Run",
+   "synonyms": [
+    "running",
+    "go for a run",
+    "jog",
+    "jogging",
+    "daudna",
+    "daud"
+   ],
+   "type": "count",
+   "target": 5,
+   "unit": "km",
+   "minimum": {
+    "description": "Run at least 1 km",
+    "target": 1
+   },
+   "setup": "Put on running shoes",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Rest days between runs help your legs recover.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "run",
+    "running",
+    "jog"
+   ]
+  },
+  {
+   "id": "walk",
+   "name": "Walk",
+   "synonyms": [
+    "walking",
+    "go for a walk",
+    "morning walk",
+    "evening walk",
+    "tahalna",
+    "sair",
+    "chalna"
+   ],
+   "type": "count",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Walk for 10 minutes",
+    "target": 10
+   },
+   "setup": "Put on your shoes and step outside",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "walk",
+    "walking"
+   ]
+  },
+  {
+   "id": "steps",
+   "name": "Step count",
+   "synonyms": [
+    "steps",
+    "step count",
+    "10k steps",
+    "daily steps",
+    "kadam"
+   ],
+   "type": "count",
+   "target": 8000,
+   "unit": "steps",
+   "minimum": {
+    "description": "Walk 3000 steps",
+    "target": 3000
+   },
+   "setup": "Take the stairs once",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "steps"
+   ]
+  },
+  {
+   "id": "workout",
+   "name": "Workout",
+   "synonyms": [
+    "work out",
+    "exercise",
+    "gym",
+    "go to the gym",
+    "training",
+    "kasrat",
+    "vyayam",
+    "gym jana"
+   ],
+   "type": "duration",
+   "target": 45,
+   "unit": "min",
+   "minimum": {
+    "description": "Work out for 15 minutes",
+    "target": 15
+   },
+   "setup": "Pack your gym bag",
+   "frequency": "per_week",
+   "perWeek": 4,
+   "reason": "Rest days help your muscles recover.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "gym",
+    "workout",
+    "exercise"
+   ]
+  },
+  {
+   "id": "strength",
+   "name": "Strength training",
+   "synonyms": [
+    "weights",
+    "lift",
+    "lifting",
+    "weight training",
+    "resistance training"
+   ],
+   "type": "duration",
+   "target": 40,
+   "unit": "min",
+   "minimum": {
+    "description": "One set of each exercise",
+    "target": 10
+   },
+   "setup": "Lay out your weights",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Muscles grow on the rest days in between.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "weights",
+    "lifting"
+   ]
+  },
+  {
+   "id": "yoga",
+   "name": "Yoga",
+   "synonyms": [
+    "do yoga",
+    "yog",
+    "yogasan",
+    "asana"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Five minutes of yoga",
+    "target": 5
+   },
+   "setup": "Roll out the mat",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "yoga"
+   ]
+  },
+  {
+   "id": "stretch",
+   "name": "Stretch",
+   "synonyms": [
+    "stretching",
+    "mobility",
+    "flexibility"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Stretch for 2 minutes",
+    "target": 2
+   },
+   "setup": "Stand up from your desk",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "stretch",
+    "stretching"
+   ]
+  },
+  {
+   "id": "pushups",
+   "name": "Push-ups",
+   "synonyms": [
+    "push ups",
+    "pushup",
+    "dand",
+    "dand baithak"
+   ],
+   "type": "count",
+   "target": 20,
+   "unit": "push-ups",
+   "minimum": {
+    "description": "Do 5 push-ups",
+    "target": 5
+   },
+   "setup": "Get down on the floor",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "push-ups",
+    "pushups"
+   ]
+  },
+  {
+   "id": "squats",
+   "name": "Squats",
+   "synonyms": [
+    "squat",
+    "baithak"
+   ],
+   "type": "count",
+   "target": 30,
+   "unit": "squats",
+   "minimum": {
+    "description": "Do 10 squats",
+    "target": 10
+   },
+   "setup": "Stand with your feet apart",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "squats"
+   ]
+  },
+  {
+   "id": "plank",
+   "name": "Plank",
+   "synonyms": [
+    "planks",
+    "core"
+   ],
+   "type": "duration",
+   "target": 2,
+   "unit": "min",
+   "minimum": {
+    "description": "Hold a plank for 20 seconds",
+    "target": 0.5
+   },
+   "setup": "Get into position",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "plank"
+   ]
+  },
+  {
+   "id": "cycle",
+   "name": "Cycle",
+   "synonyms": [
+    "cycling",
+    "bike",
+    "bike ride",
+    "ride a bike",
+    "cycle chalana"
+   ],
+   "type": "count",
+   "target": 10,
+   "unit": "km",
+   "minimum": {
+    "description": "Cycle for 2 km",
+    "target": 2
+   },
+   "setup": "Pump the tyres",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Rest days between rides help you recover.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "cycle",
+    "cycling",
+    "bike"
+   ]
+  },
+  {
+   "id": "swim",
+   "name": "Swim",
+   "synonyms": [
+    "swimming",
+    "go swimming",
+    "tairna"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Swim for 10 minutes",
+    "target": 10
+   },
+   "setup": "Pack your swimming bag",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Rest days between swims help you recover.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "swim",
+    "swimming"
+   ]
+  },
+  {
+   "id": "hiit",
+   "name": "HIIT",
+   "synonyms": [
+    "high intensity",
+    "interval training",
+    "tabata"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "One 5-minute round",
+    "target": 5
+   },
+   "setup": "Put on your workout clothes",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Hard sessions need a rest day after them.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "hiit"
+   ]
+  },
+  {
+   "id": "dance",
+   "name": "Dance",
+   "synonyms": [
+    "dancing",
+    "zumba",
+    "nachna"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Dance to one song",
+    "target": 4
+   },
+   "setup": "Put on a song",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week keeps it fun.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "dance",
+    "dancing"
+   ]
+  },
+  {
+   "id": "sport",
+   "name": "Play a sport",
+   "synonyms": [
+    "tennis",
+    "basketball",
+    "khelna",
+    "play a game"
+   ],
+   "type": "duration",
+   "target": 60,
+   "unit": "min",
+   "minimum": {
+    "description": "Play for 20 minutes",
+    "target": 20
+   },
+   "setup": "Pack your kit",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of games a week is a great start.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "sport",
+    "game"
+   ]
+  },
+  {
+   "id": "suryanamaskar",
+   "name": "Sun salutations",
+   "synonyms": [
+    "surya namaskar",
+    "suryanamaskar",
+    "sun salutation"
+   ],
+   "type": "count",
+   "target": 12,
+   "unit": "sun salutations",
+   "minimum": {
+    "description": "Do 3 sun salutations",
+    "target": 3
+   },
+   "setup": "Roll out the mat",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "surya namaskar"
+   ]
+  },
+  {
+   "id": "pranayam",
+   "name": "Breathing exercises",
+   "synonyms": [
+    "pranayama",
+    "pranayam",
+    "breathwork",
+    "anulom vilom",
+    "kapalbhati"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Five slow breaths",
+    "target": 1
+   },
+   "setup": "Sit up straight",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "pranayam",
+    "breathing"
+   ]
+  },
+  {
+   "id": "meditate",
+   "name": "Meditate",
+   "synonyms": [
+    "meditation",
+    "mindfulness",
+    "dhyan",
+    "dhyaan",
+    "sit quietly"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Meditate for 2 minutes",
+    "target": 2
+   },
+   "setup": "Sit down and close your eyes",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "meditate",
+    "dhyan"
+   ]
+  },
+  {
+   "id": "gratitude",
+   "name": "Gratitude journal",
+   "synonyms": [
+    "gratitude",
+    "grateful",
+    "three good things",
+    "shukriya"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write one thing you're grateful for",
+    "target": null
+   },
+   "setup": "Open your journal",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "gratitude"
+   ]
+  },
+  {
+   "id": "journal",
+   "name": "Journal",
+   "synonyms": [
+    "journaling",
+    "diary",
+    "write a diary",
+    "diary likhna"
+   ],
+   "type": "count",
+   "target": 1,
+   "unit": "pages",
+   "minimum": {
+    "description": "Write one line",
+    "target": null
+   },
+   "setup": "Open your journal",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "journal",
+    "diary"
+   ]
+  },
+  {
+   "id": "reflect",
+   "name": "Evening reflection",
+   "synonyms": [
+    "reflect",
+    "reflection",
+    "end of day reflection"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Think of one thing that went well",
+    "target": 1
+   },
+   "setup": "Sit down with a cup of tea",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "reflect"
+   ]
+  },
+  {
+   "id": "noscreen",
+   "name": "Screen-free hour before bed",
+   "synonyms": [
+    "no screens before bed",
+    "no phone before bed",
+    "digital sunset"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Put the phone away 15 minutes before bed",
+    "target": null
+   },
+   "setup": "Put your phone on charge outside the bedroom",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "screens",
+    "phone"
+   ]
+  },
+  {
+   "id": "sleep",
+   "name": "Sleep by 11",
+   "synonyms": [
+    "sleep early",
+    "bedtime",
+    "go to bed early",
+    "jaldi sona",
+    "sona"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Be in bed by midnight",
+    "target": null
+   },
+   "setup": "Set a bedtime alarm",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "sleep",
+    "bedtime"
+   ]
+  },
+  {
+   "id": "sleep8",
+   "name": "Sleep 8 hours",
+   "synonyms": [
+    "sleep eight hours",
+    "get enough sleep",
+    "neend"
+   ],
+   "type": "duration",
+   "target": 8,
+   "unit": "hours",
+   "minimum": {
+    "description": "Sleep 7 hours",
+    "target": 7
+   },
+   "setup": "Set a bedtime alarm",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "sleep"
+   ]
+  },
+  {
+   "id": "wakeup",
+   "name": "Wake up early",
+   "synonyms": [
+    "wake early",
+    "rise early",
+    "get up early",
+    "jaldi uthna",
+    "subah jaldi uthna"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Get up within 15 minutes of the alarm",
+    "target": null
+   },
+   "setup": "Put the alarm across the room",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Early Riser",
+   "voiceAliases": [
+    "wake up",
+    "get up"
+   ]
+  },
+  {
+   "id": "makebed",
+   "name": "Make the bed",
+   "synonyms": [
+    "make my bed",
+    "bed banana"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Pull the covers straight",
+    "target": null
+   },
+   "setup": "Get out of bed",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "bed"
+   ]
+  },
+  {
+   "id": "water",
+   "name": "Drink water",
+   "synonyms": [
+    "water",
+    "drink water",
+    "hydrate",
+    "stay hydrated",
+    "paani",
+    "paani peena",
+    "pani pina",
+    "pani"
+   ],
+   "type": "count",
+   "target": 8,
+   "unit": "glasses",
+   "minimum": {
+    "description": "Drink 4 glasses",
+    "target": 4
+   },
+   "setup": "Fill a bottle",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "water",
+    "paani"
+   ]
+  },
+  {
+   "id": "fruit",
+   "name": "Eat fruit",
+   "synonyms": [
+    "fruits",
+    "eat a fruit",
+    "phal khana",
+    "phal"
+   ],
+   "type": "count",
+   "target": 2,
+   "unit": "fruits",
+   "minimum": {
+    "description": "Eat one fruit",
+    "target": 1
+   },
+   "setup": "Put fruit where you can see it",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "fruit"
+   ]
+  },
+  {
+   "id": "veg",
+   "name": "Eat vegetables",
+   "synonyms": [
+    "vegetables",
+    "veggies",
+    "greens",
+    "sabzi",
+    "salad"
+   ],
+   "type": "count",
+   "target": 3,
+   "unit": "servings",
+   "minimum": {
+    "description": "Eat one serving of vegetables",
+    "target": 1
+   },
+   "setup": "Wash some vegetables",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "vegetables",
+    "veggies"
+   ]
+  },
+  {
+   "id": "breakfast",
+   "name": "Eat breakfast",
+   "synonyms": [
+    "breakfast",
+    "nashta"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Eat something small in the morning",
+    "target": null
+   },
+   "setup": "Set out a bowl",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "breakfast",
+    "nashta"
+   ]
+  },
+  {
+   "id": "nosugar",
+   "name": "No added sugar",
+   "synonyms": [
+    "no sugar",
+    "cut sugar",
+    "quit sugar",
+    "cheeni nahi",
+    "meetha nahi"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Skip sugar in one drink",
+    "target": null
+   },
+   "setup": "Clear sweets off the counter",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "sugar"
+   ]
+  },
+  {
+   "id": "nojunk",
+   "name": "No junk food",
+   "synonyms": [
+    "no junk",
+    "no fast food",
+    "healthy eating",
+    "eat healthy"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Swap one snack for fruit",
+    "target": null
+   },
+   "setup": "Put a healthy snack in your bag",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "junk food"
+   ]
+  },
+  {
+   "id": "cook",
+   "name": "Cook at home",
+   "synonyms": [
+    "cooking",
+    "cook dinner",
+    "home cooked meal",
+    "khana banana"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Make one simple dish",
+    "target": null
+   },
+   "setup": "Take out the ingredients",
+   "frequency": "per_week",
+   "perWeek": 4,
+   "reason": "A few home-cooked meals a week is a realistic start.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "cook",
+    "cooking"
+   ]
+  },
+  {
+   "id": "mealprep",
+   "name": "Meal prep",
+   "synonyms": [
+    "prep meals",
+    "meal planning"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Plan tomorrow's lunch",
+    "target": null
+   },
+   "setup": "Write a shopping list",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "One prep session covers the week.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "meal prep"
+   ]
+  },
+  {
+   "id": "vitamins",
+   "name": "Take vitamins",
+   "synonyms": [
+    "vitamin",
+    "supplements",
+    "multivitamin",
+    "dawai",
+    "medicine",
+    "take medicine"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Take them with breakfast",
+    "target": null
+   },
+   "setup": "Put the bottle next to your cup",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "vitamins",
+    "medicine"
+   ]
+  },
+  {
+   "id": "fast",
+   "name": "Intermittent fasting",
+   "synonyms": [
+    "fasting",
+    "intermittent fast",
+    "upvaas",
+    "vrat"
+   ],
+   "type": "duration",
+   "target": 12,
+   "unit": "hours",
+   "minimum": {
+    "description": "Fast for 10 hours",
+    "target": 10
+   },
+   "setup": "Finish dinner by 8",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "fasting"
+   ]
+  },
+  {
+   "id": "nosmoke",
+   "name": "Quit smoking",
+   "synonyms": [
+    "no smoking",
+    "stop smoking",
+    "quit cigarettes",
+    "cigarette chhodna"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Delay the first cigarette by an hour",
+    "target": null
+   },
+   "setup": "Throw away one pack",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "smoking",
+    "cigarettes"
+   ]
+  },
+  {
+   "id": "noalcohol",
+   "name": "No alcohol",
+   "synonyms": [
+    "quit drinking",
+    "no drinking",
+    "sober",
+    "sharab nahi"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Have a soft drink instead of one drink",
+    "target": null
+   },
+   "setup": "Keep a soft drink in the fridge",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "alcohol",
+    "drinking"
+   ]
+  },
+  {
+   "id": "nocaffeine",
+   "name": "Less caffeine",
+   "synonyms": [
+    "no coffee after 2",
+    "cut coffee",
+    "less coffee",
+    "less chai"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "No coffee after 4 pm",
+    "target": null
+   },
+   "setup": "Switch to a smaller cup",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "coffee",
+    "caffeine"
+   ]
+  },
+  {
+   "id": "floss",
+   "name": "Floss",
+   "synonyms": [
+    "flossing",
+    "dental floss"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Floss one tooth",
+    "target": null
+   },
+   "setup": "Put the floss next to your toothbrush",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "floss"
+   ]
+  },
+  {
+   "id": "skincare",
+   "name": "Skincare",
+   "synonyms": [
+    "skin care routine",
+    "moisturise",
+    "sunscreen"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Wash your face",
+    "target": null
+   },
+   "setup": "Put your products by the sink",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "skincare"
+   ]
+  },
+  {
+   "id": "posture",
+   "name": "Check posture",
+   "synonyms": [
+    "sit straight",
+    "posture"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Sit up straight once",
+    "target": null
+   },
+   "setup": "Stick a note on your screen",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "posture"
+   ]
+  },
+  {
+   "id": "eyebreak",
+   "name": "Eye breaks",
+   "synonyms": [
+    "rest my eyes",
+    "screen break"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Look away from the screen once",
+    "target": null
+   },
+   "setup": "Set a timer",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "eye break"
+   ]
+  },
+  {
+   "id": "sunlight",
+   "name": "Morning sunlight",
+   "synonyms": [
+    "get sunlight",
+    "dhoop"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Step outside for 2 minutes",
+    "target": 2
+   },
+   "setup": "Open the curtains",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "sunlight"
+   ]
+  },
+  {
+   "id": "coldshower",
+   "name": "Cold shower",
+   "synonyms": [
+    "cold showers",
+    "thanda paani"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "End your shower with 10 cold seconds",
+    "target": null
+   },
+   "setup": "Lay out your towel",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "cold shower"
+   ]
+  },
+  {
+   "id": "weigh",
+   "name": "Weigh myself",
+   "synonyms": [
+    "weigh in",
+    "check weight",
+    "weight"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Step on the scale",
+    "target": null
+   },
+   "setup": "Put the scale where you'll see it",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week shows the trend without the daily noise.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "weigh"
+   ]
+  },
+  {
+   "id": "read",
+   "name": "Read",
+   "synonyms": [
+    "reading",
+    "read a book",
+    "read books",
+    "padhna",
+    "kitab padhna",
+    "kitaab"
+   ],
+   "type": "count",
+   "target": 10,
+   "unit": "pages",
+   "minimum": {
+    "description": "Read at least 2 pages",
+    "target": 2
+   },
+   "setup": "Open the book",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Reader",
+   "voiceAliases": [
+    "read",
+    "reading",
+    "book"
+   ]
+  },
+  {
+   "id": "audiobook",
+   "name": "Listen to an audiobook",
+   "synonyms": [
+    "audiobook",
+    "audio book",
+    "podcast",
+    "listen to a podcast"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Listen for 5 minutes",
+    "target": 5
+   },
+   "setup": "Queue the next chapter",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Reader",
+   "voiceAliases": [
+    "audiobook",
+    "podcast"
+   ]
+  },
+  {
+   "id": "news",
+   "name": "Read the news",
+   "synonyms": [
+    "news",
+    "newspaper",
+    "akhbaar",
+    "akhbar"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "Read one article",
+    "target": 3
+   },
+   "setup": "Open the news app",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Reader",
+   "voiceAliases": [
+    "news"
+   ]
+  },
+  {
+   "id": "scripture",
+   "name": "Read scripture",
+   "synonyms": [
+    "gita",
+    "bhagavad gita",
+    "quran",
+    "bible",
+    "path",
+    "paath"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Read one verse",
+    "target": 1
+   },
+   "setup": "Open the book",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "scripture",
+    "paath"
+   ]
+  },
+  {
+   "id": "study",
+   "name": "Study",
+   "synonyms": [
+    "studying",
+    "revise",
+    "revision",
+    "padhai",
+    "padhai karna",
+    "homework"
+   ],
+   "type": "duration",
+   "target": 60,
+   "unit": "min",
+   "minimum": {
+    "description": "Study for 15 minutes",
+    "target": 15
+   },
+   "setup": "Open your notes",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "study",
+    "padhai"
+   ]
+  },
+  {
+   "id": "language",
+   "name": "Learn a language",
+   "synonyms": [
+    "language practice",
+    "duolingo",
+    "learn spanish",
+    "learn french",
+    "learn english",
+    "learn german",
+    "learn japanese"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "One lesson",
+    "target": 5
+   },
+   "setup": "Open the app",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "language",
+    "duolingo"
+   ]
+  },
+  {
+   "id": "vocab",
+   "name": "Learn new words",
+   "synonyms": [
+    "vocabulary",
+    "vocab",
+    "flashcards",
+    "anki"
+   ],
+   "type": "count",
+   "target": 20,
+   "unit": "flashcards",
+   "minimum": {
+    "description": "Review 5 flashcards",
+    "target": 5
+   },
+   "setup": "Open your deck",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "flashcards",
+    "vocab"
+   ]
+  },
+  {
+   "id": "course",
+   "name": "Online course",
+   "synonyms": [
+    "course",
+    "lecture",
+    "mooc",
+    "class",
+    "coursera",
+    "udemy"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Watch one short video",
+    "target": 10
+   },
+   "setup": "Open the course",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week keeps steady progress.",
+   "timeOfDay": "evening",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "course"
+   ]
+  },
+  {
+   "id": "code",
+   "name": "Practise coding",
+   "synonyms": [
+    "coding",
+    "programming",
+    "leetcode",
+    "code",
+    "dsa"
+   ],
+   "type": "duration",
+   "target": 45,
+   "unit": "min",
+   "minimum": {
+    "description": "Solve one small problem",
+    "target": 10
+   },
+   "setup": "Open your editor",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "coding",
+    "code"
+   ]
+  },
+  {
+   "id": "problems",
+   "name": "Solve practice problems",
+   "synonyms": [
+    "practice problems",
+    "maths practice",
+    "math problems",
+    "sawal"
+   ],
+   "type": "count",
+   "target": 10,
+   "unit": "problems",
+   "minimum": {
+    "description": "Solve 2 problems",
+    "target": 2
+   },
+   "setup": "Open the problem set",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "problems",
+    "maths"
+   ]
+  },
+  {
+   "id": "notes",
+   "name": "Review notes",
+   "synonyms": [
+    "revise notes",
+    "review my notes"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Read one page of notes",
+    "target": 5
+   },
+   "setup": "Open your notes",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "notes"
+   ]
+  },
+  {
+   "id": "write",
+   "name": "Write",
+   "synonyms": [
+    "writing",
+    "write words",
+    "write a book",
+    "likhna"
+   ],
+   "type": "count",
+   "target": 500,
+   "unit": "words",
+   "minimum": {
+    "description": "Write 100 words",
+    "target": 100
+   },
+   "setup": "Open the document",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "write",
+    "writing"
+   ]
+  },
+  {
+   "id": "blog",
+   "name": "Write a blog post",
+   "synonyms": [
+    "blogging",
+    "blog"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write the outline",
+    "target": null
+   },
+   "setup": "Open a draft",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "One post a week is a sustainable pace.",
+   "timeOfDay": "anytime",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "blog"
+   ]
+  },
+  {
+   "id": "draw",
+   "name": "Draw",
+   "synonyms": [
+    "drawing",
+    "sketch",
+    "sketching",
+    "chitra banana"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Draw for 5 minutes",
+    "target": 5
+   },
+   "setup": "Open your sketchbook",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "draw",
+    "sketch"
+   ]
+  },
+  {
+   "id": "paint",
+   "name": "Paint",
+   "synonyms": [
+    "painting"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Paint for 10 minutes",
+    "target": 10
+   },
+   "setup": "Set out your brushes",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week leaves room for ideas.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "paint",
+    "painting"
+   ]
+  },
+  {
+   "id": "music",
+   "name": "Practise an instrument",
+   "synonyms": [
+    "guitar",
+    "piano",
+    "practise guitar",
+    "practise piano",
+    "violin",
+    "flute",
+    "instrument",
+    "riyaaz",
+    "riyaz"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Play for 5 minutes",
+    "target": 5
+   },
+   "setup": "Take the instrument out",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "guitar",
+    "piano",
+    "music",
+    "riyaz"
+   ]
+  },
+  {
+   "id": "sing",
+   "name": "Sing",
+   "synonyms": [
+    "singing",
+    "vocal practice",
+    "gaana"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "Sing one song",
+    "target": 4
+   },
+   "setup": "Warm up your voice",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "sing",
+    "singing"
+   ]
+  },
+  {
+   "id": "photo",
+   "name": "Take a photo",
+   "synonyms": [
+    "photography",
+    "photo a day"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Take one photo",
+    "target": null
+   },
+   "setup": "Keep your camera handy",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "photo"
+   ]
+  },
+  {
+   "id": "project",
+   "name": "Work on my project",
+   "synonyms": [
+    "side project",
+    "project",
+    "build something",
+    "kaam"
+   ],
+   "type": "duration",
+   "target": 60,
+   "unit": "min",
+   "minimum": {
+    "description": "Open it and do one small thing",
+    "target": 10
+   },
+   "setup": "Open the project",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "project"
+   ]
+  },
+  {
+   "id": "deepwork",
+   "name": "Deep work",
+   "synonyms": [
+    "focus",
+    "focused work",
+    "deep focus"
+   ],
+   "type": "duration",
+   "target": 90,
+   "unit": "min",
+   "minimum": {
+    "description": "25 minutes of focus",
+    "target": 25
+   },
+   "setup": "Close every other tab",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "Deep work fits the working week.",
+   "timeOfDay": "morning",
+   "identity": "The Professional",
+   "voiceAliases": [
+    "deep work",
+    "focus",
+    "work"
+   ]
+  },
+  {
+   "id": "pomodoro",
+   "name": "Pomodoros",
+   "synonyms": [
+    "pomodoro",
+    "focus sessions"
+   ],
+   "type": "count",
+   "target": 4,
+   "unit": "pomodoros",
+   "minimum": {
+    "description": "One pomodoro",
+    "target": 1
+   },
+   "setup": "Set the timer",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "Focus sessions fit the working week.",
+   "timeOfDay": "morning",
+   "identity": "The Professional",
+   "voiceAliases": [
+    "pomodoro"
+   ]
+  },
+  {
+   "id": "inbox",
+   "name": "Inbox zero",
+   "synonyms": [
+    "clear inbox",
+    "emails",
+    "check email"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Answer one email",
+    "target": null
+   },
+   "setup": "Open your inbox",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "Once each working day keeps it under control.",
+   "timeOfDay": "afternoon",
+   "identity": "The Professional",
+   "voiceAliases": [
+    "inbox",
+    "email"
+   ]
+  },
+  {
+   "id": "plan",
+   "name": "Plan my day",
+   "synonyms": [
+    "daily plan",
+    "to-do list",
+    "todo list",
+    "planning",
+    "plan tomorrow"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write your top task",
+    "target": null
+   },
+   "setup": "Open your planner",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "plan",
+    "planning"
+   ]
+  },
+  {
+   "id": "weeklyreview",
+   "name": "Weekly review",
+   "synonyms": [
+    "review my week"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "List next week's top 3",
+    "target": null
+   },
+   "setup": "Open your calendar",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week is all a review needs.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "weekly review"
+   ]
+  },
+  {
+   "id": "tidy",
+   "name": "Tidy up",
+   "synonyms": [
+    "tidy",
+    "clean up",
+    "saaf safai",
+    "safai"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "Put away five things",
+    "target": 2
+   },
+   "setup": "Pick up one thing",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "tidy",
+    "clean"
+   ]
+  },
+  {
+   "id": "deepclean",
+   "name": "Deep clean",
+   "synonyms": [
+    "clean the house",
+    "deep cleaning",
+    "ghar ki safai"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Clean one room",
+    "target": null
+   },
+   "setup": "Get out the supplies",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week keeps the house in shape.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "clean",
+    "cleaning"
+   ]
+  },
+  {
+   "id": "dishes",
+   "name": "Do the dishes",
+   "synonyms": [
+    "wash dishes",
+    "bartan",
+    "bartan dhona"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Wash your own plate",
+    "target": null
+   },
+   "setup": "Fill the sink",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "dishes"
+   ]
+  },
+  {
+   "id": "laundry",
+   "name": "Laundry",
+   "synonyms": [
+    "washing clothes",
+    "kapde dhona"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Start one load",
+    "target": null
+   },
+   "setup": "Gather the clothes",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of loads a week keeps up.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "laundry"
+   ]
+  },
+  {
+   "id": "plants",
+   "name": "Water the plants",
+   "synonyms": [
+    "water plants",
+    "plants",
+    "paudhe"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Water one plant",
+    "target": null
+   },
+   "setup": "Fill the watering can",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Most plants like a drink every couple of days.",
+   "timeOfDay": "morning",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "plants"
+   ]
+  },
+  {
+   "id": "budget",
+   "name": "Track spending",
+   "synonyms": [
+    "track expenses",
+    "expenses",
+    "budget",
+    "budgeting",
+    "hisaab",
+    "hisab"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write down one expense",
+    "target": null
+   },
+   "setup": "Open the app",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Saver",
+   "voiceAliases": [
+    "spending",
+    "expenses"
+   ]
+  },
+  {
+   "id": "save",
+   "name": "Save money",
+   "synonyms": [
+    "saving",
+    "savings",
+    "bachat"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Put aside a small amount",
+    "target": null
+   },
+   "setup": "Open your savings account",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week makes saving a routine.",
+   "timeOfDay": "anytime",
+   "identity": "The Saver",
+   "voiceAliases": [
+    "savings"
+   ]
+  },
+  {
+   "id": "nospend",
+   "name": "No-spend day",
+   "synonyms": [
+    "no spend",
+    "no shopping"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Skip one purchase",
+    "target": null
+   },
+   "setup": "Remove saved cards from one app",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of no-spend days a week is a good start.",
+   "timeOfDay": "anytime",
+   "identity": "The Saver",
+   "voiceAliases": [
+    "no spend"
+   ]
+  },
+  {
+   "id": "invest",
+   "name": "Review investments",
+   "synonyms": [
+    "investing",
+    "sip"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Check one account",
+    "target": null
+   },
+   "setup": "Open the app",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week is plenty.",
+   "timeOfDay": "anytime",
+   "identity": "The Saver",
+   "voiceAliases": [
+    "investments"
+   ]
+  },
+  {
+   "id": "callfamily",
+   "name": "Call family",
+   "synonyms": [
+    "call mom",
+    "call mum",
+    "call dad",
+    "call parents",
+    "family call",
+    "ghar phone",
+    "maa ko phone"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Send a message",
+    "target": null
+   },
+   "setup": "Pick who to call",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of calls a week keeps you close.",
+   "timeOfDay": "evening",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "call family",
+    "call mom"
+   ]
+  },
+  {
+   "id": "friend",
+   "name": "Reach out to a friend",
+   "synonyms": [
+    "text a friend",
+    "message a friend",
+    "call a friend",
+    "dost"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Send one message",
+    "target": null
+   },
+   "setup": "Think of one friend",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of check-ins a week is plenty.",
+   "timeOfDay": "evening",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "friend"
+   ]
+  },
+  {
+   "id": "kind",
+   "name": "Act of kindness",
+   "synonyms": [
+    "kindness",
+    "be kind",
+    "help someone"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Say one kind thing",
+    "target": null
+   },
+   "setup": "Think of one person",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "kindness"
+   ]
+  },
+  {
+   "id": "compliment",
+   "name": "Give a compliment",
+   "synonyms": [
+    "compliments"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Notice one good thing about someone",
+    "target": null
+   },
+   "setup": "Look for it",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "compliment"
+   ]
+  },
+  {
+   "id": "volunteer",
+   "name": "Volunteer",
+   "synonyms": [
+    "volunteering",
+    "seva",
+    "sewa"
+   ],
+   "type": "duration",
+   "target": 60,
+   "unit": "min",
+   "minimum": {
+    "description": "Volunteer for 20 minutes",
+    "target": 20
+   },
+   "setup": "Look up a local group",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week is a meaningful habit.",
+   "timeOfDay": "anytime",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "volunteer",
+    "seva"
+   ]
+  },
+  {
+   "id": "date",
+   "name": "Date night",
+   "synonyms": [
+    "quality time",
+    "date with partner"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Share a cup of tea together",
+    "target": null
+   },
+   "setup": "Put it in the calendar",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week keeps it special.",
+   "timeOfDay": "evening",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "date night"
+   ]
+  },
+  {
+   "id": "kids",
+   "name": "Play with the kids",
+   "synonyms": [
+    "time with kids",
+    "play with children",
+    "bachchon ke saath"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Play for 10 minutes",
+    "target": 10
+   },
+   "setup": "Put your phone away",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "kids"
+   ]
+  },
+  {
+   "id": "pray",
+   "name": "Pray",
+   "synonyms": [
+    "prayer",
+    "puja",
+    "pooja",
+    "namaz",
+    "worship",
+    "prarthana"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Say one prayer",
+    "target": 1
+   },
+   "setup": "Light a diya",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "pray",
+    "puja",
+    "namaz"
+   ]
+  },
+  {
+   "id": "chant",
+   "name": "Chant",
+   "synonyms": [
+    "chanting",
+    "jap",
+    "japa",
+    "mantra",
+    "naam jap"
+   ],
+   "type": "count",
+   "target": 1,
+   "unit": "rounds",
+   "minimum": {
+    "description": "Chant for one minute",
+    "target": null
+   },
+   "setup": "Sit down with your mala",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "chant",
+    "jap"
+   ]
+  },
+  {
+   "id": "nature",
+   "name": "Time in nature",
+   "synonyms": [
+    "go outside",
+    "park",
+    "nature walk"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Step outside for 5 minutes",
+    "target": 5
+   },
+   "setup": "Put on your shoes",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few times a week lifts your mood.",
+   "timeOfDay": "anytime",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "nature"
+   ]
+  },
+  {
+   "id": "nophone",
+   "name": "Phone-free morning",
+   "synonyms": [
+    "no phone in the morning",
+    "no social media in the morning"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "No phone for the first 15 minutes",
+    "target": null
+   },
+   "setup": "Charge your phone outside the bedroom",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "phone"
+   ]
+  },
+  {
+   "id": "lesssocial",
+   "name": "Less social media",
+   "synonyms": [
+    "no social media",
+    "limit instagram",
+    "less instagram",
+    "less screen time"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Close the app once when you notice",
+    "target": null
+   },
+   "setup": "Move the app off your home screen",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "social media"
+   ]
+  },
+  {
+   "id": "breathe",
+   "name": "Breathing break",
+   "synonyms": [
+    "breathe",
+    "deep breaths",
+    "box breathing"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Take three slow breaths",
+    "target": null
+   },
+   "setup": "Notice your shoulders",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "breathe"
+   ]
+  },
+  {
+   "id": "selfcare",
+   "name": "Self-care",
+   "synonyms": [
+    "me time",
+    "relax",
+    "rest"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Five minutes for yourself",
+    "target": 5
+   },
+   "setup": "Put the kettle on",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "self-care"
+   ]
+  },
+  {
+   "id": "therapy",
+   "name": "Therapy homework",
+   "synonyms": [
+    "therapy",
+    "cbt worksheet"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Read your notes",
+    "target": null
+   },
+   "setup": "Open the worksheet",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "One session of homework a week.",
+   "timeOfDay": "anytime",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "therapy"
+   ]
+  },
+  {
+   "id": "learnskill",
+   "name": "Learn a new skill",
+   "synonyms": [
+    "skill",
+    "practise a skill",
+    "upskill"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Practise for 10 minutes",
+    "target": 10
+   },
+   "setup": "Open your materials",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week builds a skill.",
+   "timeOfDay": "evening",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "skill"
+   ]
+  },
+  {
+   "id": "typing",
+   "name": "Practise typing",
+   "synonyms": [
+    "typing practice",
+    "touch typing"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "One typing test",
+    "target": 2
+   },
+   "setup": "Open the site",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "typing"
+   ]
+  },
+  {
+   "id": "chess",
+   "name": "Play chess",
+   "synonyms": [
+    "chess",
+    "chess puzzles"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Solve one puzzle",
+    "target": 3
+   },
+   "setup": "Open the app",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "chess"
+   ]
+  },
+  {
+   "id": "puzzle",
+   "name": "Do a puzzle",
+   "synonyms": [
+    "crossword",
+    "sudoku",
+    "wordle"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Start one puzzle",
+    "target": null
+   },
+   "setup": "Open the puzzle",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "puzzle"
+   ]
+  },
+  {
+   "id": "memorise",
+   "name": "Memorise something",
+   "synonyms": [
+    "memorize",
+    "memorise a poem",
+    "shlok"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Learn one line",
+    "target": 2
+   },
+   "setup": "Open the text",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "memorise"
+   ]
+  },
+  {
+   "id": "research",
+   "name": "Read research",
+   "synonyms": [
+    "papers",
+    "read a paper",
+    "research papers"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Read one abstract",
+    "target": 5
+   },
+   "setup": "Open the paper",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few papers a week is steady progress.",
+   "timeOfDay": "anytime",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "research"
+   ]
+  },
+  {
+   "id": "networking",
+   "name": "Network",
+   "synonyms": [
+    "networking",
+    "linkedin",
+    "connect with someone"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Send one message",
+    "target": null
+   },
+   "setup": "Open LinkedIn",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of connections a week.",
+   "timeOfDay": "afternoon",
+   "identity": "The Professional",
+   "voiceAliases": [
+    "networking"
+   ]
+  },
+  {
+   "id": "jobapply",
+   "name": "Apply for jobs",
+   "synonyms": [
+    "job search",
+    "job applications",
+    "apply"
+   ],
+   "type": "count",
+   "target": 3,
+   "unit": "items",
+   "minimum": {
+    "description": "Send one application",
+    "target": 1
+   },
+   "setup": "Open the job board",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "Weekdays are when replies come.",
+   "timeOfDay": "morning",
+   "identity": "The Professional",
+   "voiceAliases": [
+    "apply",
+    "jobs"
+   ]
+  },
+  {
+   "id": "portfolio",
+   "name": "Work on my portfolio",
+   "synonyms": [
+    "portfolio",
+    "resume",
+    "cv"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Update one line",
+    "target": 5
+   },
+   "setup": "Open the file",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of sessions a week.",
+   "timeOfDay": "evening",
+   "identity": "The Professional",
+   "voiceAliases": [
+    "portfolio"
+   ]
+  },
+  {
+   "id": "nooverwork",
+   "name": "Stop work on time",
+   "synonyms": [
+    "log off on time",
+    "finish work on time"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Close the laptop at your set time",
+    "target": null
+   },
+   "setup": "Set a reminder",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "On working days.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "stop work"
+   ]
+  },
+  {
+   "id": "standup",
+   "name": "Stand up and move",
+   "synonyms": [
+    "stand up",
+    "move every hour",
+    "desk break"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Stand for one minute",
+    "target": null
+   },
+   "setup": "Set an hourly timer",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "stand up"
+   ]
+  },
+  {
+   "id": "hangout",
+   "name": "Spend time outdoors",
+   "synonyms": [
+    "outdoors",
+    "bahar jana"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Ten minutes outside",
+    "target": 10
+   },
+   "setup": "Open the door",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "outdoors"
+   ]
+  },
+  {
+   "id": "nosnooze",
+   "name": "No snooze",
+   "synonyms": [
+    "don't snooze",
+    "stop snoozing"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Get up on the second alarm",
+    "target": null
+   },
+   "setup": "Put the alarm across the room",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Early Riser",
+   "voiceAliases": [
+    "snooze"
+   ]
+  },
+  {
+   "id": "morningroutine",
+   "name": "Morning routine",
+   "synonyms": [
+    "morning ritual",
+    "subah ka routine"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Do the first step",
+    "target": null
+   },
+   "setup": "Lay things out the night before",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Early Riser",
+   "voiceAliases": [
+    "morning routine"
+   ]
+  },
+  {
+   "id": "eveningroutine",
+   "name": "Evening routine",
+   "synonyms": [
+    "night routine",
+    "wind down",
+    "bedtime routine"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Do the first step",
+    "target": null
+   },
+   "setup": "Dim the lights",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "evening routine"
+   ]
+  },
+  {
+   "id": "brush",
+   "name": "Brush teeth at night",
+   "synonyms": [
+    "brush my teeth",
+    "brushing"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Brush for one minute",
+    "target": null
+   },
+   "setup": "Put the toothbrush out",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "brush"
+   ]
+  },
+  {
+   "id": "shower",
+   "name": "Shower",
+   "synonyms": [
+    "bath",
+    "nahana"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Wash your face",
+    "target": null
+   },
+   "setup": "Lay out a towel",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "shower"
+   ]
+  },
+  {
+   "id": "hair",
+   "name": "Hair care",
+   "synonyms": [
+    "oil my hair",
+    "champi",
+    "hair oil"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Two minutes of care",
+    "target": null
+   },
+   "setup": "Put the oil out",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of times a week is plenty.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "hair"
+   ]
+  },
+  {
+   "id": "sleepnoscreens",
+   "name": "No phone in bed",
+   "synonyms": [
+    "phone out of bedroom"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Leave the phone on the table",
+    "target": null
+   },
+   "setup": "Get an alarm clock",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "phone in bed"
+   ]
+  },
+  {
+   "id": "tea",
+   "name": "Herbal tea instead of coffee",
+   "synonyms": [
+    "green tea",
+    "herbal tea"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Swap one cup",
+    "target": null
+   },
+   "setup": "Buy a box of tea",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "tea"
+   ]
+  },
+  {
+   "id": "protein",
+   "name": "Eat protein",
+   "synonyms": [
+    "protein",
+    "eat enough protein"
+   ],
+   "type": "count",
+   "target": 3,
+   "unit": "servings",
+   "minimum": {
+    "description": "Eat one serving of protein",
+    "target": 1
+   },
+   "setup": "Keep eggs, dal or paneer in stock",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "afternoon",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "protein"
+   ]
+  },
+  {
+   "id": "lunch",
+   "name": "Eat lunch away from my desk",
+   "synonyms": [
+    "lunch break",
+    "mindful lunch"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Five minutes away from the screen",
+    "target": null
+   },
+   "setup": "Pick a spot",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "On working days.",
+   "timeOfDay": "afternoon",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "lunch"
+   ]
+  },
+  {
+   "id": "nolateeat",
+   "name": "No eating after 9",
+   "synonyms": [
+    "no late snacks",
+    "no midnight snacks"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Stop eating by 10",
+    "target": null
+   },
+   "setup": "Brush your teeth after dinner",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "late eating"
+   ]
+  },
+  {
+   "id": "walkafterdinner",
+   "name": "Walk after dinner",
+   "synonyms": [
+    "post dinner walk",
+    "after-dinner walk",
+    "khane ke baad tahalna"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "Walk for 5 minutes",
+    "target": 5
+   },
+   "setup": "Put on your sandals",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "walk after dinner"
+   ]
+  },
+  {
+   "id": "bp",
+   "name": "Check blood pressure",
+   "synonyms": [
+    "blood pressure",
+    "bp check"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Take one reading",
+    "target": null
+   },
+   "setup": "Put the cuff by the bed",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "blood pressure"
+   ]
+  },
+  {
+   "id": "sugarcheck",
+   "name": "Check blood sugar",
+   "synonyms": [
+    "blood sugar",
+    "glucose",
+    "sugar test"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Take one reading",
+    "target": null
+   },
+   "setup": "Put the meter out",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "blood sugar"
+   ]
+  },
+  {
+   "id": "physio",
+   "name": "Physio exercises",
+   "synonyms": [
+    "physiotherapy",
+    "rehab",
+    "physio"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "One exercise",
+    "target": 3
+   },
+   "setup": "Lay out the band",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "physio"
+   ]
+  },
+  {
+   "id": "eyedrops",
+   "name": "Eye drops",
+   "synonyms": [
+    "drops"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Put them in once",
+    "target": null
+   },
+   "setup": "Leave them by the sink",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "eye drops"
+   ]
+  },
+  {
+   "id": "mood",
+   "name": "Track my mood",
+   "synonyms": [
+    "mood",
+    "mood journal",
+    "how I feel"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Pick one word for today",
+    "target": null
+   },
+   "setup": "Open the journal",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "mood"
+   ]
+  },
+  {
+   "id": "affirm",
+   "name": "Affirmations",
+   "synonyms": [
+    "affirmation",
+    "positive affirmations"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Say one out loud",
+    "target": null
+   },
+   "setup": "Stick a note on the mirror",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "affirmations"
+   ]
+  },
+  {
+   "id": "visualise",
+   "name": "Visualise my goals",
+   "synonyms": [
+    "visualisation",
+    "vision board"
+   ],
+   "type": "duration",
+   "target": 5,
+   "unit": "min",
+   "minimum": {
+    "description": "One minute",
+    "target": 1
+   },
+   "setup": "Look at your vision board",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "visualise"
+   ]
+  },
+  {
+   "id": "review_goals",
+   "name": "Review my goals",
+   "synonyms": [
+    "goals",
+    "goal review"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Read your top goal",
+    "target": null
+   },
+   "setup": "Open your goals",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Weekly keeps them in view.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "goals"
+   ]
+  },
+  {
+   "id": "email_parents",
+   "name": "Write a letter",
+   "synonyms": [
+    "write letters",
+    "letter"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write three lines",
+    "target": null
+   },
+   "setup": "Get the paper out",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week is lovely to receive.",
+   "timeOfDay": "anytime",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "letter"
+   ]
+  },
+  {
+   "id": "pet",
+   "name": "Walk the dog",
+   "synonyms": [
+    "dog walk",
+    "walk my dog",
+    "kutta ghumana"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Walk around the block",
+    "target": 10
+   },
+   "setup": "Get the lead",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "dog"
+   ]
+  },
+  {
+   "id": "garden",
+   "name": "Gardening",
+   "synonyms": [
+    "garden",
+    "kitchen garden",
+    "baagwani"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Five minutes in the garden",
+    "target": 5
+   },
+   "setup": "Put on gloves",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week keeps it growing.",
+   "timeOfDay": "morning",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "garden"
+   ]
+  },
+  {
+   "id": "craft",
+   "name": "Craft",
+   "synonyms": [
+    "crafts",
+    "knitting",
+    "crochet",
+    "sewing",
+    "embroidery",
+    "silai"
+   ],
+   "type": "duration",
+   "target": 20,
+   "unit": "min",
+   "minimum": {
+    "description": "Five minutes on the project",
+    "target": 5
+   },
+   "setup": "Set out your supplies",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "knitting",
+    "craft"
+   ]
+  },
+  {
+   "id": "cookingnew",
+   "name": "Try a new recipe",
+   "synonyms": [
+    "new recipe",
+    "cook something new"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Pick the recipe",
+    "target": null
+   },
+   "setup": "Save one recipe",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week keeps it fresh.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "recipe"
+   ]
+  },
+  {
+   "id": "videoedit",
+   "name": "Make a video",
+   "synonyms": [
+    "youtube",
+    "video",
+    "content",
+    "reel"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write the idea",
+    "target": null
+   },
+   "setup": "Open the editor",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple a week is sustainable.",
+   "timeOfDay": "anytime",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "video",
+    "content"
+   ]
+  },
+  {
+   "id": "designpractice",
+   "name": "Practise design",
+   "synonyms": [
+    "design",
+    "figma",
+    "ui practice"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "One small exercise",
+    "target": 10
+   },
+   "setup": "Open Figma",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week.",
+   "timeOfDay": "evening",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "design"
+   ]
+  },
+  {
+   "id": "learnmusic",
+   "name": "Music theory",
+   "synonyms": [
+    "theory",
+    "ear training"
+   ],
+   "type": "duration",
+   "target": 15,
+   "unit": "min",
+   "minimum": {
+    "description": "One exercise",
+    "target": 5
+   },
+   "setup": "Open the app",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few sessions a week.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "music theory"
+   ]
+  },
+  {
+   "id": "poetry",
+   "name": "Write poetry",
+   "synonyms": [
+    "poem",
+    "poems",
+    "shayari",
+    "kavita"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write one line",
+    "target": null
+   },
+   "setup": "Open a notebook",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "A few times a week keeps ideas flowing.",
+   "timeOfDay": "evening",
+   "identity": "The Creative",
+   "voiceAliases": [
+    "poetry",
+    "shayari"
+   ]
+  },
+  {
+   "id": "declutter",
+   "name": "Declutter one item",
+   "synonyms": [
+    "declutter",
+    "minimalism",
+    "get rid of things"
+   ],
+   "type": "count",
+   "target": 1,
+   "unit": "items",
+   "minimum": {
+    "description": "Pick one thing",
+    "target": null
+   },
+   "setup": "Find a box",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "declutter"
+   ]
+  },
+  {
+   "id": "bills",
+   "name": "Pay bills on time",
+   "synonyms": [
+    "bills",
+    "pay bills"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Check one due date",
+    "target": null
+   },
+   "setup": "Open your banking app",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "Once a week catches every due date.",
+   "timeOfDay": "anytime",
+   "identity": "The Saver",
+   "voiceAliases": [
+    "bills"
+   ]
+  },
+  {
+   "id": "cleardesk",
+   "name": "Clear my desk",
+   "synonyms": [
+    "tidy desk",
+    "clean desk"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Clear one corner",
+    "target": null
+   },
+   "setup": "Get a tray",
+   "frequency": "per_week",
+   "perWeek": 5,
+   "reason": "End of each working day.",
+   "timeOfDay": "evening",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "desk"
+   ]
+  },
+  {
+   "id": "groceries",
+   "name": "Plan groceries",
+   "synonyms": [
+    "shopping list",
+    "sabzi lana"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Write three items",
+    "target": null
+   },
+   "setup": "Open a list",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "One list a week.",
+   "timeOfDay": "anytime",
+   "identity": "The Organised One",
+   "voiceAliases": [
+    "groceries"
+   ]
+  },
+  {
+   "id": "hydrateam",
+   "name": "Glass of water on waking",
+   "synonyms": [
+    "morning water",
+    "warm water",
+    "garam paani"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Take three sips",
+    "target": null
+   },
+   "setup": "Put a glass by the bed",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "morning",
+   "identity": "The Healthy One",
+   "voiceAliases": [
+    "morning water"
+   ]
+  },
+  {
+   "id": "fastday",
+   "name": "Weekly fast",
+   "synonyms": [
+    "upvas",
+    "ekadashi"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Skip one snack",
+    "target": null
+   },
+   "setup": "Plan your meals",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "A weekly fast is the traditional rhythm.",
+   "timeOfDay": "anytime",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "fast",
+    "vrat"
+   ]
+  },
+  {
+   "id": "quitgaming",
+   "name": "Less gaming",
+   "synonyms": [
+    "no games",
+    "stop gaming",
+    "limit gaming"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Stop one game early",
+    "target": null
+   },
+   "setup": "Set a timer",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "gaming"
+   ]
+  },
+  {
+   "id": "nonetflix",
+   "name": "Less TV",
+   "synonyms": [
+    "no tv",
+    "no netflix",
+    "less netflix",
+    "binge"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "One episode only",
+    "target": null
+   },
+   "setup": "Turn off autoplay",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "evening",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "tv",
+    "netflix"
+   ]
+  },
+  {
+   "id": "nopornography",
+   "name": "Stay clean",
+   "synonyms": [
+    "no porn",
+    "nofap"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Leave the room when you notice an urge",
+    "target": null
+   },
+   "setup": "Install a blocker",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "stay clean"
+   ]
+  },
+  {
+   "id": "nogossip",
+   "name": "No gossip",
+   "synonyms": [
+    "stop gossiping"
+   ],
+   "type": "quit",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Change the subject once",
+    "target": null
+   },
+   "setup": "Notice when it starts",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "gossip"
+   ]
+  },
+  {
+   "id": "noanger",
+   "name": "Pause before reacting",
+   "synonyms": [
+    "anger",
+    "calm down",
+    "patience"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "One breath before answering",
+    "target": null
+   },
+   "setup": "Notice your shoulders",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Calm One",
+   "voiceAliases": [
+    "pause"
+   ]
+  },
+  {
+   "id": "learnhistory",
+   "name": "Learn something new",
+   "synonyms": [
+    "learn",
+    "today I learned",
+    "til"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Read one article",
+    "target": 3
+   },
+   "setup": "Open a page",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Learner",
+   "voiceAliases": [
+    "learn"
+   ]
+  },
+  {
+   "id": "teach",
+   "name": "Teach someone",
+   "synonyms": [
+    "mentor",
+    "mentoring",
+    "tutoring",
+    "padhana"
+   ],
+   "type": "duration",
+   "target": 30,
+   "unit": "min",
+   "minimum": {
+    "description": "Answer one question",
+    "target": 5
+   },
+   "setup": "Message your mentee",
+   "frequency": "per_week",
+   "perWeek": 1,
+   "reason": "One session a week.",
+   "timeOfDay": "anytime",
+   "identity": "The Connector",
+   "voiceAliases": [
+    "teach",
+    "mentor"
+   ]
+  },
+  {
+   "id": "challenge30",
+   "name": "30-day challenge",
+   "synonyms": [
+    "30 day challenge",
+    "thirty day challenge"
+   ],
+   "type": "boolean",
+   "target": null,
+   "unit": null,
+   "minimum": {
+    "description": "Do the smallest version",
+    "target": null
+   },
+   "setup": "Pick the challenge",
+   "frequency": "days",
+   "perWeek": null,
+   "reason": "Doing it every day makes it automatic.",
+   "timeOfDay": "anytime",
+   "identity": "The Maker",
+   "voiceAliases": [
+    "challenge"
+   ],
+   "endsAfterDays": 30
+  },
+  {
+   "id": "marathon",
+   "name": "Train for a marathon",
+   "synonyms": [
+    "marathon training",
+    "half marathon"
+   ],
+   "type": "count",
+   "target": 8,
+   "unit": "km",
+   "minimum": {
+    "description": "Run 2 km",
+    "target": 2
+   },
+   "setup": "Lay out your kit",
+   "frequency": "per_week",
+   "perWeek": 4,
+   "reason": "Rest days between runs prevent injury.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "marathon",
+    "training"
+   ]
+  },
+  {
+   "id": "pullups",
+   "name": "Pull-ups",
+   "synonyms": [
+    "pull ups",
+    "chin ups"
+   ],
+   "type": "count",
+   "target": 10,
+   "unit": "reps",
+   "minimum": {
+    "description": "One pull-up or hang",
+    "target": 1
+   },
+   "setup": "Hang from the bar",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Rest days help your arms recover.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "pull-ups"
+   ]
+  },
+  {
+   "id": "abs",
+   "name": "Core workout",
+   "synonyms": [
+    "abs",
+    "ab workout",
+    "crunches"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Two minutes of core",
+    "target": 2
+   },
+   "setup": "Lie down on the mat",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Core muscles need rest days too.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "abs",
+    "core"
+   ]
+  },
+  {
+   "id": "skipping",
+   "name": "Skipping rope",
+   "synonyms": [
+    "jump rope",
+    "skipping",
+    "rassi koodna"
+   ],
+   "type": "duration",
+   "target": 10,
+   "unit": "min",
+   "minimum": {
+    "description": "Skip for 1 minute",
+    "target": 1
+   },
+   "setup": "Get the rope out",
+   "frequency": "per_week",
+   "perWeek": 3,
+   "reason": "Rest days keep your joints happy.",
+   "timeOfDay": "morning",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "skipping",
+    "jump rope"
+   ]
+  },
+  {
+   "id": "badminton",
+   "name": "Badminton",
+   "synonyms": [
+    "play badminton"
+   ],
+   "type": "duration",
+   "target": 45,
+   "unit": "min",
+   "minimum": {
+    "description": "Play one game",
+    "target": 15
+   },
+   "setup": "Pack your racquet",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of games a week.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "badminton"
+   ]
+  },
+  {
+   "id": "cricket",
+   "name": "Cricket practice",
+   "synonyms": [
+    "cricket",
+    "nets",
+    "net practice"
+   ],
+   "type": "duration",
+   "target": 60,
+   "unit": "min",
+   "minimum": {
+    "description": "Practise for 20 minutes",
+    "target": 20
+   },
+   "setup": "Pack your kit",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of sessions a week.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "cricket"
+   ]
+  },
+  {
+   "id": "football",
+   "name": "Football",
+   "synonyms": [
+    "play football",
+    "soccer"
+   ],
+   "type": "duration",
+   "target": 60,
+   "unit": "min",
+   "minimum": {
+    "description": "Play for 20 minutes",
+    "target": 20
+   },
+   "setup": "Pack your boots",
+   "frequency": "per_week",
+   "perWeek": 2,
+   "reason": "A couple of games a week.",
+   "timeOfDay": "evening",
+   "identity": "The Athlete",
+   "voiceAliases": [
+    "football"
+   ]
+  }
+ ]
+}

@@ -1387,3 +1387,27 @@ Part 1 of the habit form work. PLAN.md and `docs/handoff/habit-creation.md` were
   - `rls_auto_enable()` and the `ensure_rls` trigger are still on live, and RLS is on for every public table.
 - **Tests:** core 1011, mobile 864 (including the Today tip and an onboarding test with no limit), web 28, backend 195. Lint is unchanged: 11 old warnings.
 - **Existing data (part 6):** existing habits got "anytime" and "specific days". Assigning each one a real time of day, and parsing its minimum text, needs the habit library. That runs as a backfill once the library exists (part 4).
+
+### The built-in habit library (7 Nov 2026)
+
+Part 4 of the habit form work.
+
+- **`packages/core/src/habitLibrary.json`** has 156 common habits, built from one table by `packages/core/scripts/build-habit-library.py`. Each has:
+  - a name and English and Hinglish synonyms;
+  - type, target and unit;
+  - minimum (description and amount) and setup;
+  - specific days or times per week, with a one-line reason;
+  - time of day, identity and voice aliases.
+  - The 30-day challenge also offers an end after 30 days, which is never switched on by itself.
+- **`habitLibrary.ts`:**
+  - `matchLibrary(name)` drops amounts, units and how-often words ("Run 20 km daily" is Run), then tries exact names and synonyms, then the longest synonym inside the name.
+  - `suggestNames(text)` gives the live suggestions while typing.
+- **`units.ts`:** units with what people type and say (Hindi too), conversions within distance, time and volume, and daily caps for suggestions. Sleep and fasting have their own caps: 10 and 16 hours.
+- **Tests (202 new):**
+  - Every entry is checked against the server's rules.
+  - No target is above its cap, and intense exercise (run, workout, strength, HIIT, cycling, swimming, pull-ups, marathon) is 4 times a week or fewer.
+  - No name belongs to two habits. Writing this check found 18 clashes, which were fixed.
+  - 15 English and 10 Hinglish names match (`paani peena`, `kasrat`, `padhai`, `dhyan`, `kitab padhna`), and unknown names match nothing.
+  - Unit conversion, and units that don't mix ("lines" for pages).
+- **Moved:** the backfill of existing habits runs at the end of part 3, not here. It needs part 3's minimum decoding and its AI suggestions for Pro test users.
+- **Tests:** core 1213, web 28. Core and mobile typecheck.
