@@ -1663,5 +1663,158 @@ select is(
   0, 'and week streaks agree with week_streak_stats'
 );
 
+
+-- ---------------------------------------------------------------------------
+-- Lighter days: the minimum is the goal on those weekdays
+-- ---------------------------------------------------------------------------
+select t.make_user(170);
+select t.pages(700, 170);
+select tracker.set_light_days(t.u(170), t.h(700), '{3}', '2000-01-01 12:00+00');
+select is(tracker.target_on(t.h(700), '2026-11-04'), 2::numeric, 'on a lighter Wednesday the target is the minimum');
+select is(tracker.target_on(t.h(700), '2026-11-05'), 10::numeric, 'and on Thursday it is the full target');
+select is((t.add(700, 170, '2026-11-04', 2) ->> 'level'), 'full', 'so 2 pages on Wednesday is the full version');
+select is((t.add(700, 170, '2026-11-05', 2) ->> 'level'), 'minimum', 'while 2 on Thursday is the minimum');
+select is(
+  (select (f.target)::numeric from tracker.day_facts(t.u(170), '2026-11-04', '2026-11-04', t.noon(170, '2026-11-06')) f where f.habit_id = t.h(700)),
+  2::numeric, 'analytics sees the lighter target too'
+);
+select is(
+  (select target from tracker.today_rows(t.u(170), t.noon(170, '2026-11-04')) where habit_id = t.h(700) and is_today),
+  2::numeric, 'and Today shows it'
+);
+select t.make_habit(701, 170, '2026-11-02');
+insert into public.habit_levels (habit_id, level, description) values (t.h(701), 'full', 'Run'), (t.h(701), 'minimum', 'Shoes on');
+select tracker.set_light_days(t.u(170), t.h(701), '{3}', '2000-01-01 12:00+00');
+select tracker.log_habit(t.u(170), t.h(701), '2026-11-04', 'minimum', null, 'tap', t.noon(170, '2026-11-04'));
+select tracker.log_habit(t.u(170), t.h(701), '2026-11-05', 'minimum', null, 'tap', t.noon(170, '2026-11-05'));
+select is(
+  (select array_agg(level_done::text order by date) from public.habit_logs where habit_id = t.h(701)),
+  array['full', 'minimum'], 'a yes/no minimum on a lighter day is logged as the full version'
+);
+select t.pages(702, 170);
+select tracker.set_light_days(t.u(170), t.h(702), '{3}', t.noon(170, '2026-11-10'));
+select is(
+  array[tracker.target_on(t.h(702), '2026-11-04'), tracker.target_on(t.h(702), '2026-11-11')],
+  array[10, 2]::numeric[], 'lighter days are dated: earlier Wednesdays keep their target'
+);
+select throws_like(
+  $$ select tracker.set_light_days(t.u(120), t.h(702), '{1}', now()) $$,
+  '%not found%', 'someone else''s habit can''t be changed'
+);
+select throws_like(
+  $$ select tracker.set_light_days(t.u(170), t.h(702), '{8}', now()) $$,
+  '%1 (Monday) to 7%', 'only real weekdays'
+);
+
+-- A second change on the same day still refreshes analytics.
+select t.pages(703, 170);
+create temporary table t_fp as select tracker.analytics_fingerprint(t.u(170), '2026-11-02', '2026-11-08', now()) as before;
+select tracker.update_habit(t.u(170), t.h(703), '{"target": 12}', now());
+update t_fp set before = tracker.analytics_fingerprint(t.u(170), '2026-11-02', '2026-11-08', now());
+select tracker.update_habit(t.u(170), t.h(703), '{"target": 14}', now());
+select isnt(tracker.analytics_fingerprint(t.u(170), '2026-11-02', '2026-11-08', now()), (select before from t_fp),
+  'a second target change on the same day changes the analytics fingerprint');
+
+-- ---------------------------------------------------------------------------
+-- Insights
+-- ---------------------------------------------------------------------------
+select t.make_user(171);
+update public.users set plan = 'pro' where id = t.u(171);
+select t.pages(710, 171);
+select t.make_user(172);
+select t.pages(720, 172);
+
+select is(
+  public.job_save_insights(t.u(171), jsonb_build_array(
+    jsonb_build_object('habit_id', t.h(710), 'kind', 'weak_weekday', 'key', 'weak_weekday:710:3', 'text', 'Wednesdays slip.',
+      'numbers', '{"weekday_rate": 0.4}'::jsonb, 'action', '{"type": "light_day", "weekday": 3}'::jsonb),
+    jsonb_build_object('habit_id', t.h(710), 'kind', 'target_too_high', 'key', 'target_too_high:710', 'text', 'Try 6 pages.',
+      'action', '{"type": "change_target", "target": 6}'::jsonb),
+    jsonb_build_object('habit_id', t.h(710), 'kind', 'weekly_fit', 'key', 'weekly_fit:710', 'text', 'Try 4 a week.',
+      'action', '{"type": "switch_per_week", "per_week": 4}'::jsonb),
+    jsonb_build_object('habit_id', null, 'kind', 'getting_stronger', 'key', 'stronger:710', 'text', 'Read is getting stronger.', 'action', null),
+    -- The same finding in the Overview, naming its habit in the action.
+    jsonb_build_object('habit_id', null, 'kind', 'weak_weekday', 'key', 'weak_weekday:710:3', 'text', 'Wednesdays slip.',
+      'action', jsonb_build_object('type', 'light_day', 'weekday', 3, 'habit_id', t.h(710))),
+    -- Someone else's habit is left out.
+    jsonb_build_object('habit_id', t.h(720), 'kind', 'weak_weekday', 'key', 'weak_weekday:720:3', 'text', 'Not yours.')
+  )),
+  5, 'the nightly job saves insights for the person, and only for their own habits'
+);
+select public.job_save_insights(t.u(172), jsonb_build_array(
+  jsonb_build_object('habit_id', t.h(720), 'kind', 'weak_weekday', 'key', 'weak_weekday:720:3', 'text', 'Free.',
+    'action', '{"type": "light_day", "weekday": 3}'::jsonb)
+));
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(171), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.get_insights(null)), 2, 'the Overview gets its insights');
+select is((select count(*)::int from public.get_insights(t.h(710))), 3, 'and a habit gets its own');
+
+create temporary table t_ins as
+  select kind, id, habit_id from public.insights where user_id = t.u(171);
+grant select on t_ins to authenticated;
+
+select public.apply_insight((select id from t_ins where kind = 'weak_weekday' and habit_id is null));
+select is((select light_days from public.habits where id = t.h(710)), '{3}'::smallint[], 'applying it from the Overview makes Wednesday a lighter day');
+select is(
+  (select string_agg((kind, actor)::text, ',') from public.activity_events where user_id = t.u(171) and kind like 'insight%'),
+  '(insight_applied,ai_assisted)', 'recorded as AI-assisted'
+);
+select isnt((select applied_at from public.get_insights(t.h(710)) where kind = 'weak_weekday'), null, 'and the habit''s card knows it was done too');
+select throws_like($$ select public.apply_insight((select id from t_ins where kind = 'weak_weekday' and habit_id is not null)) $$, '%Already done%', 'it happens once');
+select public.undo_insight((select id from t_ins where kind = 'weak_weekday' and habit_id is not null));
+select is((select light_days from public.habits where id = t.h(710)), '{}'::smallint[], 'undo puts it back');
+select is(
+  (select (kind, actor)::text from public.activity_events where user_id = t.u(171) and kind = 'insight_undone'),
+  '(insight_undone,user)', 'and the undo is recorded too'
+);
+
+select public.apply_insight((select id from t_ins where kind = 'target_too_high'));
+select is(
+  ((select target from public.habits where id = t.h(710)), tracker.target_on(t.h(710), current_date + 7))::text,
+  '(6,6)', 'a lower target changes the habit and its full level'
+);
+select public.undo_insight((select id from t_ins where kind = 'target_too_high'));
+select is(tracker.target_on(t.h(710), current_date + 7), 10::numeric, 'and undo restores both');
+
+select public.apply_insight((select id from t_ins where kind = 'weekly_fit'));
+select is((select (frequency, per_week)::text from public.habits where id = t.h(710)), '(per_week,4)', 'switching to times per week');
+select public.undo_insight((select id from t_ins where kind = 'weekly_fit'));
+select is((select (frequency, per_week)::text from public.habits where id = t.h(710)), '(days,)', 'and back');
+
+select throws_like($$ select public.apply_insight((select id from t_ins where kind = 'getting_stronger')) $$,
+  '%nothing to do%', 'a celebration has no action');
+
+select public.dismiss_insight((select id from t_ins where kind = 'weekly_fit'));
+select is((select count(*)::int from public.get_insights(t.h(710))), 2, 'a dismissed insight is gone');
+select is((select until - current_date from public.insight_dismissals where user_id = t.u(171) and key = 'weekly_fit:710') between 29 and 31, true,
+  'for 30 days');
+select set_config('request.jwt.claims', '', true);
+select public.job_save_insights(t.u(171), jsonb_build_array(
+  jsonb_build_object('habit_id', t.h(710), 'kind', 'weekly_fit', 'key', 'weekly_fit:710', 'text', 'Again.',
+    'action', '{"type": "switch_per_week", "per_week": 4}'::jsonb)
+));
+select set_config('request.jwt.claims', json_build_object('sub', t.u(171), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.get_insights(t.h(710))), 0, 'and stays hidden if it''s found again');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(172), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.get_insights(t.h(720))), 0, 'Free gets no insights from the server');
+select throws_like($$ select public.apply_insight((select id from public.insights where user_id = t.u(172))) $$,
+  '%Available on Pro%', 'and cannot apply one');
+select throws_like($$ select public.undo_insight((select id from t_ins where kind = 'weak_weekday' and habit_id is not null)) $$,
+  '%not found%', 'nor touch someone else''s');
+select set_config('request.jwt.claims', '', true);
+
+select is(has_function_privilege('authenticated', 'public.job_insight_data(uuid, timestamptz)', 'execute'), false,
+  'only the AI service reads job data');
+select is(has_function_privilege('authenticated', 'public.job_save_insights(uuid, jsonb, timestamptz)', 'execute'), false,
+  'or saves insights');
+select is(has_table_privilege('authenticated', 'public.insights', 'insert'), false, 'people cannot write insights themselves');
+select ok(public.job_insight_data(t.u(171)) ? 'analytics', 'job data carries the analytics');
+select is(
+  (select count(*)::int from public.job_insight_people() where user_id in (t.u(171), t.u(172))), 2,
+  'and everyone with a habit is considered'
+);
+
 select * from finish();
 rollback;

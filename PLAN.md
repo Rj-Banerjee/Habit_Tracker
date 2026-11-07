@@ -78,7 +78,7 @@ The apps never call the LLM directly. Every AI request goes through the FastAPI 
 
 ## Data model
 
-Twelve core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
+Fourteen core tables in Postgres cover v1. Streaks are computed from `habit_logs`, never stored as a counter, so back-logging and repairs can't drift out of sync.
 
 | Table | Key fields | Notes |
 | --- | --- | --- |
@@ -93,6 +93,8 @@ Twelve core tables in Postgres cover v1. Streaks are computed from `habit_logs`,
 | `activity_events` | id, user\_id, occurred\_at, kind, subject\_id, payload (jsonb), source, actor (user / ai\_assisted / ai) | Append-only; written in the same transaction as every `habit_logs` change |
 | `checkins` | user\_id, date, energy (1–5), sleep\_hours, mood (1–5), source (tap / voice / wearable) | One row a day, all fields optional. Owner-only, never shared with groups or teams. See Habit connections |
 | `findings` | id, user\_id, kind, subjects, direction, effect, sample, confidence, range, numbers (jsonb), found\_at | What the pattern engine measured. Owner-only |
+| `insights` | id, user\_id, habit\_id (null for the Overview), kind, key, text, numbers, action, made\_on, applied\_at, undo | Tonight's insights, worded. Owner-read only; only the nightly job writes them. `undo` holds what an applied action changed |
+| `insight_dismissals` | user\_id, key, until | "Not useful" hides a finding for 30 days |
 | `finding_answers` | user\_id, finding\_key, answer (yes / no / not\_sure), answered\_at | Feedback on a link; "No" hides it for 60 days |
 
 Schedules, times per week, targets, Shrink level definitions, time of day and end dates are dated, so a change never rewrites the past. See Streak rules. `users.seen_tips` records one-time tips and celebrations, so they show once on every device.
@@ -195,7 +197,8 @@ A habit is set to specific days (the default: all seven, untick days to skip) or
 
 ### Changing a habit
 
-- A change to a schedule, times per week, target, Shrink level, time of day or end date takes effect from the day it's made. Earlier days keep the settings they had.
+- A change to a schedule, times per week, target, Shrink level, time of day, lighter days or end date takes effect from the day it's made. Earlier days keep the settings they had.
+- **Lighter days:** weekdays when the minimum is the habit's goal. On those days the day's target is the minimum's amount, and doing the minimum counts as the full version. They're set in the habit's edit screen (under More), or by an insight's action.
 - Streak Repair uses the target that applied on the missed day.
 - The Compound Forecaster uses the target that applied on each day it reads.
 
@@ -321,8 +324,22 @@ Every chart can be tapped or hovered for the exact value and date, has a screen-
 
 2–3 insights per view (overall and per habit), generated in the nightly job from the computed metrics and cached, so opening analytics never waits on the AI. Each states the number behind it ("You complete Read 40% of Thursdays vs 85% overall"). Free sees every chart and metric, with a calm "Insights are available on Pro" card in their place, and the server refuses insights without the entitlement.
 
-- **Kinds:** weak weekday, wrong time of day, target too high (mostly minimum), getting stronger (a celebration), declining trend (a gentle check-in), helpful habit pairs, a reminder that isn't working.
-- **One action each**, done in one tap after a confirmation: move the time of day, change the target, switch to times per week, add a reminder, or use the minimum on a given weekday.
+- **How they're found:** plain arithmetic over the last 8 weeks of analytics data, in the AI service, with the same formulas as `packages/core` (a shared fixture checks both). No habit gets an insight before it has 3 weeks of history.
+
+  | Kind | Found when | Action |
+  | --- | --- | --- |
+  | Weak weekday | One weekday, due at least 4 times, is done 30 points or more below the other days (which need at least 12 due days) | Make that weekday a lighter day |
+  | Wrong time of day | Of at least 8 same-day logs, 60% or more fall in another part of the day | Move it there |
+  | Target too high | An amount habit with at least 10 judged days, the target reached on 30% or fewer, but done on at least half | Set the target to the usual amount (above the minimum) |
+  | Better as times per week | An every-day habit with at least 21 judged days, done on 35–70% of them, about the same number of days each week (2–6) | Switch to that many times a week |
+  | Getting stronger | Strength up 15 or more over 4 weeks, to 50 or more | None: a celebration |
+  | Declining | Strength down 15 or more over 4 weeks, and under 60% done in the last 2 weeks | None: a gentle check-in |
+  | Habits that go together | As the Overview's pairs: at least 20 shared days and phi of 0.4 or more | None |
+  | Reminder not working | At least 8 same-day logs, usually 2 hours or more after the reminder | Move the reminder to the usual time |
+
+- **Per view:** up to 3 for each habit, in that order of priority. The Overview gets the most useful one for each habit, then one pair, up to 3.
+- **Wording:** the fast model rewords each finding, given only the measured sentence. Its words are used only if every number in them was measured and all of them are still there, with nothing shaming and no claim of a cause. Otherwise the plain sentence stands. Free accounts never reach the model.
+- **One action each**, done in one tap after a confirmation: move the time of day, change the target, switch to times per week, move the reminder, or make a weekday lighter.
   - Actions are recorded in `activity_events` with actor `ai_assisted`.
   - The insight then offers Undo.
   - A dismissed insight isn't shown again for 30 days.

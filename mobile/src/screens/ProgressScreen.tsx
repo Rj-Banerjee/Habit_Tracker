@@ -22,6 +22,7 @@ import {
 } from '@habit-tracker/core';
 import { Button, Chip, SegmentedControl, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
 import { DayBars } from '../analytics/DayBars';
+import { InsightCards } from '../analytics/InsightCards';
 import { Stat, StatGrid } from '../analytics/StatGrid';
 import { useOverview } from '../hooks/useOverview';
 import { HabitDetailScreen } from './HabitDetailScreen';
@@ -91,6 +92,7 @@ export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressSc
       pairs: pairLines(now),
       identity: identityScores(data.habits.map(progressHabitOf), loaded.identityDays, today),
       habits: data.habits,
+      titles: Object.fromEntries(data.habits.map((h) => [h.id, h.title])),
     };
   }, [loaded, range]);
 
@@ -180,6 +182,10 @@ export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressSc
             </Section>
           </View>
         </View>
+
+        <Section title="Insights">
+          <InsightCards habitId={null} titles={view.titles} onChanged={() => void load()} />
+        </Section>
       </>
     );
   };

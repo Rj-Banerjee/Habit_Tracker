@@ -33,9 +33,9 @@ class Tracker:
             raise TrackerUnavailable from error
         return response.json()
 
-    async def _rpc(self, name: str) -> Any:
+    async def _rpc(self, name: str, args: dict[str, Any] | None = None) -> Any:
         try:
-            response = await self.client.post(f"/rpc/{name}", json={})
+            response = await self.client.post(f"/rpc/{name}", json=args or {})
             response.raise_for_status()
         except httpx.HTTPError as error:
             raise TrackerUnavailable from error
@@ -77,3 +77,10 @@ class Tracker:
             "/habits",
             {"select": "id,title,type,unit,voice_aliases", "archived_at": "is.null"},
         )
+
+    async def analytics(self, start: date, end: date) -> dict[str, Any]:
+        return await self._rpc("get_analytics", {"p_from": start.isoformat(), "p_to": end.isoformat()})
+
+    async def insights(self) -> list[dict[str, Any]]:
+        """The Overview's insights, already worded. Empty for Free: the database says so."""
+        return await self._rpc("get_insights", {"p_habit_id": None})

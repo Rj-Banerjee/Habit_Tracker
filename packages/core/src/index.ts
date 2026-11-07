@@ -26,6 +26,7 @@ export * from './habitDetail';
 export * from './habitForm';
 export * from './habitLibrary';
 export * from './habitReminders';
+export * from './insights';
 export * from './habitSetup';
 export * from './todayModel';
 export * from './theme';

@@ -1,0 +1,927 @@
+{
+ "_note": "Checked by metrics.test.ts and backend/tests/test_insights.py, so the app and the AI service compute the same numbers.",
+ "data": {
+  "from": "2026-09-07",
+  "to": "2026-11-01",
+  "today": "2026-11-01",
+  "habits": [
+   {
+    "id": "a",
+    "title": "A",
+    "type": "boolean",
+    "unit": null,
+    "frequency": "days",
+    "per_week": null,
+    "target": null,
+    "schedule_days": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "identity_id": "i1",
+    "identity_name": "I",
+    "colour_token": "identity-1",
+    "starts_on": "2026-09-07",
+    "ends_on": null,
+    "reminder_time": null,
+    "time_of_day": "anytime",
+    "milestone_amount": null,
+    "milestone_label": null,
+    "current_streak": 0,
+    "longest_streak": 0
+   },
+   {
+    "id": "b",
+    "title": "B",
+    "type": "boolean",
+    "unit": null,
+    "frequency": "per_week",
+    "per_week": 3,
+    "target": null,
+    "schedule_days": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "identity_id": "i1",
+    "identity_name": "I",
+    "colour_token": "identity-1",
+    "starts_on": "2026-09-07",
+    "ends_on": null,
+    "reminder_time": null,
+    "time_of_day": "anytime",
+    "milestone_amount": null,
+    "milestone_label": null,
+    "current_streak": 0,
+    "longest_streak": 0
+   }
+  ],
+  "days": [
+   {
+    "habit_id": "a",
+    "date": "2026-09-07",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-08",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-09",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-10",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-11",
+    "status": "protected",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-12",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-13",
+    "status": "skipped",
+    "log_status": "skipped",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-14",
+    "status": "repaired",
+    "log_status": "repaired",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-15",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-16",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-17",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-18",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-19",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-20",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-21",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-22",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-23",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-24",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-25",
+    "status": "protected",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-26",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-27",
+    "status": "skipped",
+    "log_status": "skipped",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-28",
+    "status": "repaired",
+    "log_status": "repaired",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-29",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-09-30",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-01",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-02",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-03",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-04",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-05",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-06",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-07",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-08",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-09",
+    "status": "protected",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-10",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-11",
+    "status": "skipped",
+    "log_status": "skipped",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-12",
+    "status": "repaired",
+    "log_status": "repaired",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-13",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-14",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-15",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-16",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-17",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-18",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-19",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-20",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-21",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-22",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-23",
+    "status": "protected",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-24",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-25",
+    "status": "skipped",
+    "log_status": "skipped",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-26",
+    "status": "repaired",
+    "log_status": "repaired",
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-27",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-28",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-29",
+    "status": "missed",
+    "log_status": null,
+    "level_done": null,
+    "amount": null,
+    "source": null,
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-30",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-10-31",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "minimum",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   },
+   {
+    "habit_id": "a",
+    "date": "2026-11-01",
+    "status": "done",
+    "log_status": "done",
+    "level_done": "full",
+    "amount": null,
+    "source": "tap",
+    "skip_reason": null,
+    "target": null,
+    "minimum": null,
+    "logged_minute": null
+   }
+  ],
+  "weeks": [
+   {
+    "habit_id": "b",
+    "week_start": "2026-09-07",
+    "status": "met",
+    "quota": 3,
+    "sessions": 3
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-09-14",
+    "status": "missed",
+    "quota": 3,
+    "sessions": 1
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-09-21",
+    "status": "met",
+    "quota": 3,
+    "sessions": 3
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-09-28",
+    "status": "repaired",
+    "quota": 3,
+    "sessions": 1
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-10-05",
+    "status": "met",
+    "quota": 3,
+    "sessions": 3
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-10-12",
+    "status": "met",
+    "quota": 3,
+    "sessions": 3
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-10-19",
+    "status": "missed",
+    "quota": 3,
+    "sessions": 1
+   },
+   {
+    "habit_id": "b",
+    "week_start": "2026-10-26",
+    "status": "met",
+    "quota": 3,
+    "sessions": 3
+   }
+  ],
+  "grace_spent": []
+ },
+ "expected": [
+  {
+   "habit_id": "a",
+   "strength": 65,
+   "weekday": [
+    [
+     8,
+     8
+    ],
+    [
+     4,
+     8
+    ],
+    [
+     8,
+     8
+    ],
+    [
+     0,
+     8
+    ],
+    [
+     4,
+     4
+    ],
+    [
+     8,
+     8
+    ],
+    [
+     4,
+     4
+    ]
+   ]
+  },
+  {
+   "habit_id": "b",
+   "strength": 56,
+   "weekday": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     0
+    ]
+   ]
+  }
+ ]
+}

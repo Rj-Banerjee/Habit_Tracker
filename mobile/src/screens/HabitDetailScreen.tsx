@@ -34,6 +34,7 @@ import {
 } from '@habit-tracker/core';
 import { Button, SegmentedControl, StreakChain, Text, useShortcut, useTheme } from '@habit-tracker/ui';
 import { DayBars } from '../analytics/DayBars';
+import { InsightCards } from '../analytics/InsightCards';
 import { HourHeatmap } from '../analytics/HourHeatmap';
 import { StatGrid } from '../analytics/StatGrid';
 import { StrengthLine } from '../analytics/StrengthLine';
@@ -86,7 +87,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function HabitDetailScreen({ habitId, title, identityName, today, onClose, onEdit }: HabitDetailScreenProps) {
   const { colors, identity } = useTheme();
   const [range, setRange] = useState<AnalyticsRange>('30d');
-  const { loaded, failed, loading } = useHabitAnalytics(habitId, today, range === 'all');
+  // Bumped after an insight's action, so the numbers show the change.
+  const [reload, setReload] = useState(0);
+  const { loaded, failed, loading } = useHabitAnalytics(habitId, today, range === 'all', reload);
   useShortcut('Escape', onClose);
 
   const view = useMemo(() => {
@@ -156,12 +159,20 @@ export function HabitDetailScreen({ habitId, title, identityName, today, onClose
           <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading the numbers" />
         ) : (
           <>
-            {loading ? (
+            {loading && range === 'all' ? (
               <Text variant="small" muted>
                 Loading all time…
               </Text>
             ) : null}
             <StatGrid stats={view.headline} />
+
+            <Section title="Insights">
+              <InsightCards
+                habitId={habitId}
+                titles={{ [habitId]: title }}
+                onChanged={() => setReload((count) => count + 1)}
+              />
+            </Section>
 
             <Section title="Strength">
               <StrengthLine points={view.strength} accent={view.accent} weekly={view.weekly} />

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
 import type { ReminderHabit } from './habitReminders';
+import type { Insight } from './insights';
 import type { AnalyticsData } from './metrics';
 import { IdentityToken } from './tokens';
 
@@ -220,6 +221,8 @@ export interface HabitDetail {
   per_week: number | null;
   ends_on: string | null;
   starts_on?: string;
+  // Weekdays when the minimum is the goal.
+  light_days?: number[];
   habit_levels: LevelOption[];
 }
 
@@ -409,7 +412,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, time_of_day, reminder_time, frequency, per_week, ends_on, starts_on, habit_levels(level, description, target)'
+            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, time_of_day, reminder_time, frequency, per_week, ends_on, starts_on, light_days, habit_levels(level, description, target)'
           )
           .eq('id', habitId)
           .single()
@@ -506,6 +509,17 @@ export function createTrackerApi(client: SupabaseClient) {
 
     // The order of habits in one section of Today, top first.
     setHabitOrder: (habitIds: string[]) => call('set_habit_order', { p_habit_ids: habitIds }),
+
+    // Insights (Pro): the Overview's when habitId is null. Free gets none from the server.
+    getInsights: (habitId: string | null) => call<Insight[]>('get_insights', { p_habit_id: habitId }),
+    applyInsight: (id: string) => call('apply_insight', { p_insight_id: id }),
+    undoInsight: (id: string) => call('undo_insight', { p_insight_id: id }),
+    // Not shown again for 30 days.
+    dismissInsight: (id: string) => call('dismiss_insight', { p_insight_id: id }),
+
+    // Weekdays (1 is Monday) when the minimum is the habit's goal. Dated.
+    setLightDays: (habitId: string, days: number[]) =>
+      call('set_light_days', { p_habit_id: habitId, p_days: days }),
 
     getWeekStatuses: (from: string, to: string) =>
       call<WeekStatusRow[]>('get_week_statuses', { p_from: from, p_to: to }),

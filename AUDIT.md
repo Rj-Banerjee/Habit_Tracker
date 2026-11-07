@@ -1671,3 +1671,33 @@ Two features the user asked to plan, written into PLAN.md:
 - **When it can't load,** the card keeps its old line and the review works as before.
 - **Docker:** quit when not in use, at the user's request. It's started only for SQL tests and stopped right after.
 - **Tests:** core 1395 (the report: change, strongest and care, best day, all done, weekly habits, an empty week; the Sunday card's text), mobile 952 (the Sunday card on Today, no fetch on other days, the review's numbers and opening without them). Earlier time-outs in the mobile suite came from the build and Docker sharing the machine; they pass on their own.
+
+### Analytics, part 5: AI insights (8 Nov 2026)
+
+- **What's built:** insight cards in the Overview and Habit detail (Pro). Each card has the number behind it, one action, a confirm step, Undo, and "Not useful" (hidden for 30 days). Free sees "Insights are available on Pro." and never asks the server.
+- **How they're found** (`backend/app/insights.py`, the nightly job `/jobs/nightly-insights`):
+  - Plain arithmetic over 8 weeks of `get_analytics` data finds weak weekdays, the wrong time of day, targets too high, habits better as times per week, getting stronger, declining, habits that go together, and reminders that come too early. The thresholds are in PLAN.md.
+  - Nothing is said about a habit with under 3 weeks of history.
+  - A shared fixture (`packages/core/src/fixtures/analyticsParity.json`) is checked by both the app's and the AI service's tests, so strength and weekday rates match.
+- **Wording:**
+  - The fast model rewords each measured sentence. Its words are kept only if every number in them was measured, all of them are still there, and nothing shames or claims a cause. Otherwise the plain sentence stands.
+  - The model sees numbered sentences only, no ids.
+  - At first every live wording was dropped, because the model mangled the long keys; numbering the sentences fixed it.
+  - Only test accounts reach the model on the free AI tier.
+- **The server enforces Pro:** `get_insights` returns nothing for Free, and `apply_insight` refuses. The job only writes for Pro (test accounts count) and clears everyone else's.
+- **Actions** (`apply_insight` and `undo_insight`): move the time of day, change the target (and its full level), switch to times per week, move the reminder, or make a weekday lighter. Each is recorded in `activity_events` as `insight_applied` with actor `ai_assisted`, and `insight_undone` with actor `user`. An Overview card names its habit in its action, and applying it marks the habit's card done too.
+- **Lighter days** (asked and chosen: "lighter goal that day"):
+  - A dated setting, `habits.light_days`. On those weekdays `target_on` is the minimum, a minimum tap is logged as full, and analytics and Today show the lighter target. Earlier days keep theirs.
+  - Set from an insight, or under More in the habit's edit screen.
+- **Coach chat** gets each habit's last 30 days (done, full and minimum, weakest weekday, strength) and the insights found, so it can answer "why did my reading drop?" from measured numbers. It's told never to claim a cause. Without them it says "Not available right now" and still answers.
+- **Fixed on the way:** the analytics cache missed a second change made on the same day (it rewrites that day's version). The fingerprint now covers every dated setting.
+- **Migration** `20261108000400_insights_and_light_days.sql`, and a new `ai-nightly-insights` schedule at 03:45 UTC, which does nothing until the AI service is hosted.
+- **Speed:** a year of 20 habits still loads cold in 0.72–0.80 s.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 16 of 17 checks passed with temporary users, who were then deleted: logs written and read back; lighter days set, and not by another user; insights saved by the job; refused for Free; shown, applied (AI-assisted) and undone for Pro; another user can't apply them; the publishable key reads none; job functions refused to everyone but the secret key; dismissing hides it.
+  - The 17th expected another user's direct read of `insights` to come back empty; it was refused outright ("permission denied"), which is stricter. The app reads only through `get_insights`.
+  - `rls_auto_enable` and `ensure_rls` are still there, and both new tables have RLS on.
+  - The job was run by hand against live from the Mac, with a one-off secret: 7 insights for the +test account (weak Wednesdays for Read and Morning run, Read's 30-page target, Run done in the morning but set for the evening) and 3 accounts cleared.
+- **Docker** was started only for the SQL tests and the push, then closed.
+- **Tests:** SQL 491, core 1397 (action wording, the shared fixture), mobile 974 (the cards: confirm, cancel, Undo, Not useful, errors, empty, the Free card; the edit form's lighter days; the screens), frontend 28, backend 240 (every rule, an even pattern and too little history finding nothing, wording checks, the job on Pro and Free, running twice, a failed run, the coach's numbers).

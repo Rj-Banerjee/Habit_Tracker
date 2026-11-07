@@ -492,3 +492,20 @@ describe('the Overview', () => {
     expect(lines).toEqual(['When you do Read, you do Run 100% of the time (over 24 days).']);
   });
 });
+
+describe('the same numbers as the AI service', () => {
+  // backend/tests/test_insights.py checks this fixture too.
+  it('works out strength and weekday rates the same way', async () => {
+    const fixture = (await import('./fixtures/analyticsParity.json')).default as unknown as {
+      data: AnalyticsData;
+      expected: { habit_id: string; strength: number; weekday: number[][] }[];
+    };
+    for (const expected of fixture.expected) {
+      const h = fixture.data.habits.find((x) => x.id === expected.habit_id)!;
+      expect(habitStrength(h, fixture.data)).toBe(expected.strength);
+      if (h.frequency === 'days') {
+        expect(timing(fixture.data, [h.id]).byWeekday.map((slot) => [slot.done, slot.judged])).toEqual(expected.weekday);
+      }
+    }
+  });
+});

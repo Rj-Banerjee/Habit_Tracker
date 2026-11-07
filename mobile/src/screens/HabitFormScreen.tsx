@@ -31,6 +31,7 @@ import {
   TextField,
   useLayoutSize,
   useTheme,
+  WeekdayPicker,
 } from '@habit-tracker/ui';
 import { DaysField, EndField, MinimumField, ReminderField, TimeOfDayField } from '../habits/HabitFields';
 import { IdentitySection } from '../habits/IdentitySection';
@@ -342,6 +343,15 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
                       />
                     </FieldAnchor>
                   ) : null}
+                  {values.frequency === 'days' ? (
+                    <View style={styles.lighter}>
+                      <Text variant="small">Lighter days</Text>
+                      <Text variant="small" muted>
+                        On these days the minimum is the goal. Earlier days stay as they were.
+                      </Text>
+                      <WeekdayPicker name="Lighter" days={form.lightDays} onChange={form.setLightDays} />
+                    </View>
+                  ) : null}
                   <TextField
                     label="Just set up"
                     hint="The first step, like putting on your shoes."
@@ -433,6 +443,7 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  lighter: { gap: space.sm },
   content: {
     gap: space.xl,
     width: '100%',

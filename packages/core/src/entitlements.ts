@@ -15,6 +15,7 @@ export const FEATURES = [
   'ai.nudges',
   'ai.voice',
   'ai.setup',
+  'ai.insights',
   'themes.game',
   'social',
   // Ultra
@@ -25,7 +26,7 @@ export const FEATURES = [
 export type Feature = (typeof FEATURES)[number];
 
 const FREE: Feature[] = ['tracker', 'voice.simple', 'themes.standard'];
-const PRO: Feature[] = [...FREE, 'ai.coach', 'ai.nudges', 'ai.voice', 'ai.setup', 'themes.game', 'social'];
+const PRO: Feature[] = [...FREE, 'ai.coach', 'ai.nudges', 'ai.voice', 'ai.setup', 'ai.insights', 'themes.game', 'social'];
 const ULTRA: Feature[] = [...PRO, 'workspace'];
 const ENTERPRISE: Feature[] = [...ULTRA, 'team'];
 

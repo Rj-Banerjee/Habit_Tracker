@@ -16,12 +16,12 @@ interface Loaded {
 
 // One habit's analytics. It loads a year at once, so changing the range is instant; all
 // time loads the rest only when it's asked for. The server keeps the result cached.
-export function useHabitAnalytics(habitId: string, today: string, allTime: boolean) {
+export function useHabitAnalytics(habitId: string, today: string, allTime: boolean, reload = 0) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
   // The key of what's loaded, so a new request shows loading without an effect setting state.
   const [loadedKey, setLoadedKey] = useState('');
-  const key = `${habitId}:${today}:${allTime ? 'all' : 'year'}`;
+  const key = `${habitId}:${today}:${allTime ? 'all' : 'year'}:${reload}`;
 
   useEffect(() => {
     let live = true;
