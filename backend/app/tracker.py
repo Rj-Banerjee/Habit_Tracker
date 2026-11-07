@@ -81,6 +81,10 @@ class Tracker:
     async def analytics(self, start: date, end: date) -> dict[str, Any]:
         return await self._rpc("get_analytics", {"p_from": start.isoformat(), "p_to": end.isoformat()})
 
+    async def connections(self) -> list[dict[str, Any]]:
+        """Links measured between their habits, explained. Empty for Free."""
+        return await self._rpc("get_connections", {"p_habit_id": None})
+
     async def insights(self) -> list[dict[str, Any]]:
         """The Overview's insights, already worded. Empty for Free: the database says so."""
         return await self._rpc("get_insights", {"p_habit_id": None})

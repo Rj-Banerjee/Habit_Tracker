@@ -4,6 +4,7 @@ export * from './analytics';
 export * from './chain';
 export * from './checkin';
 export * from './coachCard';
+export * from './connections';
 export * from './entitlements';
 export * from './focus';
 export * from './live';

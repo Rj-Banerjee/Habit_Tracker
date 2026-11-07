@@ -1722,3 +1722,40 @@ Two features the user asked to plan, written into PLAN.md:
   - `rls_auto_enable` and `ensure_rls` are still there; `checkins` has RLS on.
 - **Docker** was on only for the SQL tests and the push.
 - **Tests:** SQL 517, core 1416 (when the card shows; 13 spoken phrases including Hinglish; non-check-in phrases; the replies), mobile 990 (the card: taps, Save, skip, the evening setting, the offer, failing quietly; voice: saving and a Sleep habit; the You setting and delete), frontend 28, backend 240.
+
+### Habit connections, parts 2–3, and the server side of 4 and 6 (8 Nov 2026)
+
+The user asked for all of Habit connections to be finished before one phone build.
+
+- **Pattern engine** (`backend/app/connections.py`, nightly `/jobs/nightly-connections` at 03:30 UTC; no AI):
+  - Over 90 days it tests same-day and next-day links between habits, the day after a big amount, amount against amount, low sleep, energy or mood against each habit, each habit against the next day's energy, skip reasons, time-of-day clashes and overload.
+  - Fisher's exact and seeded permutation tests, with a Benjamini–Hochberg correction across every test for that person.
+  - Each finding is saved with its habits or signals, direction, effect, sample, confidence, range and supporting numbers.
+  - It runs in the AI service rather than SQL (the user allowed either), and PLAN.md says so.
+- **Two thresholds changed while testing,** both written into PLAN.md:
+  - A "big amount" is split at the widest gap in the amounts, not the median. With 16 km sitting on the median, only 11 days counted as big.
+  - A clash is "at most half as often as if unrelated, and 15 points less". "25 points less" could only ever fire for two exactly opposite habits at 50% each.
+- **Explanations:**
+  - Each finding gets a plain "seems linked" sentence and a yes/no question.
+  - The fast model rewords them, kept only if the numbers match exactly, it says "seem", the question is a question, and nothing claims a cause or sounds medical.
+  - Fixes are worked out in code, never by the model: rest the habit after a draining one, a rest day, times per week, another part of the day, first in its part of the day, a lighter weekday. Never a harder target.
+- **Answers:** "No" hides a link for 60 days, "Yes" puts it first, and both reach the engine and the coach.
+- **New dated settings:**
+  - "Rest after a habit" (`light_after`): the day after it's done, the goal is the minimum.
+  - One-day minimums (`day_overrides`) for the heads-up and Autopilot.
+  - Analytics, Today and logging all see them.
+- **Every AI change in one place** (`ai_changes`, via `tracker.apply_change`): insights, connection fixes, the heads-up and Autopilot. Each has an actor (`ai_assisted` or `ai`), a reason, and Undo, and is recorded in `activity_events`. Insights now go through it too.
+- **Heads-up, warning and Autopilot** (database):
+  - The heads-up is before noon, at most one a day: yesterday's draining habit, today's habit that tends to slip, fix "minimum today".
+  - The warning is at most weekly: an overload hitting 2+ habits, one habit linked to 2+ slipping, or 2+ declining.
+  - Autopilot is off by default. The database itself refuses anything but order, part of the day or a one-day minimum from it.
+- **Safety:** two weeks of check-ins with sleep under 5 or over 10 hours, or energy of 1–2, bring a gentle note suggesting a doctor (fixed text, never through the model). Nothing ever suggests a harder target.
+- **Coach chat** gets the links and the answers to them.
+- **Seed script:** check-ins on most days, and a hidden pattern: after a "Long run" of 16 km or more, energy is low and "Study" mostly slips. Both habits are added if missing.
+  - On a local +test account the engine found exactly that, with high confidence: Study 43% against 87% after long runs, 41% against 88% on low-energy days, and next-day energy 2.7 against 4. Nothing else was linked.
+- **Live:**
+  - The dry run listed only migrations 0600, 0700 and 0800, and the push applied them.
+  - 19 checks passed with two temporary users, who were then deleted: the engine's read and save; Pro sees the finding; the heads-up; a fix applied, in the history, and undone; Autopilot lightening today and shown on Today; Autopilot not runnable by a person; "No" hiding the link; the other user and the publishable key getting nothing.
+  - `rls_auto_enable` and `ensure_rls` are still there; RLS is on for all four new tables.
+- **Speed:** a year of 20 habits still loads cold in 0.77–0.88 s.
+- **Tests:** SQL 577, backend 281 (the engine on planted data, pure noise and thresholds; fixes; wording checks with mocked findings; safety; the job and Autopilot's notice; the coach), core 1421.

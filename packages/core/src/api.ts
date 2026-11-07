@@ -3,6 +3,7 @@ import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
 import type { ReminderHabit } from './habitReminders';
 import type { CheckinAnswer, CheckinState, CheckinTime } from './checkin';
+import type { AiChange, Connection, FindingAnswer, HeadsUp, Warning } from './connections';
 import type { Insight } from './insights';
 import type { AnalyticsData } from './metrics';
 import { IdentityToken } from './tokens';
@@ -517,6 +518,29 @@ export function createTrackerApi(client: SupabaseClient) {
     undoInsight: (id: string) => call('undo_insight', { p_insight_id: id }),
     // Not shown again for 30 days.
     dismissInsight: (id: string) => call('dismiss_insight', { p_insight_id: id }),
+
+    // Habit connections (Pro). The Overview's when habitId is null.
+    getConnections: (habitId: string | null) => call<Connection[]>('get_connections', { p_habit_id: habitId }),
+    answerConnection: (id: string, answer: FindingAnswer) =>
+      call('answer_finding', { p_finding_id: id, p_answer: answer }),
+    // Returns the change's id, for Undo.
+    applyConnectionFix: (id: string, fix: number) =>
+      call<string>('apply_connection_fix', { p_finding_id: id, p_fix: fix }),
+    getHeadsUp: () => call<HeadsUp | null>('get_heads_up'),
+    applyHeadsUp: (findingId: string) => call<string>('apply_heads_up', { p_finding_id: findingId }),
+    dismissHeadsUp: () => call('dismiss_heads_up'),
+    getWarning: () => call<Warning | null>('get_warning'),
+    snoozeWarning: () => call('snooze_warning'),
+
+    // Every change the AI made, newest first, and undoing one.
+    getAiChanges: () => call<AiChange[]>('get_ai_changes', { p_limit: 50 }),
+    getUnseenAiChanges: () =>
+      call<{ id: string; habit_title: string; reason: string; applied_at: string }[]>('get_unseen_ai_changes'),
+    undoAiChange: (id: string) => call('undo_ai_change', { p_change_id: id }),
+    markAiChangesSeen: () => call('mark_ai_changes_seen'),
+    getAutopilot: async () =>
+      (await select<{ autopilot: boolean }>(client.from('users').select('autopilot').single())).autopilot,
+    setAutopilot: (on: boolean) => call('set_autopilot', { p_on: on }),
 
     // The daily check-in. Private to its owner.
     getCheckinState: () => call<CheckinState>('get_checkin_state'),

@@ -121,3 +121,13 @@ class JobDb(ServiceDb):
 
     async def save_insights(self, user_id: str, items: list[dict[str, Any]]) -> int:
         return int(await self.rpc("job_save_insights", {"p_user": user_id, "p_items": items}))
+
+    async def connection_data(self, user_id: str) -> dict[str, Any]:
+        return await self.rpc("job_connection_data", {"p_user": user_id})
+
+    async def save_findings(self, user_id: str, items: list[dict[str, Any]]) -> int:
+        return int(await self.rpc("job_save_findings", {"p_user": user_id, "p_items": items}))
+
+    async def autopilot(self, user_id: str) -> list[dict[str, Any]]:
+        """Autopilot's changes for today, if they turned it on. Each can be undone."""
+        return await self.rpc("job_autopilot", {"p_user": user_id})
