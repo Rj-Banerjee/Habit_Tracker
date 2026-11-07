@@ -142,7 +142,11 @@ function SignedInScreens({
         />
       </View>
       <View style={[styles.root, tab !== 'progress' && styles.hidden]}>
-        <ProgressScreen active={tab === 'progress'} onOpenReview={() => setReviewing(true)} />
+        <ProgressScreen
+          active={tab === 'progress'}
+          onOpenReview={() => setReviewing(true)}
+          onEditHabit={(habitId) => setHabitForm({ habitId })}
+        />
       </View>
       <View style={[styles.root, tab !== 'you' && styles.hidden]}>
         <YouScreen

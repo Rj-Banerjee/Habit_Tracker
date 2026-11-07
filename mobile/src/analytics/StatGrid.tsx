@@ -8,6 +8,8 @@ export interface Stat {
   value: string;
   // A short note under it, like "12 of 18 days".
   note?: string;
+  // When the words for a screen reader differ, as with a trend arrow.
+  spoken?: string;
 }
 
 // Numbers in tiles, two or more to a row as the width allows.
@@ -20,7 +22,7 @@ export function StatGrid({ stats }: { stats: Stat[] }) {
           key={stat.label}
           style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
           accessible
-          accessibilityLabel={`${stat.label}: ${stat.value}${stat.note ? `, ${stat.note}` : ''}`}
+          accessibilityLabel={stat.spoken ?? `${stat.label}: ${stat.value}${stat.note ? `, ${stat.note}` : ''}`}
         >
           <Text variant="title" numeric>
             {stat.value}

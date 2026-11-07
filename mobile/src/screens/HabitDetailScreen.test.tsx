@@ -141,6 +141,26 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByText(/in a year/)).toBeTruthy();
   });
 
+  it('updates the forecast as its slider moves', async () => {
+    await open();
+    await act(async () => {
+      fireEvent(screen.getByTestId('forecast-rate'), 'valueChange', 100);
+    });
+    expect(screen.getByText(/^About [\d,]+ pages in a year, or about \d+ books\.$/)).toBeTruthy();
+  });
+
+  it('describes the year heatmap in words, and lists past streaks', async () => {
+    await open();
+    expect(screen.getByLabelText(/^In the last year: .*not done/)).toBeTruthy();
+    expect(screen.getAllByText(/ended/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/still going/)).toBeTruthy();
+  });
+
+  it('never calls a miss a failure', async () => {
+    await open();
+    expect(screen.queryByText(/fail|broken|lost/i)).toBeNull();
+  });
+
   it('draws strength and the bars, which say what a tapped day was', async () => {
     await open();
     expect(screen.getByTestId('strength-line')).toBeTruthy();

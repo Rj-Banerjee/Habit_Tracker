@@ -1633,3 +1633,29 @@ Tapping a habit's chain, or "Streak and details" in the long-press sheet, opens 
   - `rls_auto_enable` and `ensure_rls` are still there.
   - The +test account was filled with the 120-day history: 4 habits; Read is the one with the target set too high.
 - **Tests:** SQL 455, core 1382 (the Habit detail wording, ranges, the hour grid, bar labels, weekly sessions in the bars), mobile 938 (the screen: ranges without reloading, all time, the weak weekday, amounts, weekly habits, empty states, errors), frontend 28, backend 216.
+
+### Analytics, part 3: the Overview (8 Nov 2026)
+
+The Progress tab is now the analytics Overview. Simple and functional, as asked.
+
+- **What's on it:**
+  - A range picker (7 days, 30 days by default, 90 days, 1 year, all time) and "Compare to previous period". All time has nothing before it, so it has no compare.
+  - Four headline cards: completion, average strength, total done, best active streak. Each has an arrow (↑ ↓ →) against the same length of time just before. With compare on, each also says what it was ("was 72%"). A screen reader hears "up from 72% before".
+  - Day by day: every habit's days stacked by identity colour, full and minimum apart, with a ring for each week. Tap for the numbers.
+  - Habits ranked strongest first, with completion for the range. Tapping one opens its Habit detail; "Edit habit" there opens the habit form.
+  - The identity score for the last 30 days, still from `getHabitDays`, so the agreed times-per-week rule is kept.
+  - Habits that go together, worded ("When you do Read, you do Run 84% of the time (over 61 days)"), with a teaching empty state.
+- **Moved to Habit detail:** the habit chips, heatmap, streak history, forecast and "Your pattern" lines. Habit detail already has all of them, and their tests moved with them.
+- **Loading:** one call for a year (two years for 1 year and all time, since the period before needs it). It's the same cached year Habit detail uses. Strength in the cards and the ranking is worked out from all that history, so a 7-day range doesn't start every habit at zero.
+- **Known:** a year of data for 20 habits is about 1.7 MB of JSON before compression. Compression in transit should shrink it a lot, but the payload could be slimmed later (shorter keys, or only the fields a screen needs). Opening Habit detail from the Overview asks for the same year again; the server answers from its cache.
+- **Not yet:** insight cards come in part 5.
+- **Tests:** core 1386 (periods to load, headline cards and trends, strength from history, pair wording, ranking from history), mobile 944 (the Overview: its tab, trends, compare, ranges, ranking opening Habit detail, identity score, pairs, errors, no habits; and the checks moved to Habit detail), frontend 28. No database change.
+
+### Planned: Focus and Screen Time, and Habit connections (8 Nov 2026)
+
+Two features the user asked to plan, written into PLAN.md:
+
+- **Focus and Screen Time** (Pro, after v1; nothing built): phone usage linked to habits, Android first with Usage Access and an overlay (not AccessibilityService), iPhone later through the Screen Time API, with `screen.usage_daily` and `screen.limit_reached` events.
+- **Habit connections** (built after Analytics): the daily check-in on every plan; a statistical pattern engine with its thresholds written down (21 days of data, at least 8 days on each side, a 20-point difference, Fisher or permutation tests with a Benjamini–Hochberg correction); AI explanations that may only use measured numbers; the heads-up on Today; the Habit map; Autopilot off by default; and the safety rules.
+  - It shares the insight card, actions and Undo with the analytics insights, rather than being a second system.
+  - The Habit map's green and amber are theme tokens, so there's still no red.

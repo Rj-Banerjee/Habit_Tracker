@@ -365,7 +365,9 @@ export interface Headline {
   bestActiveStreak: { habitId: string; title: string; streak: number; unit: 'day' | 'week' } | null;
 }
 
-export function headline(data: AnalyticsData): Headline {
+// Strength is worked out over strengthData, which can start before the range, so a short
+// range doesn't start every habit from zero.
+export function headline(data: AnalyticsData, strengthData: AnalyticsData = data): Headline {
   let done = 0;
   let judged = 0;
   for (const habit of data.habits) {
@@ -373,7 +375,7 @@ export function headline(data: AnalyticsData): Headline {
     done += c.full + c.minimum + c.repaired;
     judged += c.judged;
   }
-  const strengths = data.habits.map((h) => habitStrength(h, data));
+  const strengths = data.habits.map((h) => habitStrength(h, strengthData));
   const best = data.habits.reduce<AnalyticsHabit | null>(
     (a, b) => (b.current_streak > 0 && (!a || b.current_streak > a.current_streak) ? b : a),
     null
@@ -425,14 +427,15 @@ export interface Ranked {
   completionRate: number | null;
 }
 
-// Strongest first, then by completion rate.
-export function ranking(data: AnalyticsData): Ranked[] {
+// Strongest first, then by completion rate. Completion is for the range; strength comes
+// from strengthData, which can start before it.
+export function ranking(data: AnalyticsData, strengthData: AnalyticsData = data): Ranked[] {
   return data.habits
     .map((habit) => ({
       habitId: habit.id,
       title: habit.title,
       colourToken: habit.colour_token,
-      strength: habitStrength(habit, data),
+      strength: habitStrength(habit, strengthData),
       completionRate: consistency(habit, data).completionRate,
     }))
     .sort((a, b) => b.strength - a.strength || (b.completionRate ?? -1) - (a.completionRate ?? -1) || a.title.localeCompare(b.title));
@@ -654,6 +657,82 @@ export const progressHabitOf = (habit: AnalyticsHabit): ProgressHabit => ({
 
 // A rate as a whole percentage, or a dash when nothing was judged.
 export const percentLabel = (value: number | null) => (value === null ? '–' : `${Math.round(value * 100)}%`);
+
+// ---------------------------------------------------------------------------
+// The Overview
+// ---------------------------------------------------------------------------
+
+export interface OverviewPeriods {
+  // What to load: at least a year, so strength has history, and the period before.
+  load: { from: string; to: string };
+  current: { from: string; to: string };
+  // Null for all time, which has nothing before it.
+  previous: { from: string; to: string } | null;
+}
+
+const YEAR_DAYS = 365;
+
+export function overviewPeriods(range: AnalyticsRange, today: string, firstDay?: string): OverviewPeriods {
+  const current = rangeDates(range, today, firstDay);
+  const previous = range === 'all' ? null : previousRange(current.from, current.to);
+  const yearAgo = addDays(today, 1 - YEAR_DAYS);
+  const earliest = [current.from, previous?.from ?? current.from, yearAgo].sort()[0];
+  return { load: { from: earliest, to: today }, current, previous };
+}
+
+export interface HeadlineCard {
+  label: string;
+  value: string;
+  // Against the period before: up, down or the same, and what it was.
+  trend: Trend | null;
+  before: string | null;
+  note?: string;
+}
+
+const ARROWS: Record<Trend, string> = { up: '↑', down: '↓', same: '→' };
+export const trendArrow = (trend: Trend) => ARROWS[trend];
+
+export function headlineCards(now: Headline, before: Headline | null): HeadlineCard[] {
+  const compared = before ? compareHeadlines(now, before) : null;
+  const best = now.bestActiveStreak;
+  return [
+    {
+      label: 'Completion',
+      value: percentLabel(now.completionRate),
+      trend: compared?.completionRate.trend ?? null,
+      before: before ? percentLabel(before.completionRate) : null,
+    },
+    {
+      label: 'Average strength',
+      value: now.averageStrength === null ? '–' : String(now.averageStrength),
+      trend: compared?.averageStrength.trend ?? null,
+      before: before?.averageStrength == null ? null : String(before.averageStrength),
+      note: 'out of 100',
+    },
+    {
+      label: 'Total done',
+      value: now.totalDone.toLocaleString('en-IN'),
+      trend: compared?.totalDone.trend ?? null,
+      before: before ? before.totalDone.toLocaleString('en-IN') : null,
+    },
+    {
+      label: 'Best active streak',
+      value: best ? `${best.streak} ${best.unit}${best.streak === 1 ? '' : 's'}` : '–',
+      trend: null,
+      before: null,
+      note: best?.title,
+    },
+  ];
+}
+
+// "Read and Meditate go together: when you do Read, you do Meditate 85% of the time."
+export function pairLines(data: AnalyticsData): string[] {
+  const titles = new Map(data.habits.map((h) => [h.id, h.title]));
+  return habitPairs(data).map(
+    (pair) =>
+      `When you do ${titles.get(pair.a)}, you do ${titles.get(pair.b)} ${percentLabel(pair.bWhenA)} of the time (over ${pair.days} days).`
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Ranges

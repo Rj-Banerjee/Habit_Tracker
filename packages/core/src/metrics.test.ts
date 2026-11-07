@@ -13,6 +13,9 @@ import {
   habitPairs,
   habitStrength,
   headline,
+  headlineCards,
+  overviewPeriods,
+  pairLines,
   PAIR_MIN_DAYS,
   percentLabel,
   previousRange,
@@ -441,5 +444,51 @@ describe('bar and donut labels', () => {
     expect(dayBarLabel({ ...bar, stacks: [], done: 0, due: 0 })).toBe('Mon 2 Nov: nothing due');
     expect(weekDonutLabel({ weekStart: FROM, days: [], done: 5, due: 7 })).toBe('Week of 2 Nov: 5 of 7 done, 71%');
     expect(weekDonutLabel({ weekStart: FROM, days: [], done: 0, due: 0 })).toBe('Week of 2 Nov: nothing due yet');
+  });
+});
+
+describe('the Overview', () => {
+  const today = '2026-11-08';
+
+  it('loads at least a year, and the period before the range', () => {
+    expect(overviewPeriods('7d', today)).toEqual({
+      load: { from: '2025-11-09', to: today },
+      current: { from: '2026-11-02', to: today },
+      previous: { from: '2026-10-26', to: '2026-11-01' },
+    });
+    expect(overviewPeriods('1y', today).load.from).toBe('2024-11-09');
+    expect(overviewPeriods('all', today, '2026-06-01').previous).toBeNull();
+  });
+
+  it('gives each headline card its trend against the period before', () => {
+    const now = { completionRate: 0.8, averageStrength: 60, totalDone: 40, bestActiveStreak: { habitId: 'read', title: 'Read', streak: 12, unit: 'day' as const } };
+    const before = { completionRate: 0.7, averageStrength: 60.2, totalDone: 45, bestActiveStreak: null };
+    const cards = headlineCards(now, before);
+    expect(cards.map((c) => [c.label, c.value, c.trend, c.before])).toEqual([
+      ['Completion', '80%', 'up', '70%'],
+      ['Average strength', '60', 'same', '60.2'],
+      ['Total done', '40', 'down', '45'],
+      ['Best active streak', '12 days', null, null],
+    ]);
+    expect(cards[3].note).toBe('Read');
+    expect(headlineCards(now, null)[0].trend).toBeNull();
+  });
+
+  it('starts strength from the history before the range', () => {
+    const history = data({ days: run(Array.from({ length: 14 }, () => 'done')) });
+    const lastDay = withinRange(history, addDays(FROM, 13), addDays(FROM, 13));
+    expect(headline(lastDay).averageStrength).toBeLessThan(headline(lastDay, history).averageStrength!);
+  });
+
+  it('words habit pairs with how often they go together', () => {
+    const together = Array.from({ length: PAIR_MIN_DAYS + 4 }, (_, i) => (i % 3 === 0 ? 'missed' : 'done'));
+    const lines = pairLines(
+      data({
+        to: addDays(FROM, together.length),
+        habits: [habit(), habit({ id: 'run', title: 'Run' })],
+        days: [...run(together), ...run(together, { habit_id: 'run' })],
+      })
+    );
+    expect(lines).toEqual(['When you do Read, you do Run 100% of the time (over 24 days).']);
   });
 });
