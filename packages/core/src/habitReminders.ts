@@ -32,6 +32,8 @@ interface PlanInput {
   habits: ReminderHabit[];
   // Habits already done today, which don't need reminding.
   doneToday: ReadonlySet<string>;
+  // Times-per-week habits whose quota is already met this week: quiet until Monday.
+  metThisWeek?: ReadonlySet<string>;
   today: string;
   nowMinutes: number;
 }
@@ -43,13 +45,21 @@ const dueOn = (habit: ReminderHabit, date: string) => {
   return habit.frequency === 'per_week' || habit.schedule_days.includes(isoWeekday(date));
 };
 
-export function planHabitReminders({ habits, doneToday, today, nowMinutes }: PlanInput): PlannedReminder[] {
+export function planHabitReminders({
+  habits,
+  doneToday,
+  metThisWeek = new Set(),
+  today,
+  nowMinutes,
+}: PlanInput): PlannedReminder[] {
   const planned: PlannedReminder[] = [];
+  const sunday = addDays(today, 7 - isoWeekday(today));
   for (let ahead = 0; ahead < REMINDER_DAYS_AHEAD; ahead++) {
     const date = addDays(today, ahead);
     for (const habit of habits) {
       const time = habit.reminder_time ? parseReminderTime(habit.reminder_time.slice(0, 5)) : null;
       if (!time || !dueOn(habit, date)) continue;
+      if (date <= sunday && metThisWeek.has(habit.id)) continue;
       if (ahead === 0 && (doneToday.has(habit.id) || time.hour * 60 + time.minute <= nowMinutes)) continue;
       planned.push({ habitId: habit.id, title: habit.title, date, hour: time.hour, minute: time.minute });
     }

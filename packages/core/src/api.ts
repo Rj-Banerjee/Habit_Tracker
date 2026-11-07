@@ -37,6 +37,31 @@ export interface TodayRow {
   levels: LevelOption[];
   can_repair: boolean;
   repair_amount: number | null;
+  time_of_day?: TimeOfDay;
+  reminder_time?: string | null;
+  frequency?: HabitFrequency;
+  // For a times-per-week habit: sessions this week, how many it asks, and the days left
+  // that a session can still happen on, today included unless it's done.
+  week_done?: number | null;
+  week_quota?: number | null;
+  week_days_left?: number | null;
+  ends_on?: string | null;
+}
+
+// An ended habit, for Completed habits.
+export interface CompletedHabit {
+  habit_id: string;
+  title: string;
+  identity_name: string;
+  colour_token: IdentityToken;
+  starts_on: string;
+  ends_on: string;
+  frequency: HabitFrequency;
+  days_done: number;
+  best_streak: number;
+  total_amount: number | null;
+  unit: string | null;
+  restarted: boolean;
 }
 
 // Where a day stands after an amount is added. counted is false when the amount was in a
@@ -118,6 +143,8 @@ export interface ProgressHabit {
   milestone_amount: number | null;
   milestone_label: string | null;
   reminder_time?: string | null;
+  frequency?: HabitFrequency;
+  per_week?: number | null;
   identities: { name: string; colour_token: IdentityToken };
 }
 
@@ -431,7 +458,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, reminder_time, identities(name, colour_token)'
+            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, reminder_time, frequency, per_week, identities(name, colour_token)'
           )
           .is('archived_at', null)
           .order('created_at')
@@ -457,6 +484,11 @@ export function createTrackerApi(client: SupabaseClient) {
       select<Profile>(
         client.from('users').select('timezone, mode, onboarded_at, reminder_time, seen_tips').single()
       ),
+
+    listCompletedHabits: () => call<CompletedHabit[]>('get_completed_habits'),
+
+    // A new run of an ended habit, from today. The old run keeps its history.
+    restartHabit: (habitId: string) => call<string>('restart_habit', { p_habit_id: habitId }),
 
     countActiveHabits: async () => {
       const { count, error } = await client

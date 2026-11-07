@@ -1371,5 +1371,156 @@ select is((t.add(404, 124, '2026-11-04', 10) ->> 'level'), 'minimum', 'after it,
 select throws_like($$ select t.add(1, 1, '2026-11-02', 3) $$, '%no amount%', 'a yes/no habit takes no amount');
 select throws_like($$ select t.add(400, 120, '2026-11-06', 0) $$, '%above 0%', 'an amount must be above 0');
 
+
+-- ---------------------------------------------------------------------------
+-- Times per week. 2 Nov 2026 is a Monday.
+-- ---------------------------------------------------------------------------
+create function t.weekly(n int, owner int, starts date, times smallint default 4) returns void language plpgsql as $$
+begin
+  perform t.make_habit(n, owner, starts);
+  update public.habits set frequency = 'per_week', per_week = times where id = t.h(n);
+  insert into public.habit_levels (habit_id, level, description, target)
+  values (t.h(n), 'full', 'Work out', null), (t.h(n), 'minimum', 'Stretch', null);
+  perform t.pin(n);
+end $$;
+create function t.session(n int, owner int, d date, lvl public.habit_level default 'full') returns void language sql as
+  $$ select tracker.log_habit(t.u(owner), t.h(n), d, lvl, null, 'tap', t.noon(owner, d)) $$;
+create function t.week(n int, w date, at timestamptz) returns text language sql stable as
+  $$ select tracker.week_status(t.h(n), w, at) $$;
+
+select t.make_user(130);
+select t.weekly(500, 130, '2026-11-02');
+select is(tracker.is_scheduled(t.h(500), '2026-11-03'), false, 'a times-per-week habit is never due on a single day');
+select is(tracker.day_status(t.h(500), '2026-11-03', t.noon(130, '2026-11-05')), 'unscheduled', 'so a day without a session is never a miss');
+select t.session(500, 130, '2026-11-02');
+select t.session(500, 130, '2026-11-03', 'minimum');
+select is(
+  (select (week_done, week_quota, week_days_left)::text from tracker.today_rows(t.u(130), t.noon(130, '2026-11-04')) where habit_id = t.h(500)),
+  '(2,4,5)', 'Today shows 2 of 4, with 5 days left including today'
+);
+select is(t.week(500, '2026-11-02', t.noon(130, '2026-11-04')), 'pending', 'the week is still open');
+select t.session(500, 130, '2026-11-04');
+select t.session(500, 130, '2026-11-05');
+select is(t.week(500, '2026-11-02', t.noon(130, '2026-11-05')), 'met', 'met early on Thursday, a minimum session counting');
+select is(t.streak(500, '2026-11-05', t.noon(130, '2026-11-05')), 1, 'a 1-week streak');
+select t.session(500, 130, '2026-11-07');
+select is(tracker.week_sessions(t.h(500), '2026-11-02'), 5, 'an extra session is counted');
+select t.session(500, 130, '2026-11-07', 'minimum');
+select is(tracker.week_sessions(t.h(500), '2026-11-02'), 5, 'and two on one day count once');
+select t.add(400, 120, '2026-11-02', 1);
+select is(
+  (select (status, week_done)::text from tracker.today_rows(t.u(130), t.noon(130, '2026-11-08')) where habit_id = t.h(500)),
+  '(pending,5)', 'Sunday with no log of its own is open, with the week''s sessions'
+);
+select is((select count(*)::int from tracker.today_rows(t.u(130), t.noon(130, '2026-11-08')) where habit_id = t.h(500) and not is_today),
+  0, 'and is never shown as yesterday');
+
+-- A met week counts as 7 consistent days, so a weekly-only person earns a Grace Day.
+select tracker.settle(t.u(130), t.noon(130, '2026-11-11'));
+select is(tracker.grace_bank(t.u(130)), 1, 'a met week earns a Grace Day');
+-- The next week ends at 2 of 4: the Grace Day covers it.
+select t.session(500, 130, '2026-11-09');
+select t.session(500, 130, '2026-11-10');
+select tracker.settle(t.u(130), t.noon(130, '2026-11-18'));
+select is(t.week(500, '2026-11-09', t.noon(130, '2026-11-18')), 'protected', 'a missed week is covered by a Grace Day');
+select is(tracker.grace_bank(t.u(130)), 0, 'which is spent');
+select is(t.streak(500, '2026-11-18', t.noon(130, '2026-11-18')), 1, 'and the streak in weeks survives');
+select is(
+  (select array_agg(tracker.day_status(t.h(500), d::date, t.noon(130, '2026-11-18'))::text order by d)
+   from generate_series('2026-11-09'::date, '2026-11-15'::date, interval '1 day') d),
+  array['done', 'done', 'unscheduled', 'unscheduled', 'unscheduled', 'unscheduled', 'protected'],
+  'Progress sees the sessions, and Sunday, when 4 went out of reach, as protected'
+);
+
+-- No Grace Day: one extra session the next week repairs it.
+select t.make_user(131);
+select t.weekly(501, 131, '2026-11-02', 3::smallint);
+select t.session(501, 131, '2026-11-02');
+select is(t.week(501, '2026-11-02', t.noon(131, '2026-11-11')), 'missed', '1 of 3 is a missed week');
+select is(t.streak(501, '2026-11-11', t.noon(131, '2026-11-11')), 0, 'and no streak');
+select t.session(501, 131, '2026-11-09');
+select t.session(501, 131, '2026-11-10');
+select t.session(501, 131, '2026-11-11');
+select is(t.week(501, '2026-11-02', t.noon(131, '2026-11-11')), 'missed', 'the quota alone the next week does not repair it');
+select t.session(501, 131, '2026-11-12');
+select is(t.week(501, '2026-11-02', t.noon(131, '2026-11-12')), 'repaired', 'one extra session on top of the quota does');
+select is(t.streak(501, '2026-11-12', t.noon(131, '2026-11-12')), 2, 'a repaired week counts in the streak');
+-- Two missed weeks in a row: the second can't be repaired.
+select t.make_user(132);
+select t.weekly(502, 132, '2026-11-02', 2::smallint);
+select t.session(502, 132, '2026-11-16');
+select t.session(502, 132, '2026-11-17');
+select t.session(502, 132, '2026-11-18');
+select is(t.week(502, '2026-11-09', t.noon(132, '2026-11-18')), 'missed', 'a second missed week in a row stays missed');
+
+-- A week that starts part-way asks only as many as it has days.
+select t.make_user(133);
+select t.weekly(503, 133, '2026-11-06', 4::smallint);
+select is(tracker.week_quota(t.h(503), '2026-11-02'), 3, 'starting on Friday, 4 a week asks 3 that week');
+select is(tracker.week_quota(t.h(503), '2026-11-09'), 4, 'and 4 the week after');
+
+-- Weeks run Monday to Sunday on the person's own dates, closing with Sunday's back-log.
+select is(tracker.week_of('2026-11-08'), '2026-11-02'::date, 'Sunday belongs to the week before');
+select is(tracker.week_of('2026-11-09'), '2026-11-09'::date, 'Monday starts a new one');
+select t.make_user(134, 'Asia/Kolkata');
+select t.weekly(504, 134, '2026-11-02', 1::smallint);
+select is(t.week(504, '2026-11-02', '2026-11-09 12:00+00'), 'pending', 'in India, Monday afternoon still has Sunday to back-log');
+select is(t.week(504, '2026-11-02', '2026-11-09 19:00+00'), 'missed', 'and after midnight on Tuesday, India time, the week is closed');
+select t.make_user(135, 'America/Los_Angeles');
+select t.weekly(505, 135, '2026-11-02', 1::smallint);
+select is(t.week(505, '2026-11-02', '2026-11-09 19:00+00'), 'pending', 'while in Los Angeles it is still open');
+
+-- Switching between specific days and times per week is dated.
+select t.make_user(136);
+select t.make_habit(506, 136, '2026-11-02');
+select t.pin(506);
+insert into tracker.habit_versions (habit_id, effective_from, schedule_days, target, unit, levels, frequency, per_week)
+select habit_id, '2026-11-09', schedule_days, target, unit, levels, 'per_week', 3 from tracker.habit_versions where habit_id = t.h(506);
+select is(tracker.is_scheduled(t.h(506), '2026-11-04'), true, 'before the switch it was due on its days');
+select is(tracker.day_status(t.h(506), '2026-11-04', t.noon(136, '2026-11-20')), 'missed', 'and a day not done then stays a miss');
+select is(tracker.weekly_on(t.h(506), '2026-11-10'), true, 'after it, it counts by the week');
+select is(tracker.week_quota(t.h(506), '2026-11-09'), 3, 'with its new times per week');
+
+-- ---------------------------------------------------------------------------
+-- Ending a habit
+-- ---------------------------------------------------------------------------
+select t.make_user(137);
+select t.make_habit(507, 137, '2026-11-02');
+update public.habits set ends_on = '2026-11-04' where id = t.h(507);
+insert into public.habit_levels (habit_id, level, description, target) values (t.h(507), 'full', 'Read', null), (t.h(507), 'minimum', 'A page', null);
+select t.pin(507);
+select t.done(507, '2026-11-02', '2026-11-04');
+select is(tracker.is_scheduled(t.h(507), '2026-11-05'), false, 'after its end a habit is not due');
+select is(tracker.day_status(t.h(507), '2026-11-06', t.noon(137, '2026-11-10')), 'unscheduled', 'and never missed');
+select is(t.streak(507, '2026-11-10', t.noon(137, '2026-11-10')), 3, 'so its streak stands');
+select is((select count(*)::int from tracker.today_rows(t.u(137), t.noon(137, '2026-11-05')) where habit_id = t.h(507)), 0, 'and it is gone from Today');
+select throws_like(
+  $$ select tracker.log_habit(t.u(137), t.h(507), '2026-11-05', 'full', null, 'tap', t.noon(137, '2026-11-05')) $$,
+  '%has ended%', 'it cannot be logged after its end'
+);
+select set_config('request.jwt.claims', json_build_object('sub', t.u(137), 'role', 'authenticated')::text, true);
+select is(
+  (select (days_done, best_streak, restarted)::text from public.get_completed_habits() where habit_id = t.h(507)),
+  '(3,3,f)', 'it is in Completed habits, with days done and its best streak'
+);
+select lives_ok($$ select public.restart_habit(t.h(507)) $$, 'it can be restarted');
+select is(
+  (select (h.starts_on = tracker.local_date(t.u(137), now()), h.ends_on - h.starts_on, h.title)::text
+   from public.habits h where h.previous_run_id = t.h(507)),
+  '(t,2,"Habit 507")', 'as a new run from today, the same length'
+);
+select is((select count(*)::int from public.habit_logs where habit_id = t.h(507)), 3, 'and the old run keeps its history');
+select is((select restarted from public.get_completed_habits() where habit_id = t.h(507)), true, 'marked as restarted');
+select throws_like($$ select public.restart_habit((select id from public.habits where previous_run_id = t.h(507))) $$,
+  '%not ended%', 'a habit still running cannot be restarted');
+select set_config('request.jwt.claims', '', true);
+
+-- A weekly habit that ends part-way through a week asks only for its days.
+select t.make_user(138);
+select t.weekly(508, 138, '2026-11-02', 4::smallint);
+update public.habits set ends_on = '2026-11-03' where id = t.h(508);
+select t.pin(508);
+select is(tracker.week_quota(t.h(508), '2026-11-02'), 2, 'ending on Tuesday, the week asks 2');
+
 select * from finish();
 rollback;

@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { HabitLevel, levelOptions, repairDescription, space, TodayRow, usesTarget } from '@habit-tracker/core';
+import {
+  HabitLevel,
+  isWeekly,
+  levelOptions,
+  repairDescription,
+  space,
+  TodayRow,
+  usesTarget,
+} from '@habit-tracker/core';
 import { BottomSheet, Button, SheetOption, TextField } from '@habit-tracker/ui';
 
 const LEVEL_NAMES: Record<HabitLevel, string> = {
@@ -80,7 +88,8 @@ export function ShrinkSheet({
           {onFocus && row.is_today ? (
             <SheetOption label="Focus" description="Tunnel Vision with a timer" onPress={() => onFocus(row)} />
           ) : null}
-          <SheetOption label="Skip today" onPress={() => onSkip(row)} />
+          {/* A times-per-week habit owes no single day, so there's nothing to skip. */}
+          {isWeekly(row) ? null : <SheetOption label="Skip today" onPress={() => onSkip(row)} />}
           {onDetails ? <SheetOption label="Streak and details" onPress={() => onDetails(row)} /> : null}
           <SheetOption label="Edit habit" onPress={() => onEdit(row)} />
         </>

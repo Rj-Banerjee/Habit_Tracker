@@ -57,6 +57,7 @@ jest.mock('../services/tracker', () => ({
     getProfile: jest.fn(() => Promise.resolve({ seen_tips: [] })),
     countActiveHabits: jest.fn(() => Promise.resolve(2)),
     markTipSeen: jest.fn(() => Promise.resolve()),
+    listCompletedHabits: jest.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -147,6 +148,56 @@ describe('TodayScreen', () => {
   it('refreshes each habit\'s reminders when Today changes', async () => {
     await open([row()]);
     expect(syncHabitReminders).toHaveBeenCalled();
+  });
+
+  describe('times per week', () => {
+    const workout = (patch: Partial<TodayRow> = {}) =>
+      row({ title: 'Workout', frequency: 'per_week', week_done: 2, week_quota: 4, week_days_left: 5, current_streak: 6, ...patch });
+
+    it('shows how the week is going, and a streak in weeks', async () => {
+      await open([workout()]);
+      expect(screen.getByText(/This week: 2 of 4/)).toBeTruthy();
+      expect(screen.getByText('weeks')).toBeTruthy();
+    });
+
+    it('shows as done for the week once met, and still logs another session', async () => {
+      await open([workout({ week_done: 4 })]);
+      expect(screen.getByText(/Done for this week/)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: /^Workout/ }));
+      expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
+    });
+
+    it('has nothing to skip', async () => {
+      await open([workout()]);
+      await fireEvent(screen.getByRole('button', { name: /^Workout/ }), 'longPress');
+      expect(screen.queryByRole('button', { name: 'Skip today' })).toBeNull();
+    });
+  });
+
+  describe('a habit that ended', () => {
+    const ended = {
+      habit_id: 'h9', title: 'Read', identity_name: 'The Reader', colour_token: 'identity-1',
+      starts_on: '2026-10-01', ends_on: '2026-10-30', frequency: 'days', days_done: 24,
+      best_streak: 12, total_amount: null, unit: null, restarted: false,
+    } as const; // prettier-ignore
+    const text = "You finished Read. 24 days done, best streak 12 days. That's worth a moment.";
+
+    it('is celebrated once, calmly', async () => {
+      api.listCompletedHabits.mockResolvedValueOnce([ended]);
+      await open([row()]);
+      expect(screen.getByText(text)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Got it' }));
+      expect(screen.queryByText(text)).toBeNull();
+      expect(api.markTipSeen).toHaveBeenCalledWith('ended:h9');
+    });
+
+    it('is not celebrated again', async () => {
+      api.listCompletedHabits.mockResolvedValueOnce([ended]);
+      api.getProfile.mockResolvedValue({ seen_tips: ['ended:h9'] } as never);
+      await open([row()]);
+      expect(screen.queryByText(text)).toBeNull();
+      api.getProfile.mockResolvedValue({ seen_tips: [] } as never);
+    });
   });
 
   describe('the habit tip', () => {

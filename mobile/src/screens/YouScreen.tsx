@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isLogged, layout, space } from '@habit-tracker/core';
+import { completedSummary, isLogged, layout, space } from '@habit-tracker/core';
 import {
   BottomSheet,
   Button,
@@ -15,6 +15,7 @@ import {
 } from '@habit-tracker/ui';
 import { WhySection } from '../coach/WhySection';
 import { NudgeSetting } from '../components/NudgeSetting';
+import { useCompletedHabits } from '../hooks/useCompletedHabits';
 import {
   openPhoneSettings,
   reminderMessage,
@@ -39,6 +40,8 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const [confirming, setConfirming] = useState(false);
   const [testingVoice, setTestingVoice] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const completed = useCompletedHabits();
+  const [restarted, setRestarted] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
@@ -120,6 +123,40 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
             <Button label="Open phone settings" quiet onPress={() => void openPhoneSettings()} />
           ) : null}
         </View>
+        {completed.habits.length > 0 ? (
+          <View style={styles.group}>
+            <Text variant="small" muted accessibilityRole="header">
+              Completed habits
+            </Text>
+            {completed.habits.map((habit) => (
+              <View key={habit.habit_id} style={styles.completed}>
+                <Text>{habit.title}</Text>
+                <Text variant="small" muted>
+                  {completedSummary(habit)}
+                </Text>
+                {habit.restarted ? (
+                  <Text variant="small" muted>
+                    Restarted
+                  </Text>
+                ) : (
+                  <Button
+                    label={`Restart ${habit.title}`}
+                    quiet
+                    onPress={() =>
+                      void completed.restart(habit).then((ok) => ok && setRestarted(habit.title))
+                    }
+                  />
+                )}
+              </View>
+            ))}
+            {restarted ? (
+              <Text variant="small" muted accessibilityLiveRegion="polite">
+                {`${restarted} starts again today. Its earlier run is kept.`}
+              </Text>
+            ) : null}
+            <FormMessage message={completed.problem ?? undefined} />
+          </View>
+        ) : null}
         <NudgeSetting />
         <WhySection />
         {COMING_SOON.map((label) => (
@@ -158,5 +195,6 @@ const styles = StyleSheet.create({
     padding: space.lg,
     paddingTop: space.xxl,
   },
+  completed: { gap: space.xs },
   group: { gap: space.xs },
 });

@@ -176,7 +176,7 @@ A habit is set to specific days (the default: all seven, untick days to skip) or
 - A week that starts or ends part-way (the habit's first week, or its last before it ends) has a quota of the smaller of the quota and the days the habit is active that week.
 - A week that ends below the quota is a missed week. A Grace Day covers it automatically, if one is available and the mode is Grace. Otherwise it can be repaired by doing one extra session the next week on top of the quota. One repair fixes one missed week only.
 - The streak is counted in weeks ("6-week streak").
-- For the Grace Day run, its days are neutral. At the week's end, a met week keeps the run going, and a missed week breaks it unless a Grace Day or repair covers it.
+- For the Grace Day run, its days are neutral and its week is judged on its last day. A met week counts as 7 consistent days, so someone with only times-per-week habits still earns Grace Days. A repaired week keeps the run going. A missed week breaks it, and a Grace-covered week resets the count, as a protected day does.
 - Identity score: a day with a session counts as done and other days are neutral. In a week that ended missed, the days after the last chance to meet the quota count as not done.
 - The 30-day views and the heatmap show session days as done and other days as neutral. The Compound Forecaster uses sessions per week.
 - Times per week is a dated setting, like the schedule, so changing it, or switching between specific days and times per week, never rewrites past weeks.

@@ -13,6 +13,10 @@ import {
   repairDescription,
   repairOnLabel,
   showYesterdayFirst,
+  celebrationText,
+  completedSummary,
+  streakUnit,
+  weekLine,
 } from './todayModel';
 
 const row = (patch: Partial<TodayRow> = {}): TodayRow => ({
@@ -157,5 +161,55 @@ describe('labels', () => {
 
   it('says nothing in the evening when nothing is left', () => {
     expect(eveningNote([row({ status: 'done' }), row({ status: 'skipped' })])).toBeNull();
+  });
+});
+
+describe('times per week on Today', () => {
+  const weekly = (patch: Partial<TodayRow> = {}) =>
+    row({ frequency: 'per_week', week_done: 2, week_quota: 4, week_days_left: 5, ...patch });
+
+  it('says how the week is going', () => {
+    expect(weekLine(weekly())).toBe('This week: 2 of 4');
+    expect(cardDetail(weekly())).toBe('This week: 2 of 4');
+  });
+
+  it('gives a calm hint only when it is tight', () => {
+    expect(weekLine(weekly({ week_days_left: 3 }))).toBe('2 more this week, 3 days left');
+    expect(weekLine(weekly({ week_done: 3, week_days_left: 1 }))).toBe('1 more this week, 1 day left');
+    expect(weekLine(weekly({ week_days_left: 4 }))).toBe('This week: 2 of 4');
+  });
+
+  it('shows as done for the week once the quota is met, and counts in weeks', () => {
+    const met = weekly({ week_done: 4, status: 'pending' });
+    expect(weekLine(met)).toBe('Done for this week');
+    expect(cardStatus(met)).toBe('done');
+    expect(progressLabel([met])).toBe('All done for today');
+    expect(streakUnit(met)).toBe('week');
+    expect(streakUnit(row())).toBe('day');
+  });
+
+  it('is due until then', () => {
+    expect(cardStatus(weekly())).toBe('due');
+  });
+});
+
+describe('completed habits', () => {
+  const read = {
+    habit_id: 'h1', title: 'Read', identity_name: 'The Reader', colour_token: 'identity-1' as const,
+    starts_on: '2026-10-01', ends_on: '2026-10-30', frequency: 'days' as const, days_done: 24,
+    best_streak: 12, total_amount: 260, unit: 'pages', restarted: false,
+  }; // prettier-ignore
+
+  it('sums up how the run went', () => {
+    expect(completedSummary(read)).toBe('24 days done, best streak 12 days, 260 pages in all.');
+    expect(completedSummary({ ...read, frequency: 'per_week', best_streak: 1, total_amount: null })).toBe(
+      '24 days done, best streak 1 week.'
+    );
+  });
+
+  it('celebrates calmly', () => {
+    expect(celebrationText(read)).toBe(
+      "You finished Read. 24 days done, best streak 12 days, 260 pages in all. That's worth a moment."
+    );
   });
 });

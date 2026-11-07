@@ -10,6 +10,7 @@ import {
   REMINDER_BODY,
   REMINDER_TITLE,
   reminderId,
+  weekMet,
 } from '@habit-tracker/core';
 import { tracker } from './tracker';
 
@@ -148,10 +149,12 @@ export async function syncHabitReminders({ ask = false }: { ask?: boolean } = {}
 
     const [habits, rows] = await Promise.all([tracker.listReminderHabits(), tracker.getToday()]);
     const doneToday = new Set(rows.filter((row) => row.is_today && isLogged(row)).map((row) => row.habit_id));
+    const metThisWeek = new Set(rows.filter((row) => row.is_today && weekMet(row)).map((row) => row.habit_id));
     const now = new Date();
     const plan = planHabitReminders({
       habits,
       doneToday,
+      metThisWeek,
       today: localDate(Intl.DateTimeFormat().resolvedOptions().timeZone, now),
       nowMinutes: now.getHours() * 60 + now.getMinutes(),
     });

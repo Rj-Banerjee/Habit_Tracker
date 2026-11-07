@@ -20,6 +20,9 @@ jest.mock('../services/nudges', () => ({
 }));
 jest.mock('../services/tracker', () => ({
   tracker: {
+    listCompletedHabits: jest.fn(() => Promise.resolve([])),
+    restartHabit: jest.fn(() => Promise.resolve('h10')),
+    markTipSeen: jest.fn(() => Promise.resolve()),
     getProfile: jest.fn(() => Promise.resolve({ reminder_time: '20:00:00' })),
     setReminderTime: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(() =>
@@ -81,6 +84,24 @@ describe('YouScreen', () => {
     expect(screen.getByRole('button', { name: 'System', selected: true })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Dark' }));
     expect(screen.getByRole('button', { name: 'Dark', selected: true })).toBeTruthy();
+  });
+
+  it('lists completed habits, and restarts one as a new run', async () => {
+    (tracker.listCompletedHabits as jest.Mock).mockResolvedValue([
+      {
+        habit_id: 'h9', title: 'Read', identity_name: 'The Reader', colour_token: 'identity-1',
+        starts_on: '2026-10-01', ends_on: '2026-10-30', frequency: 'days', days_done: 24,
+        best_streak: 12, total_amount: 260, unit: 'pages', restarted: false,
+      },
+    ]); // prettier-ignore
+    await open();
+    await act(async () => {});
+    expect(screen.getByText('Completed habits')).toBeTruthy();
+    expect(screen.getByText('24 days done, best streak 12 days, 260 pages in all.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Restart Read' }));
+    await act(async () => {});
+    expect(tracker.restartHabit).toHaveBeenCalledWith('h9');
+    expect(screen.getByText('Read starts again today. Its earlier run is kept.')).toBeTruthy();
   });
 
   it('explains that each habit reminds at its own time, and turns them on', async () => {

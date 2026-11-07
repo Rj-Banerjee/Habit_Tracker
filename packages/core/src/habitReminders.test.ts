@@ -40,6 +40,17 @@ describe('planHabitReminders', () => {
     expect(plan([habit({ frequency: 'per_week', schedule_days: [1] })])).toHaveLength(7);
   });
 
+  it('goes quiet for the rest of the week once a times-per-week quota is met', () => {
+    const planned = planHabitReminders({
+      habits: [habit({ frequency: 'per_week' })],
+      doneToday: new Set(),
+      metThisWeek: new Set(['h1']),
+      today: '2026-11-05',
+      nowMinutes: 9 * 60,
+    });
+    expect(planned.map((r) => r.date)).toEqual(['2026-11-09', '2026-11-10', '2026-11-11']);
+  });
+
   it('stops after the habit ends, and waits for it to start', () => {
     expect(plan([habit({ ends_on: '2026-11-03' })]).map((r) => r.date)).toEqual(['2026-11-02', '2026-11-03']);
     expect(plan([habit({ starts_on: '2026-11-07' })]).map((r) => r.date)).toEqual(['2026-11-07', '2026-11-08']);

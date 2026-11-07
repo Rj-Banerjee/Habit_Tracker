@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  celebrationText,
   coachCard,
   dayPart,
   FOCUS_LINK,
@@ -12,6 +13,7 @@ import {
   HABIT_TIP_TEXT,
   HabitLevel,
   isLogged,
+  isWeekly,
   lockedMessage,
   layout,
   progressLabel,
@@ -46,6 +48,7 @@ import { useActions } from '../hooks/useActions';
 import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
 import { useEntitlements } from '../hooks/useEntitlements';
+import { useCompletedHabits } from '../hooks/useCompletedHabits';
 import { useHabitTip } from '../hooks/useHabitTip';
 import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
@@ -83,6 +86,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
   const habitTip = useHabitTip(rows);
+  const completed = useCompletedHabits();
   // Whenever Today changes, a done habit stops reminding and a new one starts.
   useEffect(() => {
     if (!loading) void syncHabitReminders();
@@ -184,7 +188,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const renderCard = (row: TodayRow) => (
     <SwipeToSkip
       key={`${row.habit_id}-${row.day}`}
-      enabled={!isLogged(row)}
+      enabled={!isLogged(row) && !isWeekly(row)}
       onSkip={() => setSkipRow(row)}
     >
       <TodayCard
@@ -197,7 +201,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           moments.interrupt(row.habit_id);
           setShrinkRow(row);
         }}
-        onSkip={() => setSkipRow(row)}
+        onSkip={isWeekly(row) ? undefined : () => setSkipRow(row)}
         onMomentFinish={() => moments.finish(row.habit_id)}
         onOpenDetail={() => {
           moments.interrupt(row.habit_id);
@@ -312,6 +316,13 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
 
         {habitTip.show ? <TipCard text={HABIT_TIP_TEXT} onDismiss={habitTip.dismiss} /> : null}
+
+        {completed.celebrate ? (
+          <TipCard
+            text={celebrationText(completed.celebrate)}
+            onDismiss={() => completed.celebrate && completed.dismiss(completed.celebrate)}
+          />
+        ) : null}
 
         {message ? (
           <Text variant="small" muted accessibilityLiveRegion="polite">

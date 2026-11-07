@@ -1478,3 +1478,33 @@ Part 5 of the habit form work.
   - The dry run listed only the two migrations, and the push applied both.
   - 12 checks passed with temporary users, who were then deleted: 1 page partial, 3 the minimum, 2 lines not counted, 11 full, undo back to 3, a tap raising it to 10. Another user can't add to it or read its logs, the publishable key alone can't add amounts, and the units table isn't reachable.
 - **Tests:** SQL 387 (32 new: accumulation, below the minimum, a miss, units, no-minimum habits, repair by total and its undo, dated targets). Core 1304, mobile 876, backend 216, web 28. Lint is unchanged.
+
+### Times-per-week habits and ending a habit (7 Nov 2026)
+
+Part W of the habit form work: migration `20261107000300_weekly_habits_and_ending.sql`.
+
+- **Times per week:**
+  - **Days:** a times-per-week habit is never due on a single day, so no day of it is ever a miss, and the day-based streak and Grace code never see it.
+  - **Weeks:** Monday to Sunday on the person's own dates, closing with Sunday's 24-hour back-log. A week is met, pending, protected (by a Grace Day), repaired (one extra session the next week, unless the week before was missed too) or missed.
+  - **Sessions:** a day done at any level, once a day at most; a day below the minimum isn't one.
+  - **Part-weeks:** a week the habit starts or ends in part-way asks only as many as it has days.
+  - **Streak:** counted in weeks.
+  - **Grace Days:** a missed week takes one on its last day. A met week counts as 7 consistent days, so someone with only times-per-week habits still earns them. A repaired week keeps the run going; a missed one breaks it, and a covered one resets the count, as a protected day does. PLAN.md says so now.
+  - **Progress:** sessions show as done. In a week that ended short, the days from when the quota went out of reach show its outcome; other days are left out, so nothing counts them. The Forecaster uses sessions a week, and the Sunday summary says "3 of 4 times".
+  - **Switching:** moving between specific days and times per week is dated.
+- **Today:** "This week: 2 of 4", or a calm "2 more this week, 3 days left" when it's tight, then "Done for this week" until Monday, when another session can still be logged.
+  - The streak shows in weeks.
+  - There's no day chain and nothing to skip.
+  - Reminders go quiet for the rest of the week once the quota is met.
+- **Ending:**
+  - After its end a habit isn't due, is never missed, can't be logged and leaves Today; its reminders stop.
+  - It's listed under Completed habits on the You screen with days done, best streak and total amount.
+  - Today celebrates it once, remembered per habit on the server.
+  - Restart makes a new run from today with the same settings and length, linked to the old one, whose history is kept. A running habit can't be restarted.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 10 checks passed with temporary users, who were then deleted. A 4-times-a-week Workout started on a Saturday showed "1 of 2", the part-week quota. Progress saw the session and streaks still worked. A habit ending today wasn't yet completed and couldn't be restarted. Another user couldn't restart it or see anything of it, and the publishable key alone got nothing.
+- **Tests:**
+  - SQL 431 (44 new: quota met early, met with minimum sessions, extra sessions, two sessions on one day, a Grace-covered week, a repaired week, two misses in a row, part-weeks, timezone week boundaries, switching frequency, ending, no misses after the end, restart keeping history).
+  - Core 1313, mobile 888, backend 216, web 28. Lint is unchanged.
+- **Known:** the SQL suite now takes 14 seconds, up from 7, because every day check also reads the habit's dated settings. Worth watching as data grows.
