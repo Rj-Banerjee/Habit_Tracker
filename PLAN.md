@@ -28,7 +28,7 @@ The launch release (v1) is the core tracker, the AI coach and voice logging. Eve
 | AI coach | Coach cards on Today; coach chat; miss review; preemptive nudges; peak hours from completion times; Sunday Review; Future-Self letter; "Why" card | Next-physical-action mode; worst-case prompts | — |
 | Voice | Siri via App Intents; in-app voice (hold-to-talk + wake word while open); Android voice tile and widget | Gemini on Android via AppFunctions; Apple Watch | Opt-in always-listening wake word on Android |
 | Reminders | A reminder per habit at its own time, plus at most one preemptive nudge a day, actionable from the lock screen; home and lock-screen widgets | — | — |
-| Focus | Tunnel Vision mode with a focus timer | Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
+| Focus | Tunnel Vision mode with a focus timer | Focus and Screen Time (Pro, Android first, then iPhone and desktop); Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
 | Social and game | — | Accountability pods | Gamification (RPG, rewards) |
 
 ## Plans
@@ -38,7 +38,7 @@ Pricing is still undecided, and these plans may change. Payments aren't built ye
 | Plan | What it includes |
 | --- | --- |
 | **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. Habit setup uses the built-in habit library and simple parsing, with no model calls. 10+ normal themes, each customizable (colours, fonts, accent per identity). |
-| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions, AI habit setup (targets, minimums, days, time of day and identity suggested for habits the library doesn't know), and suggestions to move a habit to the time of day it's actually done. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
+| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions, AI habit setup (targets, minimums, days, time of day and identity suggested for habits the library doesn't know), and suggestions to move a habit to the time of day it's actually done. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. After v1 launch: Focus and Screen Time, which connects phone app usage to habits (see "Focus and Screen Time" below). Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
 | **Ultra** | Everything in Pro, plus the AI-powered workspace (design not decided yet). Habits sync with the workspace: for example a "Work" habit updates automatically from work done in the workspace, via the activity log. |
 | **Enterprise** | Team workspaces and the features teams need: roles, a manager view of company work, audit history. Personal habits stay private from managers, always. |
 
@@ -370,6 +370,50 @@ Users will be able to log by voice without opening the app, but not with our own
 
 **Privacy rules:** wake-word detection runs on the device; no recordings are kept; transcripts are deleted after the log is written.
 
+## Focus and Screen Time (Pro, after v1)
+
+Planned for after the v1 launch, as part of Pro. **Nothing here is built yet.**
+
+The goal is to connect phone app usage to habits, not to copy Digital Wellbeing. Usage matters here only where it helps or hurts a habit.
+
+### Features
+
+- **Per-app usage:** a view of time spent in each app, by day and week.
+- **Quit habits tracked from usage:** a quit habit like "Less than 1 hour of Instagram" is logged automatically from that day's usage, with no tap needed.
+- **App limits:** a daily limit per app or category.
+- **Tunnel Vision blocks apps:** chosen apps are blocked while a focus session runs.
+- **Earn your scroll** (optional): chosen apps unlock only after chosen habits are done for the day.
+- **AI insights:** usage linked to habit performance, in the analytics style ("On days with over 2 hours of Instagram, you finish Read 30% less often").
+
+### Android first
+
+- **Usage:** `UsageStatsManager`, with the Usage Access permission the user grants in system settings.
+- **Blocking:** an overlay activity, kept running by a foreground service of the special-use type.
+- **Not AccessibilityService:** Play reviewers reject blockers that use it.
+
+### iPhone later
+
+- **API:** the Screen Time API (`FamilyControls`, `DeviceActivity`, `ManagedSettings`).
+- **Needs:** Apple's Family Controls distribution entitlement, applied for early since it's a separate process from App Review, and the paid developer account.
+- **Limits:** usage numbers can only be shown inside a `DeviceActivityReport` extension. They can't be read by the app or sent to our server, so AI usage insights are Android and desktop only. Limits, blocking and earn-your-scroll still work on iPhone.
+
+### Desktop
+
+The future desktop app can track app usage on Mac and Windows, with permission, linked to the workspace.
+
+### Privacy
+
+- Opt-in per person, and off by default.
+- Processed on the device. Only daily totals per app or category are stored, never screen content.
+- People can see everything stored, and delete it.
+
+### Data
+
+New `activity_events` kinds, so it plugs into analytics and game progress later:
+
+- `screen.usage_daily`: one day's totals per app or category.
+- `screen.limit_reached`: an app limit was hit.
+
 ## Long-term direction
 
 A desktop app (Mac and Windows, likely wrapping the web app, for example with Tauri) comes later, followed by a Notion-like workspace whose design is not decided. Neither is being built now. Everything from now on must work for mobile and the future desktop app:
@@ -391,7 +435,7 @@ Launch lands at about week 24, assuming 2 developers and 1 designer. Each phase 
 | 2 · AI coach | 11–16 | Coach cards and chat, miss review, preemptive nudges, peak hours, Sunday Review, Future-Self letter, Why card, per-user AI cost limits | Coach nudges lead to a log more often than plain reminders |
 | 3 · Voice assistant | 17–20 | Siri via App Intents, in-app voice with wake word, Android tile and voice widget, intent parser, 10-second undo, 200-phrase test set | 95% correct habit match on the voice test set |
 | 4 · Beta and launch | 21–24 | Closed beta (50–100 users, 4 weeks), fixes, store listings, launch | Day-7 retention of 40% or more in the beta |
-| v2 onward | after launch | Chrome blocker, pods, Gemini hand-off, Apple Watch; then gamification | — |
+| v2 onward | after launch | Focus and Screen Time (Android first), Chrome blocker, pods, Gemini hand-off, Apple Watch; then gamification | — |
 
 If the timeline slips, Phase 3 is the cut line: ship Siri and widgets, and move the in-app wake word to v2.
 
