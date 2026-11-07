@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
 import type { ReminderHabit } from './habitReminders';
+import type { AnalyticsData } from './metrics';
 import { IdentityToken } from './tokens';
 
 export type HabitLevel = 'full' | 'minimum' | 'setup';
@@ -46,6 +47,8 @@ export interface TodayRow {
   week_quota?: number | null;
   week_days_left?: number | null;
   ends_on?: string | null;
+  // Where it was dragged to in its section, top first; null if never moved.
+  sort_order?: number | null;
 }
 
 // One week of a times-per-week habit, for its chain.
@@ -497,6 +500,12 @@ export function createTrackerApi(client: SupabaseClient) {
       ),
 
     listCompletedHabits: () => call<CompletedHabit[]>('get_completed_habits'),
+
+    // Every habit's days and weeks over a range, for analytics. Cached on the server.
+    getAnalytics: (from: string, to: string) => call<AnalyticsData>('get_analytics', { p_from: from, p_to: to }),
+
+    // The order of habits in one section of Today, top first.
+    setHabitOrder: (habitIds: string[]) => call('set_habit_order', { p_habit_ids: habitIds }),
 
     getWeekStatuses: (from: string, to: string) =>
       call<WeekStatusRow[]>('get_week_statuses', { p_from: from, p_to: to }),

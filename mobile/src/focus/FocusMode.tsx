@@ -12,6 +12,8 @@ import {
   FOCUS_FADE_MS,
   FocusEventKind,
   focusFromSaved,
+  focusAddsTime,
+  focusedAmount,
   focusMinutes,
   focusReducer,
   focusStart,
@@ -29,6 +31,7 @@ import {
   SavedFocus,
   space,
   STOP_QUESTION,
+  stopQuestionFor,
   timeUpQuestion,
   TodayRow,
 } from '@habit-tracker/core';
@@ -50,6 +53,8 @@ interface FocusModeProps {
   saved?: SavedFocus | null;
   reducedMotion: boolean;
   onLog: (row: TodayRow, level: HabitLevel) => void;
+  // A duration habit's focused time, added to the day in its own unit.
+  onAddAmount?: (row: TodayRow, amount: number) => void;
   onClose: () => void;
 }
 
@@ -99,7 +104,7 @@ function initialState(row: TodayRow, saved: SavedFocus | null | undefined): Focu
   return saved ? focusFromSaved(saved, Date.now()) : focusStart(focusMinutes(row));
 }
 
-export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusModeProps) {
+export function FocusMode({ row, saved, reducedMotion, onLog, onAddAmount, onClose }: FocusModeProps) {
   useKeepAwake('tunnel-vision');
   const { colors, radii } = useTheme();
   const [state, dispatch] = useReducer(focusReducer, saved, (s) => initialState(row, s));
@@ -267,9 +272,16 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
     const elapsed = elapsedSeconds(state, Date.now());
     void record(row, 'focus.completed', plannedSeconds(state), elapsed);
     analytics.track('focus_completed', { minutes: state.minutes, early: elapsed < plannedSeconds(state) });
+    // A duration habit adds the time focused; anything else is done.
+    if (focusAddsTime(row) && onAddAmount) {
+      const amount = focusedAmount(row, elapsed);
+      onAddAmount(row, amount);
+      AccessibilityInfo.announceForAccessibility(`${amount} ${row.unit ?? 'minutes'} added to ${row.title}.`);
+      return;
+    }
     if (!isLogged(row)) onLog(row, 'full');
     AccessibilityInfo.announceForAccessibility(`${row.title} done and logged.`);
-  }, [state, row, onLog]);
+  }, [state, row, onLog, onAddAmount]);
 
   useEffect(() => {
     if (state.phase === 'timeUp') AccessibilityInfo.announceForAccessibility(timeUpQuestion(row.title));
@@ -299,7 +311,8 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
       void record(row, 'focus.stopped', plannedSeconds(state), elapsedSeconds(state, now));
       analytics.track('focus_stopped', { minutes: state.minutes, logged_minimum: logMinimum });
     }
-    if (logMinimum && !isLogged(row)) onLog(row, 'minimum');
+    if (logMinimum && focusAddsTime(row) && onAddAmount) onAddAmount(row, focusedAmount(row, elapsedSeconds(state, now)));
+    else if (logMinimum && !isLogged(row)) onLog(row, 'minimum');
     close();
   };
 
@@ -396,7 +409,9 @@ export function FocusMode({ row, saved, reducedMotion, onLog, onClose }: FocusMo
       case 'asking':
         return (
           <View style={styles.section}>
-            <Text accessibilityLiveRegion="polite">{STOP_QUESTION}</Text>
+            <Text accessibilityLiveRegion="polite">
+              {onAddAmount ? stopQuestionFor(row, elapsedSeconds(state, now)) : STOP_QUESTION}
+            </Text>
             <Button label="Yes" onPress={() => leaveWithout(true)} />
             <Button label="No" quiet onPress={() => leaveWithout(false)} />
             <Button label="Keep going" quiet onPress={() => dispatch({ type: 'keepGoing', now: at() })} />

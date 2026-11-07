@@ -231,6 +231,15 @@ describe('groupByTimeOfDay', () => {
     ]);
   });
 
+  it('keeps the order cards were dragged into, ahead of reminder order', () => {
+    const rows = [
+      row({ habit_id: 'a', time_of_day: 'evening', reminder_time: '19:00:00' }),
+      row({ habit_id: 'b', time_of_day: 'evening', sort_order: 1 }),
+      row({ habit_id: 'c', time_of_day: 'evening', sort_order: 0 }),
+    ];
+    expect(groupByTimeOfDay(rows)[0].rows.map((r) => r.habit_id)).toEqual(['c', 'b', 'a']);
+  });
+
   it('keeps every section while a card is being dragged', () => {
     expect(groupByTimeOfDay([row()], true).map((g) => g.name)).toEqual(['Morning', 'Afternoon', 'Evening', 'Anytime']);
   });

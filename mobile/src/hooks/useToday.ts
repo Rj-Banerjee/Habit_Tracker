@@ -108,14 +108,43 @@ export function useToday() {
 
   // To another part of the day, from today on. A reminder still at the old part's
   // default moves with it; one they set themselves stays.
-  const moveTo = (row: TodayRow, time: TimeOfDay) => {
+  // To another part of the day, and to a place in it, from today on. A reminder still at
+  // the old part's default moves with it; one they set themselves stays. Shown at once,
+  // then saved.
+  const moveTo = async (row: TodayRow, time: TimeOfDay, order?: string[]) => {
     const from = row.time_of_day ?? 'anytime';
-    if (time === from) return Promise.resolve();
-    const followed = (row.reminder_time?.slice(0, 5) ?? null) === DEFAULT_REMINDERS[from];
+    const moved = time !== from;
+    if (!moved && !order) return;
+    const followed = moved && (row.reminder_time?.slice(0, 5) ?? null) === DEFAULT_REMINDERS[from];
     const reminder = followed ? DEFAULT_REMINDERS[time] : (row.reminder_time ?? null);
-    return change(row, { time_of_day: time, reminder_time: reminder }, () =>
-      tracker.updateHabit(row.habit_id, followed ? { timeOfDay: time, reminderTime: reminder } : { timeOfDay: time })
+    const place = new Map(order?.map((id, index) => [id, index]));
+    const before = rows;
+    setMessage(null);
+    setRows((current) =>
+      current.map((r) => {
+        const next = place.has(r.habit_id) ? { ...r, sort_order: place.get(r.habit_id) } : r;
+        return r.habit_id === row.habit_id ? { ...next, time_of_day: time, reminder_time: reminder } : next;
+      })
     );
+    try {
+      if (moved) {
+        await tracker.updateHabit(row.habit_id, followed ? { timeOfDay: time, reminderTime: reminder } : { timeOfDay: time });
+      }
+      if (order) await tracker.setHabitOrder(order);
+      await refresh();
+    } catch (err) {
+      setRows(before);
+      setMessage((err as Error).message);
+    }
+  };
+
+  // An amount already known, such as minutes focused, added to the day.
+  const addAmountOf = async (row: TodayRow, amount: number, unit: string | null = null) => {
+    let said: string | null = null;
+    await change(row, { amount: (row.amount ?? 0) + amount }, async () => {
+      said = progressLine(await offlineTracker.addAmount(row.habit_id, row.day, amount, unit), row.title);
+    });
+    if (said) setMessage(said);
   };
 
   const undo = (row: TodayRow) =>
@@ -146,6 +175,7 @@ export function useToday() {
     refresh,
     log,
     addAmount,
+    addAmountOf,
     moveTo,
     undo,
     skip,

@@ -62,13 +62,21 @@ const row = (patch: Partial<TodayRow> = {}): TodayRow =>
 
 async function open(patch: Partial<TodayRow> = {}, saved: React.ComponentProps<typeof FocusMode>['saved'] = null) {
   const onLog = jest.fn();
+  const onAddAmount = jest.fn();
   const onClose = jest.fn();
   const view = await render(
     <ThemeProvider forced="light">
-      <FocusMode row={row(patch)} saved={saved} reducedMotion={false} onLog={onLog} onClose={onClose} />
+      <FocusMode
+        row={row(patch)}
+        saved={saved}
+        reducedMotion={false}
+        onLog={onLog}
+        onAddAmount={onAddAmount}
+        onClose={onClose}
+      />
     </ThemeProvider>
   );
-  return { ...view, onLog, onClose };
+  return { ...view, onLog, onAddAmount, onClose };
 }
 
 const press = (name: string | RegExp) => fireEvent.press(screen.getByRole('button', { name }));
@@ -95,6 +103,43 @@ describe('Tunnel Vision', () => {
     await screen.unmount();
     await open({ habit_type: 'duration', target: 20, unit: 'minutes' });
     expect(screen.getByRole('button', { name: 'Start 20 minutes' })).toBeTruthy();
+  });
+
+  describe('a duration habit', () => {
+    const study = { title: 'Study', habit_type: 'duration' as const, target: 60, unit: 'min' };
+
+    it('starts at what is left today', async () => {
+      await open({ ...study, amount: 35 });
+      expect(screen.getByRole('button', { name: 'Start 25 minutes' })).toBeTruthy();
+    });
+
+    it('adds the time focused when it is done, instead of logging the whole hour', async () => {
+      const { onLog, onAddAmount } = await open(study);
+      await press('Start 60 minutes');
+      await wait(25 * 60_000);
+      await press('Done my work');
+      expect(onAddAmount).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 25);
+      expect(onLog).not.toHaveBeenCalled();
+    });
+
+    it('asks to add the minutes done when stopped early', async () => {
+      const { onLog, onAddAmount } = await open(study);
+      await press('Start 60 minutes');
+      await wait(12 * 60_000);
+      await press('Stop');
+      expect(screen.getByText('Add the 12 minutes you focused?')).toBeTruthy();
+      await press('Yes');
+      expect(onAddAmount).toHaveBeenCalledWith(expect.objectContaining({ habit_id: 'h1' }), 12);
+      expect(onLog).not.toHaveBeenCalled();
+    });
+
+    it('adds in hours for a habit counted in hours', async () => {
+      const { onAddAmount } = await open({ ...study, target: 2, unit: 'hours' });
+      await press('Start 120 minutes');
+      await wait(30 * 60_000);
+      await press('Done my work');
+      expect(onAddAmount).toHaveBeenCalledWith(expect.anything(), 0.5);
+    });
   });
 
   it('keeps the screen on', async () => {

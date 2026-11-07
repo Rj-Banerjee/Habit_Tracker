@@ -1543,5 +1543,118 @@ select is(
 );
 select set_config('request.jwt.claims', '', true);
 
+
+-- The order habits are dragged into.
+select t.make_user(140);
+select t.make_habit(510, 140, '2026-11-02');
+select t.make_habit(511, 140, '2026-11-02');
+select set_config('request.jwt.claims', json_build_object('sub', t.u(140), 'role', 'authenticated')::text, true);
+select public.set_habit_order(array[t.h(511), t.h(510)]);
+select is(
+  (select array_agg(habit_id order by sort_order) from tracker.today_rows(t.u(140), t.noon(140, '2026-11-03')) where is_today),
+  array[t.h(511), t.h(510)], 'Today returns habits with the order they were dragged into'
+);
+select throws_like($$ select public.set_habit_order(array[t.h(1)]) $$, '%not found%', 'only your own habits can be ordered');
+select set_config('request.jwt.claims', '', true);
+
+
+-- Analytics: the days and weeks behind every metric.
+select is(jsonb_array_length(tracker.build_analytics(t.u(120), '2026-11-02', '2026-11-05', t.noon(120, '2026-11-07')) -> 'days'), 4,
+  'every day a habit was due comes back');
+select is(
+  (select d ->> 'log_status' from jsonb_array_elements(tracker.build_analytics(t.u(120), '2026-11-02', '2026-11-05', t.noon(120, '2026-11-07')) -> 'days') d
+   where d ->> 'date' = '2026-11-05'),
+  'partial', 'a day below the minimum is marked as such'
+);
+select is(
+  (select (d ->> 'status', (d ->> 'minimum')::numeric, (d ->> 'target')::numeric)::text
+   from jsonb_array_elements(tracker.build_analytics(t.u(120), '2026-11-02', '2026-11-05', t.noon(120, '2026-11-07')) -> 'days') d
+   where d ->> 'date' = '2026-11-05'),
+  '(missed,2,10)', 'with its status, minimum and target that day'
+);
+select is(jsonb_array_length(tracker.build_analytics(t.u(130), '2026-11-02', '2026-11-15', t.noon(130, '2026-11-18')) -> 'weeks'), 2,
+  'a times-per-week habit comes back by the week');
+select tracker.settle(t.u(130), t.noon(130, '2026-11-18'));
+select is(jsonb_array_length(tracker.build_analytics(t.u(130), '2026-11-02', '2026-11-15', t.noon(130, '2026-11-18')) -> 'grace_spent'), 1,
+  'with the Grace Days spent in the range');
+select set_config('request.jwt.claims', json_build_object('sub', t.u(120), 'role', 'authenticated')::text, true);
+select lives_ok($$ select public.get_analytics('2026-11-02', '2026-11-05') $$, 'it can be read');
+select is((select count(*)::int from tracker.analytics_cache where user_id = t.u(120)), 1, 'and is cached');
+select is(public.get_analytics('2026-11-02', '2026-11-05'), (select payload from tracker.analytics_cache where user_id = t.u(120)),
+  'and read back from the cache while nothing changed');
+select throws_like($$ select public.get_analytics('2024-01-01', '2026-11-05') $$, '%too long%', 'a range is capped');
+select set_config('request.jwt.claims', '', true);
+
+
+-- The set-based day facts agree with day_status on every fixture day.
+select is(
+  (select count(*)::int
+   from public.users u
+   cross join lateral tracker.day_facts(u.id, '2026-09-01', '2026-12-31', '2026-11-20 12:00+00') f
+   where not f.weekly
+     and f.raw_status <> 'unscheduled'
+     and tracker.day_status(f.habit_id, f.date, '2026-11-20 12:00+00') is distinct from (
+       case
+         when f.raw_status in ('missed', 'pending') and exists (
+           select 1 from public.grace_days g where g.spent_on_habit = f.habit_id and g.spent_for_date = f.date
+         ) then 'protected'
+         else f.raw_status
+       end
+     )),
+  0, 'the day facts agree with day_status for every habit on every day'
+);
+select cmp_ok(
+  (select count(*)::int from public.users u cross join lateral tracker.day_facts(u.id, '2026-09-01', '2026-12-31', '2026-11-20 12:00+00') f
+   where not f.weekly and f.raw_status <> 'unscheduled'),
+  '>', 500, 'over enough fixture days to mean something'
+);
+select is(
+  (select count(*)::int
+   from public.users u
+   cross join lateral tracker.day_facts(u.id, '2026-09-01', '2026-12-31', '2026-11-20 12:00+00') f
+   where tracker.is_scheduled(f.habit_id, f.date) is distinct from (not f.weekly and f.raw_status <> 'unscheduled')),
+  0, 'and on which days a habit is due'
+);
+
+
+-- Analytics streaks agree with the streak rules for every daily habit.
+select is(
+  (select count(*)::int
+   from public.users u
+   cross join lateral jsonb_array_elements(tracker.build_analytics(u.id, '2026-11-01', '2026-11-20', '2026-11-20 12:00+00') -> 'habits') h
+   cross join lateral tracker.streak_stats((h ->> 'id')::uuid, '2026-11-20', '2026-11-20 12:00+00') s
+   where h ->> 'frequency' = 'days'
+     and ((h ->> 'current_streak')::int is distinct from s.current_streak
+       or (h ->> 'longest_streak')::int is distinct from s.longest_streak)),
+  0, 'analytics streaks agree with streak_stats'
+);
+
+
+-- The set-based weeks agree with week_status on every fixture week.
+select is(
+  (select count(*)::int
+   from public.users u
+   cross join lateral jsonb_array_elements(tracker.build_analytics(u.id, '2026-09-01', '2026-11-20', '2026-11-20 12:00+00') -> 'weeks') w
+   where w ->> 'status' is distinct from tracker.week_status((w ->> 'habit_id')::uuid, (w ->> 'week_start')::date, '2026-11-20 12:00+00')
+      or (w ->> 'quota')::int is distinct from tracker.week_quota((w ->> 'habit_id')::uuid, (w ->> 'week_start')::date)
+      or (w ->> 'sessions')::int is distinct from tracker.week_sessions((w ->> 'habit_id')::uuid, (w ->> 'week_start')::date)),
+  0, 'analytics weeks agree with week_status, its quota and its sessions'
+);
+select cmp_ok(
+  (select count(*)::int from public.users u
+   cross join lateral jsonb_array_elements(tracker.build_analytics(u.id, '2026-09-01', '2026-11-20', '2026-11-20 12:00+00') -> 'weeks') w),
+  '>', 10, 'over enough fixture weeks to mean something'
+);
+select is(
+  (select count(*)::int
+   from public.users u
+   cross join lateral jsonb_array_elements(tracker.build_analytics(u.id, '2026-11-01', '2026-11-20', '2026-11-20 12:00+00') -> 'habits') h
+   cross join lateral tracker.week_streak_stats((h ->> 'id')::uuid, '2026-11-20', '2026-11-20 12:00+00') s
+   where h ->> 'frequency' = 'per_week'
+     and ((h ->> 'current_streak')::int is distinct from s.current_streak
+       or (h ->> 'longest_streak')::int is distinct from s.longest_streak)),
+  0, 'and week streaks agree with week_streak_stats'
+);
+
 select * from finish();
 rollback;
