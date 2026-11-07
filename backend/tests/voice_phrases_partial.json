@@ -1,0 +1,185 @@
+{
+ "note": "Partial logging, written 7 Nov 2026 and never tuned against. amount and unit are checked too; a null unit means the habit's own.",
+ "phrases": [
+  {
+   "group": "partial",
+   "heard": "read 1 page",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 1,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "I read 2-3 pages",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "read 3 pages",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 3,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "read 8 more",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 8,
+   "unit": null
+  },
+  {
+   "group": "partial",
+   "heard": "read 8 more pages",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 8,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "read 2-3 lines",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "lines"
+  },
+  {
+   "group": "partial",
+   "heard": "read 10 pages of my novel",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 10,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "read twenty pages",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 20,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "I read half a page",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 0.5,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "finished 2 chapters of my book",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "chapters"
+  },
+  {
+   "group": "partial",
+   "heard": "drank 2 glasses of water",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 2,
+   "unit": "glasses"
+  },
+  {
+   "group": "partial",
+   "heard": "2 more glasses of water",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 2,
+   "unit": "glasses"
+  },
+  {
+   "group": "partial",
+   "heard": "drank 500 ml of water",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 500,
+   "unit": "ml"
+  },
+  {
+   "group": "partial",
+   "heard": "had another glass of water",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 1,
+   "unit": "glasses"
+  },
+  {
+   "group": "partial",
+   "heard": "do teen page padhe",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "aur 5 page padh liye",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 5,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "paani ke 3 glass aur",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 3,
+   "unit": "glasses"
+  },
+  {
+   "group": "partial",
+   "heard": "मैंने 4 पेज पढ़े",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 4,
+   "unit": "pages"
+  },
+  {
+   "group": "partial",
+   "heard": "दो गिलास पानी पिया",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 2,
+   "unit": "glasses"
+  },
+  {
+   "group": "partial",
+   "heard": "just one page of reading today",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 1,
+   "unit": "pages"
+  }
+ ]
+}

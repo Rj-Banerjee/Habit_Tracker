@@ -10,6 +10,9 @@ export interface SpokenPhrase {
   language: VoiceLanguage;
   expect: string[];
   level?: string;
+  // For the partial-logging phrases: the amount and unit the scorer expects.
+  amount?: number;
+  unit?: string | null;
 }
 
 export const SPOKEN_PHRASES = spoken.phrases as SpokenPhrase[];

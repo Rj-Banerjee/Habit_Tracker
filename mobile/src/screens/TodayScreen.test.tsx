@@ -6,6 +6,7 @@ import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { watchMyActivity } from '../services/live';
 import { syncHabitReminders } from '../services/reminders';
+import type { AmountResult } from '@habit-tracker/core';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
@@ -52,6 +53,7 @@ jest.mock('../services/tracker', () => ({
     getHabitDays: jest.fn(() => Promise.resolve([])),
     getDayStatuses: jest.fn(() => Promise.resolve([])),
     recordFocus: jest.fn(() => Promise.resolve()),
+    addAmount: jest.fn(),
     getProfile: jest.fn(() => Promise.resolve({ seen_tips: [] })),
     countActiveHabits: jest.fn(() => Promise.resolve(2)),
     markTipSeen: jest.fn(() => Promise.resolve()),
@@ -316,6 +318,71 @@ describe('TodayScreen', () => {
     await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
     await fireEvent.press(screen.getByRole('button', { name: 'Minimum version, Run 1 km' }));
     expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'minimum', null, 'tap');
+  });
+
+  describe('adding an amount', () => {
+    const read = () =>
+      row({
+        title: 'Read',
+        habit_type: 'count',
+        target: 10,
+        unit: 'pages',
+        levels: [
+          { level: 'full', description: 'Ten pages', target: 10 },
+          { level: 'minimum', description: 'Two pages', target: 2 },
+        ],
+      });
+    const answer = (patch: Partial<AmountResult> = {}): AmountResult => ({
+      counted: true, added: 1, total: 1, unit: 'pages', said_unit: null, minimum: 2, target: 10,
+      status: 'partial' as const, level: null, repaired: false, ...patch,
+    }); // prettier-ignore
+
+    const add = async (text: string) => {
+      await fireEvent(screen.getByRole('button', { name: /^Read/ }), 'longPress');
+      await fireEvent.changeText(screen.getByLabelText('Add an amount'), text);
+      await fireEvent.press(screen.getByRole('button', { name: 'Add' }));
+      await act(async () => {});
+    };
+
+    it('adds 1 page and says what is left for the minimum', async () => {
+      api.addAmount.mockResolvedValue(answer());
+      await open([read()]);
+      await add('1');
+      expect(api.addAmount).toHaveBeenCalledWith('h1', '2026-11-03', 1, null, 'tap');
+      expect(screen.getByText('Read: 1 of 10 pages, 1 more for your minimum.')).toBeTruthy();
+    });
+
+    it('uses the lower number of a range, with its unit', async () => {
+      api.addAmount.mockResolvedValue(answer({ added: 2, total: 2, status: 'done', level: 'minimum' }));
+      await open([read()]);
+      await add('2-3 pages');
+      expect(api.addAmount).toHaveBeenCalledWith('h1', '2026-11-03', 2, 'pages', 'tap');
+    });
+
+    it('says calmly when the unit cannot count', async () => {
+      api.addAmount.mockResolvedValue(answer({ counted: false, added: 0, total: 0, said_unit: 'lines', status: 'none' }));
+      await open([read()]);
+      await add('2-3 lines');
+      expect(screen.getByText("That's below your minimum: lines can't count toward pages. Read is at 0 of 10 pages.")).toBeTruthy();
+    });
+
+    it('asks for an amount it can read', async () => {
+      await open([read()]);
+      await add('lots');
+      expect(api.addAmount).not.toHaveBeenCalled();
+      expect(screen.getByText('Enter an amount, like 3 or 2-3 pages.')).toBeTruthy();
+    });
+
+    it("isn't offered for a yes/no habit", async () => {
+      await open([row()]);
+      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
+      expect(screen.queryByLabelText('Add an amount')).toBeNull();
+    });
+
+    it('shows progress below the minimum on the card', async () => {
+      await open([{ ...read(), amount: 1 }]);
+      expect(screen.getByText(/1 of 10 pages so far/)).toBeTruthy();
+    });
   });
 
   it('offers a repair only when the server says it can happen', async () => {

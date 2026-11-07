@@ -1,4 +1,5 @@
 import { HabitLevel, LevelOption, TodayRow } from './api';
+import { partialDetail } from './amounts';
 import { HabitCardStatus } from './habitCardStatus';
 
 export interface IdentityGroup {
@@ -61,6 +62,8 @@ export function cardDetail(row: TodayRow): string | undefined {
   if (row.level_done) {
     return row.levels.find((l) => l.level === row.level_done)?.description;
   }
+  const partial = partialDetail(row);
+  if (partial) return partial;
   if (row.can_repair) {
     return 'Repair available';
   }

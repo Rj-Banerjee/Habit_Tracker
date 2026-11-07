@@ -13,7 +13,8 @@ export interface VoiceOption {
 
 export type VoiceAction =
   | (VoiceOption & { intent: 'log_habit' | 'shrink_habit' | 'undo_habit' })
-  | (VoiceOption & { intent: 'log_amount'; amount: number })
+  // unit is what they said it in, if anything; the server converts it or says it can't.
+  | (VoiceOption & { intent: 'log_amount'; amount: number; unit?: string | null })
   | (VoiceOption & { intent: 'skip_habit'; reason: string });
 
 // Two habits could be what they meant, so the app asks once.

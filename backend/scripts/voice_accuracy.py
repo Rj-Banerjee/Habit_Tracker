@@ -61,12 +61,31 @@ class Fixture:
         return self.rows
 
 
-def acted_rightly(phrase: dict, got: list[str], level: str) -> bool:
+UNIT_SPELLINGS = {"page": "pages", "glass": "glasses", "line": "lines", "chapter": "chapters",
+                  "पेज": "pages", "गिलास": "glasses", "glas": "glasses"}  # fmt: skip
+
+
+def same_amount(phrase: dict, intents: list[dict]) -> bool:
+    """For the partial-logging set: the amount and unit matter, not only the habit. A
+    null unit, or the habit's own, both mean the habit's own."""
+    if "amount" not in phrase:
+        return True
+    logged = [i for i in intents if i["intent"] == "log_amount"]
+    if len(logged) != 1 or logged[0].get("amount") != phrase["amount"]:
+        return False
+    said = (logged[0].get("unit") or "").lower()
+    said = UNIT_SPELLINGS.get(said, said)
+    want = phrase["unit"]
+    own = {"read": "pages", "water": "glasses"}.get(logged[0]["habit_id"])
+    return said in ("", own) if want in (None, own) else said == want
+
+
+def acted_rightly(phrase: dict, got: list[str], level: str, intents: list[dict] | None = None) -> bool:
     """Judges what the app would do. Only high and medium act, and medium asks first."""
     if phrase.get("level"):
         return level == phrase["level"]
     if level in ("high", "medium"):
-        return got == sorted(phrase["expect"])
+        return got == sorted(phrase["expect"]) and same_amount(phrase, intents or [])
     return not phrase["expect"]
 
 
@@ -90,9 +109,9 @@ async def baseline(provider, tracker, heard) -> list[str]:
     return summarise(i for i in (voice.to_intent(c, refs) for c in result.calls) if i)
 
 
-async def current(provider, tracker, heard) -> tuple[list[str], str]:
+async def current(provider, tracker, heard) -> tuple[list[str], str, list[dict]]:
     parsed = await voice.parse(provider, tracker, heard)  # type: ignore[arg-type]
-    return summarise(parsed["intents"]), parsed["level"]
+    return summarise(parsed["intents"]), parsed["level"], parsed["intents"]
 
 
 def spoken_phrases(path: str) -> list[dict]:
@@ -129,23 +148,26 @@ async def run(args) -> None:
     errors_in_a_row = 0
     for phrase in data["phrases"]:
         level = "high"  # before this work, everything the parser returned was acted on
+        intents: list[dict] = []
         try:
             if args.baseline:
                 got = await baseline(provider, tracker, phrase["heard"])
             else:
-                got, level = await current(provider, tracker, phrase["heard"])
+                got, level, intents = await current(provider, tracker, phrase["heard"])
             errors_in_a_row = 0
         except LLMError as error:
             errors_in_a_row += 1
             if errors_in_a_row >= MAX_ERRORS_IN_A_ROW:
                 sys.exit(f"Stopped: the model failed {errors_in_a_row} times running. {error!r}")
             got, level = [f"ERROR {type(error).__name__}"], "error"
-        good = acted_rightly(phrase, got, level)
+        good = acted_rightly(phrase, got, level, intents)
         scores[phrase["group"]][0] += good
         scores[phrase["group"]][1] += 1
         results.append({**phrase, "got": got, "level": level, "good": good})
         said = f' (said "{phrase["say"]}")' if "say" in phrase and not same_words(phrase["say"], phrase["heard"]) else ""
-        print("ok  " if good else "MISS", phrase["heard"] + said, "->", got, level, flush=True)
+        amounts = [f'{i.get("amount")} {i.get("unit") or ""}'.strip() for i in intents if i["intent"] == "log_amount"]
+        shown = f" {amounts}" if "amount" in phrase else ""
+        print("ok  " if good else "MISS", phrase["heard"] + said, "->", got, level + shown, flush=True)
         await asyncio.sleep(PAUSE_SECONDS)
 
     right = sum(s[0] for s in scores.values())

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   addToQueue,
+  AmountResult,
   droppedNote,
   flushQueue,
   HabitLevel,
@@ -86,6 +87,56 @@ export const offlineTracker = {
       );
       return null;
     }
+  },
+
+  // Adds to the day's total. Offline it waits in the queue, and the reply is only what's
+  // known on the phone: the server converts units and says where the day stands.
+  addAmount: async (
+    habitId: string,
+    date: string | null,
+    amount: number,
+    unit: string | null = null,
+    source: LogSource = 'tap'
+  ): Promise<AmountResult> => {
+    const backlog = isBacklog(date, today());
+    try {
+      const result = await tracker.addAmount(habitId, date, amount, unit, source);
+      analytics.track('habit_logged', { source, level: result.level ?? 'partial', backlog, offline: false });
+      return result;
+    } catch (error) {
+      if (!isOfflineError(error)) throw error;
+      analytics.track('habit_logged', { source, level: 'partial', backlog, offline: true });
+      const day = date ?? today();
+      await writeQueue(
+        addToQueue(await readQueue(), { kind: 'amount', habitId, date: day, level: 'full', amount, unit, source })
+      );
+      return {
+        counted: true,
+        added: amount,
+        total: amount,
+        unit,
+        said_unit: unit,
+        minimum: null,
+        target: null,
+        status: 'partial',
+        level: null,
+        repaired: false,
+      };
+    }
+  },
+
+  removeAmount: async (habitId: string, date: string | null, amount: number) => {
+    const queue = await readQueue();
+    let at = -1;
+    queue.forEach((item, index) => {
+      const same = item.kind === 'amount' && item.habitId === habitId && item.amount === amount;
+      if (same && (date === null || item.date === date)) at = index;
+    });
+    if (at >= 0) {
+      await writeQueue(queue.filter((_, index) => index !== at));
+      return null;
+    }
+    return tracker.removeAmount(habitId, date, amount);
   },
 
   undoLog: async (habitId: string, date: string | null, source: LogSource = 'tap') => {

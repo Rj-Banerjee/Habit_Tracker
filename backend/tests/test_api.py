@@ -615,6 +615,27 @@ def test_a_guess_at_a_misheard_word_needs_confirming(api):
     assert body["heard"] == "anduda latest update"
 
 
+def test_an_amount_keeps_the_unit_it_was_said_in(api):
+    call = ToolCall("log_amount", {"habit": "h1", "amount": 2, "unit": " lines ", "confidence": "high"})
+    intents = voice_response(api, [call], "read 2-3 lines")["intents"]
+    assert intents == [
+        {"intent": "log_amount", "habit_id": "uuid-read", "habit_title": "Read", "amount": 2, "unit": "lines"}
+    ]
+
+
+@pytest.mark.parametrize("unit", [None, "more", " More ", ""])
+def test_an_amount_without_a_unit_says_none(api, unit):
+    call = ToolCall("log_amount", {"habit": "h1", "amount": 8, "unit": unit, "confidence": "high"})
+    assert voice_response(api, [call], "read 8 more")["intents"][0]["unit"] is None
+
+
+def test_the_parser_is_told_amounts_add_up_and_ranges_use_the_lower_number(api):
+    provider = use(FakeProvider(calls=[]))
+    api.post("/voice/parse", json={"transcript": "read 8 more"})
+    assert "lower number" in provider.seen[0]["system"]
+    assert "add up" in provider.seen[0]["system"]
+
+
 def test_an_amount_on_a_yes_no_habit_is_a_plain_log(api):
     call = ToolCall("log_amount", {"habit": "h2", "amount": 10, "confidence": "high"})
     intents = voice_response(api, [call], "ran for 10 minutes")["intents"]

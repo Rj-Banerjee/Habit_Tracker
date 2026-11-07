@@ -1,6 +1,8 @@
 import { HabitLevel, LogSource, TodayRow, TrackerApi, VoiceHabit } from './api';
 import { VoiceAction, VoiceIntent, VoiceOption, VoiceQuestion } from './ai';
+import { progressLine } from './amounts';
 import { isLogged, levelTarget } from './todayModel';
+import { convertAmount, findUnit } from './units';
 
 export const VOICE_UNDO_SECONDS = 10;
 
@@ -21,6 +23,8 @@ const SKIP_WITHOUT_A_REASON = 'Not today';
 export interface VoiceUndo {
   habitId: string;
   date: string | null;
+  // An added amount is taken back on its own, so the rest of the day stays.
+  amount?: number;
 }
 
 export interface VoiceOutcome {
@@ -30,7 +34,10 @@ export interface VoiceOutcome {
 }
 
 // Voice and the coach both act through here, so they can't drift apart.
-export type ActionApi = Pick<TrackerApi, 'logHabit' | 'skipHabit' | 'undoLog' | 'getToday'>;
+export type ActionApi = Pick<
+  TrackerApi,
+  'logHabit' | 'skipHabit' | 'undoLog' | 'getToday' | 'addAmount' | 'removeAmount'
+>;
 
 // Undo must work when the AI doesn't, so these never leave the phone.
 export const isUndoPhrase = (text: string) =>
@@ -43,31 +50,50 @@ const SAID_IT = [
 
 // "done with Read" works with no connection and costs nothing. Only an exact name counts:
 // anything less goes to the parser, which can ask.
-// "read 20 pages" or "20 pages of Read": a number in the habit's own unit, singular or plural.
-const AMOUNT_FIRST = /^(?:i )?(?:did |read |ran |logged )?(\d+(?:\.\d+)?) ([a-z]+)(?: of)? (.+)$/;
-const NAME_FIRST = /^(?:i )?(.+?) (\d+(?:\.\d+)?) ([a-z]+)$/;
+// "read 20 pages", "20 pages of Read", "read 2-3 pages" or "read 8 more". A range uses the
+// lower number. The unit must be one the app knows: one that converts is converted on the
+// server, and one that can't ("2 lines" for pages) is sent so the reply can say so.
+const NUMBER = '(\\d+(?:\\.\\d+)?)(?:\\s*(?:-|to)\\s*\\d+(?:\\.\\d+)?)?';
+const AMOUNT_FIRST = new RegExp(`^(?:i )?(?:did |read |ran |logged |walked |drank )?${NUMBER} ([a-z]+)(?: of)? (.+)$`);
+const NAME_FIRST = new RegExp(`^(?:i )?(.+?) ${NUMBER} ([a-z]+)$`);
+const MORE = new RegExp(`^(?:i )?(.+?) ${NUMBER} more(?: ([a-z]+))?$`);
 
-const sameUnit = (said: string, unit: string | null | undefined) => {
-  if (!unit) return false;
-  const want = unit.toLowerCase().replace(/s$/, '');
-  return said.replace(/s$/, '') === want;
+// A unit of another kind ("read 20 minutes" for a pages habit) probably means something
+// else, so it's left to the parser. "2 lines" for pages is the same kind, and is sent.
+const unitFits = (said: string | null, unit: string | null | undefined) => {
+  if (said === null) return true;
+  const heard = findUnit(said);
+  const own = unit ? findUnit(unit) : null;
+  if (!heard) return false;
+  return own ? heard.family === own.family : said === unit?.toLowerCase();
 };
 
 function matchAmount(said: string, habits: VoiceHabit[]): VoiceAction | null {
-  const tries: { name: string; amount: string; unit: string }[] = [];
+  const tries: { name: string; amount: string; unit: string | null }[] = [];
+  const more = MORE.exec(said);
+  if (more) tries.push({ name: more[1], amount: more[2], unit: more[3] ?? null });
   const first = AMOUNT_FIRST.exec(said);
   if (first) tries.push({ amount: first[1], unit: first[2], name: first[3] });
   const named = NAME_FIRST.exec(said);
-  if (named) tries.push({ name: named[1], amount: named[2], unit: named[3] });
+  if (named && !more) tries.push({ name: named[1], amount: named[2], unit: named[3] });
   for (const { name, amount, unit } of tries) {
     const found = habits.filter(
       (habit) =>
         (habit.type === 'count' || habit.type === 'duration') &&
-        sameUnit(unit, habit.unit) &&
+        unitFits(unit, habit.unit) &&
         [habit.title, ...habit.voice_aliases].some((option) => option.toLowerCase() === name.replace(/^(my|the) /, ''))
     );
     if (found.length === 1) {
-      return { intent: 'log_amount', habit_id: found[0].id, habit_title: found[0].title, amount: Number(amount) };
+      const habit = found[0];
+      // In the habit's own unit, it's just the number.
+      const own = unit === null || convertAmount(1, unit, habit.unit ?? null) === 1;
+      return {
+        intent: 'log_amount',
+        habit_id: habit.id,
+        habit_title: habit.title,
+        amount: Number(amount),
+        unit: own ? null : unit,
+      };
     }
   }
   return null;
@@ -122,7 +148,10 @@ export async function runVoiceActions(
 }
 
 export async function undoActions(api: ActionApi, undos: VoiceUndo[], source: LogSource) {
-  for (const { habitId, date } of undos) await api.undoLog(habitId, date, source);
+  for (const { habitId, date, amount } of undos) {
+    if (amount !== undefined) await api.removeAmount(habitId, date, amount);
+    else await api.undoLog(habitId, date, source);
+  }
 }
 
 export const noHabitMessage = (name: string) => `You don't have a habit called ${name}.`;
@@ -205,11 +234,13 @@ export async function runVoiceAction(
     return todayRow(await api.getToday(), action.habit_id)?.current_streak;
   };
 
+  // Adds to the day: its total decides whether it counts. The reply says where it stands.
   if (action.intent === 'log_amount') {
-    const short = row?.target != null && action.amount < row.target;
-    const streak = await log(short ? 'minimum' : 'full', action.amount);
-    const unit = row?.unit ? ` ${row.unit}` : '';
-    return { say: withStreak(`Logged ${action.amount}${unit} of ${title}.`, streak), undo };
+    const result = await api.addAmount(action.habit_id, date, action.amount, action.unit ?? null, source);
+    const line = progressLine(result, title);
+    if (!result.counted) return { say: line, undo: null };
+    const streak = result.status === 'done' ? todayRow(await api.getToday(), action.habit_id)?.current_streak : undefined;
+    return { say: withStreak(line, streak), undo: { ...undo, amount: result.added } };
   }
 
   const level: HabitLevel = action.intent === 'shrink_habit' ? 'minimum' : 'full';

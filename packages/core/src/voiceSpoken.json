@@ -1844,6 +1844,226 @@
    "language": "en-IN",
    "expect": [],
    "level": "off_topic"
+  },
+  {
+   "id": "p001",
+   "group": "partial",
+   "say": "read 1 page",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 1,
+   "unit": "pages"
+  },
+  {
+   "id": "p002",
+   "group": "partial",
+   "say": "I read 2-3 pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "pages"
+  },
+  {
+   "id": "p003",
+   "group": "partial",
+   "say": "read 3 pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 3,
+   "unit": "pages"
+  },
+  {
+   "id": "p004",
+   "group": "partial",
+   "say": "read 8 more",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 8,
+   "unit": null
+  },
+  {
+   "id": "p005",
+   "group": "partial",
+   "say": "read 8 more pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 8,
+   "unit": "pages"
+  },
+  {
+   "id": "p006",
+   "group": "partial",
+   "say": "read 2-3 lines",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "lines"
+  },
+  {
+   "id": "p007",
+   "group": "partial",
+   "say": "read 10 pages of my novel",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 10,
+   "unit": "pages"
+  },
+  {
+   "id": "p008",
+   "group": "partial",
+   "say": "read twenty pages",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 20,
+   "unit": "pages"
+  },
+  {
+   "id": "p009",
+   "group": "partial",
+   "say": "I read half a page",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 0.5,
+   "unit": "pages"
+  },
+  {
+   "id": "p010",
+   "group": "partial",
+   "say": "finished 2 chapters of my book",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "chapters"
+  },
+  {
+   "id": "p011",
+   "group": "partial",
+   "say": "drank 2 glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 2,
+   "unit": "glasses"
+  },
+  {
+   "id": "p012",
+   "group": "partial",
+   "say": "2 more glasses of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 2,
+   "unit": "glasses"
+  },
+  {
+   "id": "p013",
+   "group": "partial",
+   "say": "drank 500 ml of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 500,
+   "unit": "ml"
+  },
+  {
+   "id": "p014",
+   "group": "partial",
+   "say": "had another glass of water",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 1,
+   "unit": "glasses"
+  },
+  {
+   "id": "p015",
+   "group": "partial",
+   "say": "do teen page padhe",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 2,
+   "unit": "pages"
+  },
+  {
+   "id": "p016",
+   "group": "partial",
+   "say": "aur 5 page padh liye",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 5,
+   "unit": "pages"
+  },
+  {
+   "id": "p017",
+   "group": "partial",
+   "say": "paani ke 3 glass aur",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 3,
+   "unit": "glasses"
+  },
+  {
+   "id": "p018",
+   "group": "partial",
+   "say": "मैंने 4 पेज पढ़े",
+   "language": "hi-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 4,
+   "unit": "pages"
+  },
+  {
+   "id": "p019",
+   "group": "partial",
+   "say": "दो गिलास पानी पिया",
+   "language": "hi-IN",
+   "expect": [
+    "log_amount:water"
+   ],
+   "amount": 2,
+   "unit": "glasses"
+  },
+  {
+   "id": "p020",
+   "group": "partial",
+   "say": "just one page of reading today",
+   "language": "en-IN",
+   "expect": [
+    "log_amount:read"
+   ],
+   "amount": 1,
+   "unit": "pages"
   }
  ]
 }

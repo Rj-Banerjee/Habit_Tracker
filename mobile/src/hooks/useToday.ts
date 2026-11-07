@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { HabitLevel, levelTarget, OFFLINE_NOTE, RepairRow, TodayRow } from '@habit-tracker/core';
+import {
+  amountFromText,
+  HabitLevel,
+  levelTarget,
+  OFFLINE_NOTE,
+  progressLine,
+  RepairRow,
+  TodayRow,
+} from '@habit-tracker/core';
 import { watchMyActivity } from '../services/live';
 import { loadToday, offlineTracker } from '../services/logQueue';
 import { tracker } from '../services/tracker';
@@ -78,6 +86,22 @@ export function useToday() {
     );
   };
 
+  // "3", "2-3 pages" or "500 m", added to the day. The reply says where it stands.
+  const addAmount = async (row: TodayRow, text: string): Promise<boolean> => {
+    const parsed = amountFromText(text);
+    if (!parsed) {
+      setMessage('Enter an amount, like 3 or 2-3 pages.');
+      return false;
+    }
+    let said: string | null = null;
+    await change(row, { amount: (row.amount ?? 0) + parsed.amount }, async () => {
+      const result = await offlineTracker.addAmount(row.habit_id, row.day, parsed.amount, parsed.unit);
+      said = progressLine(result, row.title);
+    });
+    if (said) setMessage(said);
+    return said !== null;
+  };
+
   const undo = (row: TodayRow) =>
     change(
       row,
@@ -105,6 +129,7 @@ export function useToday() {
     message: message ?? (offline ? OFFLINE_NOTE : null),
     refresh,
     log,
+    addAmount,
     undo,
     skip,
     repair,

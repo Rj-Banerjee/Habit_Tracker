@@ -16,6 +16,7 @@ const habits: VoiceHabit[] = tuned.habits;
 const phrases: { group: string; heard: string; expect: string[] }[] = [
   ...tuned.phrases,
   ...read('voice_phrases_heldout.json').phrases,
+  ...read('voice_phrases_partial.json').phrases,
 ];
 
 const onThePhone = (heard: string): string | null => {

@@ -6,7 +6,7 @@ import { IdentityToken } from './tokens';
 
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
-export type LogStatus = 'done' | 'skipped' | 'repaired';
+export type LogStatus = 'partial' | 'done' | 'skipped' | 'repaired';
 export type LogSource = 'tap' | 'voice' | 'coach' | 'widget' | 'notification';
 export type StreakMode = 'strict' | 'grace';
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'anytime';
@@ -37,6 +37,21 @@ export interface TodayRow {
   levels: LevelOption[];
   can_repair: boolean;
   repair_amount: number | null;
+}
+
+// Where a day stands after an amount is added. counted is false when the amount was in a
+// unit that can't count toward the habit's, and nothing was logged.
+export interface AmountResult {
+  counted: boolean;
+  added: number;
+  total: number;
+  unit: string | null;
+  said_unit: string | null;
+  minimum: number | null;
+  target: number | null;
+  status: LogStatus | 'none';
+  level: HabitLevel | null;
+  repaired: boolean;
 }
 
 export interface RepairRow {
@@ -248,6 +263,27 @@ export function createTrackerApi(client: SupabaseClient) {
         p_amount: amount,
         p_source: source,
       }),
+
+    // Adds to the day's total, which decides its status. A range should already be its
+    // lower number, and a unit the server can't convert logs nothing.
+    addAmount: (
+      habitId: string,
+      date: string | null,
+      amount: number,
+      unit: string | null = null,
+      source: LogSource = 'tap'
+    ) =>
+      call<AmountResult>('add_amount', {
+        p_habit_id: habitId,
+        p_date: date,
+        p_amount: amount,
+        p_unit: unit,
+        p_source: source,
+      }),
+
+    // Undo of one added amount.
+    removeAmount: (habitId: string, date: string | null, amount: number) =>
+      call('remove_amount', { p_habit_id: habitId, p_date: date, p_amount: amount }),
 
     undoLog: (habitId: string, date: string | null, source: LogSource = 'tap') =>
       call('undo_log', { p_habit_id: habitId, p_date: date, p_source: source }),

@@ -70,7 +70,7 @@ interface TodayScreenProps {
 
 export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScreenProps) {
   const { colors } = useTheme();
-  const { rows, repairs, loading, loadFailed, message, refresh, log, undo, skip, repair } =
+  const { rows, repairs, loading, loadFailed, message, refresh, log, addAmount, undo, skip, repair } =
     useToday();
   const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
@@ -366,6 +366,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onRepair={(row) => {
           setShrinkRow(null);
           repair(row);
+        }}
+        onAddAmount={async (row, text) => {
+          const added = await addAmount(row, text);
+          if (added) setShrinkRow(null);
+          return added;
         }}
         onSkip={(row) => {
           setShrinkRow(null);

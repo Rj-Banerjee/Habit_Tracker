@@ -1455,3 +1455,26 @@ Part 3 of the habit form work, with part 6's backfill.
 - No log was changed: 183 before and after.
 
 **Tests:** core 1286, mobile 864 (form 81 per platform, onboarding 40, reminders 30, shared form 18), backend 210, web 28. Lint is unchanged: 11 old warnings.
+
+### Smart partial logging (7 Nov 2026)
+
+Part 5 of the habit form work.
+
+- **Server** (migrations `20261107000100_partial_status.sql` and `20261107000200_partial_logging.sql`):
+  - `add_amount` adds to the day's total. The status comes from that total against the day's dated minimum and target: `partial` below the minimum (noted, not counted), done at the minimum, done in full at the target.
+  - Units convert through `tracker.units`, the same table as `units.ts`; a core test checks every word matches. A unit that can't convert logs nothing, and the reply says so.
+  - When the total reaches 1.5x the missed day's target, the miss is repaired.
+  - `remove_amount` undoes one added amount, and takes a repair back if the total drops below it.
+  - A tap raises the total to its level's target and never lowers it; a tap on minimum stays full if the total already is.
+  - Streaks, Grace Days and the identity score see a partial day as not done. The Forecaster counts its amount.
+- **App:**
+  - The long-press sheet has "Add an amount" ("3", "2-3 pages", "500 m").
+  - The card shows "1 of 10 pages so far".
+  - Every reply says where the day stands and what's left, e.g. "Read: 1 of 10 pages, 1 more for your minimum." or "That's below your minimum: lines can't count toward pages."
+  - Voice and the coach go through `addAmount`, and undo takes back just that amount. Offline, amounts queue and add up.
+  - The phone matcher handles ranges, "read 8 more" and convertible units. It leaves a unit of another kind ("read 20 minutes" for pages) to the parser.
+- **Voice:** `log_amount` carries the unit as said. A new held-out set of 20 partial-logging phrases scored 19 of 20 with the live model. The miss was "more" given as a unit, which is now fixed and rescored (see `docs/voice-accuracy.md`).
+- **Live:**
+  - The dry run listed only the two migrations, and the push applied both.
+  - 12 checks passed with temporary users, who were then deleted: 1 page partial, 3 the minimum, 2 lines not counted, 11 full, undo back to 3, a tap raising it to 10. Another user can't add to it or read its logs, the publishable key alone can't add amounts, and the units table isn't reachable.
+- **Tests:** SQL 387 (32 new: accumulation, below the minimum, a miss, units, no-minimum habits, repair by total and its undo, dated targets). Core 1304, mobile 876, backend 216, web 28. Lint is unchanged.

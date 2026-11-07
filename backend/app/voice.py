@@ -42,7 +42,9 @@ with those refs and the action they wanted.
 - "undo the read" means undo_habit for Read. undo_last is only for "undo that" or "undo \
 the last one", with no habit named.
 - "Just the small version", "only a little" or "thoda sa" is shrink_habit.
-- An amount such as "20 pages" or "teen glass" is log_amount.
+- An amount such as "20 pages" or "teen glass" is log_amount, with the unit they said, \
+or null if they said none. A range such as "2-3 pages" is the lower number. "Read 8 \
+more" is log_amount of 8: amounts add up through the day.
 - "ho gaya", "kar liya" and "kar li" mean they did it. "chhod do" means skip. "wapas" \
 means undo.
 - A clear statement about doing or skipping an activity that isn't in their list is \
@@ -66,6 +68,7 @@ change a log. Earlier messages are there for context: "undo that" refers to them
 HABIT = {"type": "string", "description": "A ref from the habit list, such as h1"}
 SURE = {"type": "string", "enum": sorted(CONFIDENCE)}
 ACTIONS = {"log_habit", "log_amount", "shrink_habit", "skip_habit", "undo_habit"}
+NOT_UNITS = {"", "more", "extra", "another", "aur", "again", "none", "null", "times"}
 
 TOOLS = [
     ToolSpec(
@@ -82,7 +85,12 @@ TOOLS = [
         "They did an amount of a count or duration habit.",
         {
             "type": "object",
-            "properties": {"habit": HABIT, "amount": {"type": "number"}, "confidence": SURE},
+            "properties": {
+                "habit": HABIT,
+                "amount": {"type": "number"},
+                "unit": {"type": ["string", "null"], "description": "The unit they said, or null"},
+                "confidence": SURE,
+            },
             "required": ["habit", "amount", "confidence"],
         },
     ),
@@ -220,6 +228,10 @@ def to_intent(call: ToolCall, refs: dict[str, dict[str, Any]]) -> dict[str, Any]
         if not isinstance(amount, int | float) or isinstance(amount, bool) or amount <= 0:
             return None
         intent["amount"] = amount
+        unit = call.arguments.get("unit")
+        unit = unit.strip().lower()[:30] if isinstance(unit, str) else ""
+        # "Read 8 more" has no unit: "more" only says it adds to the day.
+        intent["unit"] = None if unit in NOT_UNITS else unit
     if call.name == "skip_habit":
         intent["reason"] = str(call.arguments.get("reason") or "")[:200]
     if call.name == "ask_coach":

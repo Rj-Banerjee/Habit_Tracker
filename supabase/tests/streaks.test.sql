@@ -1286,5 +1286,90 @@ select throws_ok(
 );
 reset role;
 
+
+-- ---------------------------------------------------------------------------
+-- Amounts add up through the day
+-- ---------------------------------------------------------------------------
+create function t.pages(n int, owner int) returns void language plpgsql as $$
+begin
+  perform t.make_habit(n, owner, '2026-11-02', '{1,2,3,4,5,6,7}', 'count', 10);
+  update public.habits set unit = 'pages' where id = t.h(n);
+  insert into public.habit_levels (habit_id, level, description, target)
+  values (t.h(n), 'full', 'Ten pages', 10), (t.h(n), 'minimum', 'Two pages', 2);
+  perform t.pin(n);
+end $$;
+create function t.add(n int, owner int, d date, amount numeric, unit text default null) returns jsonb language sql as
+  $$ select tracker.add_amount(t.u(owner), t.h(n), d, amount, unit, 'voice', t.noon(owner, d)) $$;
+
+select t.make_user(120);
+select t.pages(400, 120);
+select is((t.add(400, 120, '2026-11-02', 1) ->> 'status'), 'partial', '1 page of 10 is noted but not counted');
+select is((select (status, amount)::text from public.habit_logs where habit_id = t.h(400)), '(partial,1)', 'with its amount kept');
+select is(tracker.day_status(t.h(400), '2026-11-02', t.noon(120, '2026-11-02')), 'pending', 'so the day is still open');
+select is((t.add(400, 120, '2026-11-02', 2) ->> 'level'), 'minimum', 'then 2 more is 3, which reaches the minimum');
+select is(tracker.day_status(t.h(400), '2026-11-02', t.noon(120, '2026-11-02')), 'done', 'and counts');
+select is(t.add(400, 120, '2026-11-02', 8) - 'repaired', '{"added": 8, "counted": true, "level": "full", "minimum": 2, "said_unit": null, "status": "done", "target": 10, "total": 11, "unit": "pages"}'::jsonb,
+  '8 more is 11, done in full, and the reply says where it stands');
+select is(t.add(400, 120, '2026-11-02', 2, 'lines') ->> 'counted', 'false', 'lines cannot count toward pages');
+select is((select amount from public.habit_logs where habit_id = t.h(400)), 11::numeric, 'and nothing changed');
+select tracker.remove_amount(t.u(120), t.h(400), '2026-11-02', 8, t.noon(120, '2026-11-02'));
+select is((select (status, level_done, amount)::text from public.habit_logs where habit_id = t.h(400)), '(done,minimum,3)', 'undo takes back the last amount, and the level follows');
+select tracker.remove_amount(t.u(120), t.h(400), '2026-11-02', 3, t.noon(120, '2026-11-02'));
+select is((select count(*)::int from public.habit_logs where habit_id = t.h(400)), 0, 'and back to nothing, there is no log');
+
+-- A tap raises the total to the level's target, and never lowers it.
+select t.add(400, 120, '2026-11-03', 3);
+select tracker.log_habit(t.u(120), t.h(400), '2026-11-03', 'full', 10, 'tap', t.noon(120, '2026-11-03'));
+select is((select (level_done, amount)::text from public.habit_logs where habit_id = t.h(400) and date = '2026-11-03'), '(full,10)', 'a tap on full after 3 pages is 10');
+select t.add(400, 120, '2026-11-04', 12);
+select tracker.log_habit(t.u(120), t.h(400), '2026-11-04', 'minimum', 2, 'tap', t.noon(120, '2026-11-04'));
+select is((select (level_done, amount)::text from public.habit_logs where habit_id = t.h(400) and date = '2026-11-04'), '(full,12)', 'a tap on minimum after 12 pages stays full at 12');
+
+-- Below the minimum doesn't keep a streak.
+select t.add(400, 120, '2026-11-05', 1);
+select is(tracker.day_status(t.h(400), '2026-11-05', t.noon(120, '2026-11-07')), 'missed', 'a closed day below the minimum is a miss');
+select is(t.streak(400, '2026-11-05', t.noon(120, '2026-11-07')), 0, 'and ends the streak');
+
+-- Units convert.
+select t.make_user(121);
+select t.make_habit(401, 121, '2026-11-02', '{1,2,3,4,5,6,7}', 'count', 5);
+update public.habits set unit = 'km' where id = t.h(401);
+insert into public.habit_levels (habit_id, level, description, target) values (t.h(401), 'full', 'Run 5 km', 5), (t.h(401), 'minimum', 'Run 1 km', 1);
+select t.pin(401);
+select is((t.add(401, 121, '2026-11-02', 500, 'm') -> 'total')::numeric, 0.5, '500 m is 0.5 km');
+select is((t.add(401, 121, '2026-11-02', 4500, 'metres') ->> 'status'), 'done', 'and 4500 metres more is 5 km, done');
+select is(tracker.convert_amount(90, 'minutes', 'hours'), 1.5, 'minutes become hours');
+select is(tracker.convert_amount(2, 'litre', 'ml'), 2000::numeric, 'litres become ml');
+select is(tracker.convert_amount(2, 'glasses', 'litres'), null, 'glasses are not litres');
+select is(tracker.convert_amount(3, null, 'pages'), 3::numeric, 'no unit is the habit''s own');
+
+-- A habit with no minimum amount counts any amount as the minimum.
+select t.make_user(122);
+select t.make_habit(402, 122, '2026-11-02', '{1,2,3,4,5,6,7}', 'duration', 30);
+update public.habits set unit = 'min' where id = t.h(402);
+insert into public.habit_levels (habit_id, level, description, target) values (t.h(402), 'full', 'Thirty', 30), (t.h(402), 'minimum', 'A little', null);
+select t.pin(402);
+select is((t.add(402, 122, '2026-11-02', 5) ->> 'level'), 'minimum', 'any amount counts when the minimum has no amount');
+
+-- The total repairs a miss at 1.5x the missed day's target.
+select t.make_user(123);
+select t.pages(403, 123);
+select is((t.add(403, 123, '2026-11-03', 12) ->> 'repaired'), 'false', '12 pages after a miss is not yet 1.5x');
+select is((t.add(403, 123, '2026-11-03', 3) ->> 'repaired'), 'true', '15 pages is, and repairs it');
+select is((select status::text from public.habit_logs where habit_id = t.h(403) and date = '2026-11-02'), 'repaired', 'the missed day is repaired');
+select tracker.remove_amount(t.u(123), t.h(403), '2026-11-03', 3, t.noon(123, '2026-11-03'));
+select is((select count(*)::int from public.habit_logs where habit_id = t.h(403) and date = '2026-11-02'), 0, 'undoing below 1.5x takes the repair back');
+
+-- The dated target applies to each day.
+select t.make_user(124);
+select t.pages(404, 124);
+insert into tracker.habit_versions (habit_id, effective_from, schedule_days, target, unit, levels)
+values (t.h(404), '2026-11-04', '{1,2,3,4,5,6,7}', 20, 'pages', '[{"level":"full","description":"Twenty","target":20},{"level":"minimum","description":"Four","target":4}]');
+select is((t.add(404, 124, '2026-11-03', 10) ->> 'level'), 'full', 'before the change, 10 pages is full');
+select is((t.add(404, 124, '2026-11-04', 10) ->> 'level'), 'minimum', 'after it, 10 pages is the minimum');
+
+select throws_like($$ select t.add(1, 1, '2026-11-02', 3) $$, '%no amount%', 'a yes/no habit takes no amount');
+select throws_like($$ select t.add(400, 120, '2026-11-06', 0) $$, '%above 0%', 'an amount must be above 0');
+
 select * from finish();
 rollback;

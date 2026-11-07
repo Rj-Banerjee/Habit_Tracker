@@ -63,3 +63,15 @@ Two rules came out of it. Neither is about a phrase, so the held-out phrases are
 - **An amount on a yes/no habit is a plain log.** "ten minutes of meditation done" and "studied for two hours" came back as amounts on habits that have none. The app would have logged them in full but said "Logged 10 of Meditate".
 
 Rescored with the real model after the change, together with every undo phrase from all three sets: both amount phrases now pass, "take off study" asks first, and no undo that was said plainly started asking. **With the fixes: 202 of 206 (98%), 2 done wrong without asking**, both the same as when typed ("I got through some of my novel" as the small version of Read, and "aaj sirf thoda sa padha" as Study). "I did my cardio" says no such habit instead of asking which one.
+
+## Partial logging set (7 Nov 2026)
+
+`backend/tests/voice_phrases_partial.json` has 20 phrases about amounts, written before scoring and never tuned against:
+- ranges ("read 2-3 pages");
+- adding more ("read 8 more");
+- units that can't count ("read 2-3 lines", "500 ml" for a glasses habit);
+- number words, Hinglish and Hindi.
+
+The scorer now also checks the amount and unit when a phrase has them.
+
+Live model: **19 of 20 (95%)**. The miss was "read 8 more", where the model gave "more" as the unit, which the server would have refused as a unit it can't convert. The parser now treats "more" and similar words as no unit, and the three "more" phrases rescored 3 of 3, so **20 of 20 with the fix**. The phone matcher still never does something that wasn't meant across all 240 typed phrases. The same 20 are in the spoken test as p001 to p020, still to be recorded.
