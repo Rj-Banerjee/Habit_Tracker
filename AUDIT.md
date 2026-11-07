@@ -1524,3 +1524,17 @@ Part 2 of the habit form work, partly done.
   - The suggestion card on Today.
   - A preview build and the phone checklist.
 - **Tests:** core 1317, mobile screens 492.
+
+### Time of day on Today: finished (7 Nov 2026)
+
+The rest of part 2.
+
+- **Drag:**
+  - Long-press a card and move it up or down to another part of the day (`mobile/src/today/DragToMove.tsx`).
+  - While dragging, all four sections show, an empty one as "Move here", and the page doesn't scroll. Letting go drops the card into the section under the finger, or the nearest one.
+  - A long press without moving still opens the sheet, and it closes when a drag starts.
+- **"Move to…":** the long-press sheet has "Move to Morning" and the others, for anyone who can't drag.
+- **Moves:** they're dated, from today. A reminder still at the old part's default moves to the new part's; one set by hand stays.
+- **Pro suggestion:** "You usually do Run in the evening. Move it there?", with Move and Keep, from peak hours (5 or more same-day logs). It moves only on Move, and a Keep is remembered on the server. It isn't shown until the plan has loaded, so Free never sees it.
+- **Lint fix:** the React Compiler gave up on Today when a drop callback read a ref, so the section views are kept in a stable Map instead.
+- **Tests:** core 1318, mobile 896 (new: Move to, a reminder moving with it or staying, Move and Keep). The drag gesture itself needs real touches, so it's on the phone checklist.

@@ -58,6 +58,7 @@ jest.mock('../services/tracker', () => ({
     countActiveHabits: jest.fn(() => Promise.resolve(2)),
     markTipSeen: jest.fn(() => Promise.resolve()),
     listCompletedHabits: jest.fn(() => Promise.resolve([])),
+    updateHabit: jest.fn(() => Promise.resolve()),
   },
 }));
 
@@ -171,6 +172,60 @@ describe('TodayScreen', () => {
       await open([workout()]);
       await fireEvent(screen.getByRole('button', { name: /^Workout/ }), 'longPress');
       expect(screen.queryByRole('button', { name: 'Skip today' })).toBeNull();
+    });
+  });
+
+  describe('time of day', () => {
+    it('moves a habit to another part of the day from the long-press sheet', async () => {
+      await open([row({ time_of_day: 'morning', reminder_time: '08:00:00' })]);
+      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
+      expect(screen.queryByRole('button', { name: 'Move to Morning' })).toBeNull();
+      await fireEvent.press(screen.getByRole('button', { name: 'Move to Evening' }));
+      await act(async () => {});
+      // Its reminder was the morning default, so it moves to the evening's.
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'evening', reminderTime: '19:00' });
+    });
+
+    it("keeps a reminder they set themselves", async () => {
+      await open([row({ time_of_day: 'morning', reminder_time: '06:45:00' })]);
+      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
+      await fireEvent.press(screen.getByRole('button', { name: 'Move to Anytime' }));
+      await act(async () => {});
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'anytime' });
+    });
+
+    describe('on Pro', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const entitlements = require('../hooks/useEntitlements');
+      const evenings = Array.from({ length: 6 }, (_, i) => ({
+        habit_id: 'h1', date: `2026-10-2${i}`, status: 'done', level_done: 'full', amount: null, target: null, logged_hour: 20,
+      })); // prettier-ignore
+
+      beforeEach(() => {
+        jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'pro', ready: true, can: () => true });
+      });
+      afterEach(() => jest.restoreAllMocks());
+
+      it('offers to move a habit to when it is usually done, and moves it only on Move', async () => {
+        api.getHabitDays.mockResolvedValue(evenings as never);
+        await open([row({ time_of_day: 'morning' })]);
+        expect(screen.getByText('You usually do Run in the evening. Move it there?')).toBeTruthy();
+        expect(api.updateHabit).not.toHaveBeenCalled();
+        await fireEvent.press(screen.getByRole('button', { name: 'Move' }));
+        await act(async () => {});
+        expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'evening' });
+        api.getHabitDays.mockResolvedValue([]);
+      });
+
+      it('remembers a Keep', async () => {
+        api.getHabitDays.mockResolvedValue(evenings as never);
+        await open([row({ time_of_day: 'morning' })]);
+        await fireEvent.press(screen.getByRole('button', { name: 'Keep' }));
+        expect(screen.queryByText(/Move it there/)).toBeNull();
+        expect(api.markTipSeen).toHaveBeenCalledWith('time-kept:h1:evening');
+        expect(api.updateHabit).not.toHaveBeenCalled();
+        api.getHabitDays.mockResolvedValue([]);
+      });
     });
   });
 

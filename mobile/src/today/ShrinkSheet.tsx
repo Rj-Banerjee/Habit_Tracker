@@ -6,6 +6,9 @@ import {
   levelOptions,
   repairDescription,
   space,
+  TimeOfDay,
+  timeOfDayName,
+  TIMES_IN_ORDER,
   TodayRow,
   usesTarget,
 } from '@habit-tracker/core';
@@ -28,6 +31,8 @@ interface ShrinkSheetProps {
   onFocus?: (row: TodayRow) => void;
   // "3" or "2-3 pages", added to the day. Resolves true once it's in.
   onAddAmount?: (row: TodayRow, text: string) => Promise<boolean>;
+  // To another part of the day: the same as dragging the card, for anyone who can't drag.
+  onMove?: (row: TodayRow, time: TimeOfDay) => void;
 }
 
 export function ShrinkSheet({
@@ -40,6 +45,7 @@ export function ShrinkSheet({
   onDetails,
   onFocus,
   onAddAmount,
+  onMove,
 }: ShrinkSheetProps) {
   // Typed text belongs to the habit and day it was typed for, so another card starts empty.
   const key = row ? `${row.habit_id}:${row.day}` : '';
@@ -91,6 +97,11 @@ export function ShrinkSheet({
           {/* A times-per-week habit owes no single day, so there's nothing to skip. */}
           {isWeekly(row) ? null : <SheetOption label="Skip today" onPress={() => onSkip(row)} />}
           {onDetails ? <SheetOption label="Streak and details" onPress={() => onDetails(row)} /> : null}
+          {onMove && row.is_today
+            ? TIMES_IN_ORDER.filter((time) => time !== (row.time_of_day ?? 'anytime')).map((time) => (
+                <SheetOption key={time} label={`Move to ${timeOfDayName(time)}`} onPress={() => onMove(row, time)} />
+              ))
+            : null}
           <SheetOption label="Edit habit" onPress={() => onEdit(row)} />
         </>
       ) : null}

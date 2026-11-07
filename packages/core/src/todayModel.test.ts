@@ -230,4 +230,8 @@ describe('groupByTimeOfDay', () => {
       ['Anytime', ['d']],
     ]);
   });
+
+  it('keeps every section while a card is being dragged', () => {
+    expect(groupByTimeOfDay([row()], true).map((g) => g.name)).toEqual(['Morning', 'Afternoon', 'Evening', 'Anytime']);
+  });
 });

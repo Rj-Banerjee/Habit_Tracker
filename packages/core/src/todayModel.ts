@@ -81,8 +81,9 @@ const TIME_NAMES: Record<TimeOfDay, string> = {
 };
 
 // Today's sections: Morning, Afternoon, Evening, then Anytime, each in reminder order with
-// unreminded habits after. Empty sections are left out. Identity shows by colour instead.
-export function groupByTimeOfDay(rows: TodayRow[]): TimeGroup[] {
+// unreminded habits after. Empty sections are left out, except while a card is being
+// dragged, when every section is somewhere to drop it. Identity shows by colour instead.
+export function groupByTimeOfDay(rows: TodayRow[], withEmpty = false): TimeGroup[] {
   const minutes = (row: TodayRow) => {
     if (!row.reminder_time) return Number.POSITIVE_INFINITY;
     const [h, m] = row.reminder_time.split(':').map(Number);
@@ -96,8 +97,10 @@ export function groupByTimeOfDay(rows: TodayRow[]): TimeGroup[] {
       .filter(({ row }) => (row.time_of_day ?? 'anytime') === time)
       .sort((a, b) => minutes(a.row) - minutes(b.row) || a.index - b.index)
       .map(({ row }) => row),
-  })).filter((group) => group.rows.length > 0);
+  })).filter((group) => withEmpty || group.rows.length > 0);
 }
+
+export const TIMES_IN_ORDER = TIME_ORDER;
 
 export const timeOfDayName = (time: TimeOfDay) => TIME_NAMES[time];
 

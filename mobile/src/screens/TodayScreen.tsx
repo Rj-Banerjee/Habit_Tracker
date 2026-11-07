@@ -10,6 +10,7 @@ import {
   eveningNote,
   greeting,
   groupByTimeOfDay,
+  radius,
   HABIT_TIP_TEXT,
   HabitLevel,
   isLogged,
@@ -21,6 +22,7 @@ import {
   RepairRow,
   showYesterdayFirst,
   space,
+  TimeOfDay,
   TodayRow,
   VOICE_LINK,
 } from '@habit-tracker/core';
@@ -43,7 +45,7 @@ import { syncHabitReminders } from '../services/reminders';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
-import { RuleCard, TipCard } from '../components/RuleCard';
+import { ChoiceCard, RuleCard, TipCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
 import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
@@ -53,14 +55,41 @@ import { useHabitTip } from '../hooks/useHabitTip';
 import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
 import { useRuleCard } from '../hooks/useRuleCard';
+import { useTimeSuggestion } from '../hooks/useTimeSuggestion';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
 import { ShrinkSheet } from '../today/ShrinkSheet';
+import { DragToMove } from '../today/DragToMove';
 import { SwipeToSkip } from '../today/SwipeToSkip';
 import { TodayCard } from '../today/TodayCard';
 import { HabitDetailScreen } from './HabitDetailScreen';
 import { UndoBanner } from '../voice/UndoBanner';
 import { VoiceSheet } from '../voice/VoiceSheet';
+
+type SectionView = React.ComponentRef<typeof View>;
+type Box = { time: TimeOfDay; top: number; bottom: number };
+
+// Where the finger let go: the section under it, or the nearest one.
+async function sectionAt(views: Map<TimeOfDay, SectionView | null>, pageY: number) {
+  const boxes = await Promise.all(
+    [...views].map(
+      ([time, view]) =>
+        new Promise<Box | null>((resolve) => {
+          if (!view) return resolve(null);
+          view.measureInWindow((_x: number, y: number, _width: number, height: number) =>
+            resolve({ time, top: y, bottom: y + height })
+          );
+        })
+    )
+  );
+  const found = boxes
+    .filter((box): box is Box => box !== null)
+    .sort((a, b) => distance(a, pageY) - distance(b, pageY))[0];
+  return found?.time ?? null;
+}
+
+const distance = (box: { top: number; bottom: number }, y: number) =>
+  y < box.top ? box.top - y : y > box.bottom ? y - box.bottom : 0;
 
 // iOS drops a sheet opened while another is still closing.
 const SHEET_CLOSE_MS = 400;
@@ -73,20 +102,26 @@ interface TodayScreenProps {
 
 export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScreenProps) {
   const { colors } = useTheme();
-  const { rows, repairs, loading, loadFailed, message, refresh, log, addAmount, undo, skip, repair } =
+  const { rows, repairs, loading, loadFailed, message, refresh, log, addAmount, moveTo, undo, skip, repair } =
     useToday();
   const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
+  // A long-pressed card can be dragged to another part of the day while the finger stays down.
+  const [armed, setArmed] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  // Each section's view, so a drop can find the one under the finger.
+  const [sections] = useState(() => new Map<TimeOfDay, SectionView | null>());
   const [skipRow, setSkipRow] = useState<TodayRow | null>(null);
   const [panel, setPanel] = useState<'coach' | 'voice' | 'miss' | null>(null);
   const actions = useActions(rows, refresh);
   const coach = useCoach(actions);
-  const { can } = useEntitlements();
+  const { can, ready } = useEntitlements();
   const coachLocked = can('ai.coach') ? undefined : lockedMessage('ai.coach');
   useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
   const habitTip = useHabitTip(rows);
   const completed = useCompletedHabits();
+  const timeMove = useTimeSuggestion(rows, ready && can('ai.nudges'));
   // Whenever Today changes, a done habit stops reminding and a new one starts.
   useEffect(() => {
     if (!loading) void syncHabitReminders();
@@ -185,9 +220,27 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     return isLogged(row) ? undo(row) : log(row, 'full');
   };
 
+  const dropAt = (row: TodayRow, pageY: number) => {
+    setDragging(false);
+    setArmed(null);
+    void sectionAt(sections, pageY).then((time) => time && moveTo(row, time));
+  };
+
   const renderCard = (row: TodayRow) => (
-    <SwipeToSkip
+    <DragToMove
       key={`${row.habit_id}-${row.day}`}
+      armed={row.is_today && armed === row.habit_id}
+      onDragStart={() => {
+        setShrinkRow(null);
+        setDragging(true);
+      }}
+      onDrop={(pageY) => void dropAt(row, pageY)}
+      onCancel={() => {
+        setDragging(false);
+        setArmed(null);
+      }}
+    >
+    <SwipeToSkip
       enabled={!isLogged(row) && !isWeekly(row)}
       onSkip={() => setSkipRow(row)}
     >
@@ -199,6 +252,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onPress={() => tap(row)}
         onLongPress={() => {
           moments.interrupt(row.habit_id);
+          setArmed(row.habit_id);
           setShrinkRow(row);
         }}
         onSkip={isWeekly(row) ? undefined : () => setSkipRow(row)}
@@ -210,6 +264,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onFocus={row.is_today ? () => openFocus(row.habit_id) : undefined}
       />
     </SwipeToSkip>
+    </DragToMove>
   );
 
   const welcomeHabits = today.flatMap((row) => {
@@ -252,7 +307,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
 
   return (
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.canvas }]}>
-      <ScrollView contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}>
+      <ScrollView
+        scrollEnabled={!dragging}
+        contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}
+      >
         <View style={styles.header}>
           <Text variant="small" muted>
             {greeting(part)}
@@ -317,6 +375,20 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
 
         {habitTip.show ? <TipCard text={HABIT_TIP_TEXT} onDismiss={habitTip.dismiss} /> : null}
 
+        {timeMove.move ? (
+          <ChoiceCard
+            text={timeMove.move.text}
+            yes="Move"
+            no="Keep"
+            onYes={() => {
+              const move = timeMove.move;
+              const row = move && today.find((r) => r.habit_id === move.habitId);
+              if (move && row) void moveTo(row, move.to);
+            }}
+            onNo={timeMove.keep}
+          />
+        ) : null}
+
         {completed.celebrate ? (
           <TipCard
             text={celebrationText(completed.celebrate)}
@@ -348,12 +420,26 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         ) : (
           <>
             {showYesterdayFirst(part) ? yesterdaySection : null}
-            {groupByTimeOfDay(today).map((group) => (
-              <View key={group.time} style={styles.group}>
+            {groupByTimeOfDay(today, dragging).map((group) => (
+              <View
+                key={group.time}
+                ref={(view) => {
+                  sections.set(group.time, view);
+                }}
+                style={styles.group}
+              >
                 <Text variant="small" muted accessibilityRole="header">
                   {group.name}
                 </Text>
-                {group.rows.map(renderCard)}
+                {group.rows.length > 0 ? (
+                  group.rows.map(renderCard)
+                ) : (
+                  <View style={[styles.dropHere, { borderColor: colors.border, borderRadius: radius.md }]}>
+                    <Text variant="small" muted>
+                      Move here
+                    </Text>
+                  </View>
+                )}
               </View>
             ))}
             {showYesterdayFirst(part) ? null : yesterdaySection}
@@ -377,6 +463,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onRepair={(row) => {
           setShrinkRow(null);
           repair(row);
+        }}
+        onMove={(row, time) => {
+          setShrinkRow(null);
+          void moveTo(row, time);
         }}
         onAddAmount={async (row, text) => {
           const added = await addAmount(row, text);
@@ -478,6 +568,13 @@ const styles = StyleSheet.create({
   header: { gap: space.xs, paddingTop: space.lg },
   actions: { flexDirection: 'row', gap: space.sm },
   action: { flex: 1 },
+  dropHere: {
+    minHeight: layout.minTouchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+  },
   group: { gap: space.sm },
   notice: { gap: space.md },
 });

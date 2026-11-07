@@ -63,6 +63,11 @@ export function DragToMove({ armed, onDragStart, onDrop, onCancel, children }: D
         dragging && { zIndex: 1, shadowColor: colors.text, shadowOpacity: 0.15, shadowRadius: space.sm, elevation: 4 },
       ]}
       {...responder.panHandlers}
+      // Letting go after a long press without moving ends it, so a later scroll over the
+      // card isn't taken for a drag.
+      onTouchEnd={() => {
+        if (!dragging) latest.current.onCancel();
+      }}
     >
       {children}
     </Animated.View>
