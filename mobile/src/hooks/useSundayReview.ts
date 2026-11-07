@@ -12,6 +12,7 @@ import {
   weekSummary,
 } from '@habit-tracker/core';
 import { ai } from '../services/ai';
+import { useWeeklyReport } from './useWeeklyReport';
 import { tracker } from '../services/tracker';
 
 const BLANK_WINS = ['', '', ''];
@@ -111,9 +112,13 @@ export function useSundayReview(userId: string) {
     }
   };
 
+  const report = useWeeklyReport(start);
+
   return {
     status,
     retry,
+    // The week in numbers, once loaded. The review works without it.
+    report,
     label: start ? weekLabel(start) : '',
     // Nothing to count until the week has loaded.
     week: start ? weekSummary(habits, days, start) : [],

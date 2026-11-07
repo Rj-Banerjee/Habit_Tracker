@@ -38,6 +38,14 @@ describe('coachCard', () => {
     expect(coachCard([sunday], [], 'evening')?.opens).toBe('sunday');
   });
 
+  it("leads the Sunday card with the week's report once it has loaded", () => {
+    const sunday = { ...row('Read'), day: '2026-11-08' };
+    expect(coachCard([sunday], [], 'evening', '80% done this week. Ready to look back?')?.text).toBe(
+      '80% done this week. Ready to look back?'
+    );
+    expect(coachCard([sunday], [], 'evening')?.text).toBe('Your week is ready to look back on.');
+  });
+
   it('puts a slip ahead of the Sunday Review', () => {
     const sunday = { ...row('Read'), day: '2026-11-08' };
     expect(coachCard([sunday], [repair], 'evening')?.opens).toBe('miss');

@@ -15,6 +15,7 @@ export * from './patterns';
 export * from './progress';
 export * from './voice';
 export * from './voiceSpoken';
+export * from './weeklyReport';
 export * from './widget';
 export * from './api';
 export * from './colorChecks';

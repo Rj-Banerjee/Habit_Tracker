@@ -1659,3 +1659,15 @@ Two features the user asked to plan, written into PLAN.md:
 - **Habit connections** (built after Analytics): the daily check-in on every plan; a statistical pattern engine with its thresholds written down (21 days of data, at least 8 days on each side, a 20-point difference, Fisher or permutation tests with a Benjamini–Hochberg correction); AI explanations that may only use measured numbers; the heads-up on Today; the Habit map; Autopilot off by default; and the safety rules.
   - It shares the insight card, actions and Undo with the analytics insights, rather than being a second system.
   - The Habit map's green and amber are theme tokens, so there's still no red.
+
+### Analytics, part 4: the weekly report (8 Nov 2026)
+
+- **What it says:** the week's completion and the change from the week before, the strongest habit, the one that "could use a little care" (only if one slipped, and never the same as the strongest), and the best day. For example: "77% done this week, up from 43% the week before." Times-per-week habits count by their week.
+- **Where:**
+  - On Sundays, the card on Today that opens the Sunday Review now leads with the week's numbers ("77% done this week, up from 43%. Ready to look back?").
+  - The Sunday Review screen opens with "Your week in numbers".
+  - On other days, the Sunday Review (from Progress) shows the last finished week's report.
+- **How:** `packages/core/src/weeklyReport.ts` works it out from 14 days of analytics: this week and the week before, from the server's cache. There's no AI call and no nightly job. It's computed when opened from data the database has already worked out, so it's always current.
+- **When it can't load,** the card keeps its old line and the review works as before.
+- **Docker:** quit when not in use, at the user's request. It's started only for SQL tests and stopped right after.
+- **Tests:** core 1395 (the report: change, strongest and care, best day, all done, weekly habits, an empty week; the Sunday card's text), mobile 952 (the Sunday card on Today, no fetch on other days, the review's numbers and opening without them). Earlier time-outs in the mobile suite came from the build and Docker sharing the machine; they pass on their own.

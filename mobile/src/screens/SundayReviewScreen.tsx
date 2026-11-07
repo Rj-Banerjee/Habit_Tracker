@@ -34,6 +34,19 @@ export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps)
     }
     return (
       <>
+        {review.report && review.report.lines.length > 0 ? (
+          <View style={styles.group}>
+            <Text variant="small" muted accessibilityRole="header">
+              Your week in numbers
+            </Text>
+            {review.report.lines.map((line) => (
+              <Text key={line} numeric>
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.group}>
           <Text variant="small" muted accessibilityRole="header">
             {review.label}

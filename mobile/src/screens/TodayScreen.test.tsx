@@ -319,6 +319,37 @@ describe('TodayScreen', () => {
     });
   });
 
+  describe('the Sunday card', () => {
+    it("leads with the week's numbers on a Sunday", async () => {
+      const sunday = '2026-11-08';
+      const base = await api.getAnalytics('2026-10-26', sunday);
+      api.getAnalytics.mockResolvedValueOnce({
+        ...base,
+        days: ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05'].map((date, i) => ({
+          habit_id: 'h1',
+          date,
+          status: i === 3 ? 'missed' : 'done',
+          log_status: i === 3 ? null : 'done',
+          level_done: i === 3 ? null : 'full',
+          amount: null,
+          source: i === 3 ? null : 'tap',
+          skip_reason: null,
+          target: null,
+          minimum: null,
+          logged_minute: null,
+        })),
+      } as never);
+      await open([row({ day: sunday })]);
+      expect(api.getAnalytics).toHaveBeenLastCalledWith('2026-10-26', sunday);
+      expect(screen.getByText('75% done this week. Ready to look back?')).toBeTruthy();
+    });
+
+    it('asks for no numbers on other days', async () => {
+      await open([row()]);
+      expect(api.getAnalytics).not.toHaveBeenCalled();
+    });
+  });
+
   describe('streak chain', () => {
     const week = Array.from({ length: 7 }, (_, i) => `2026-10-${String(28 + i).padStart(2, '0')}`)
       .map((d) => (d > '2026-10-31' ? `2026-11-${String(Number(d.slice(8)) - 31).padStart(2, '0')}` : d));
