@@ -9,7 +9,7 @@ import {
   localDate,
   eveningNote,
   greeting,
-  groupByIdentity,
+  groupByTimeOfDay,
   HABIT_TIP_TEXT,
   HabitLevel,
   isLogged,
@@ -348,8 +348,8 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         ) : (
           <>
             {showYesterdayFirst(part) ? yesterdaySection : null}
-            {groupByIdentity(today).map((group) => (
-              <View key={group.identityId} style={styles.group}>
+            {groupByTimeOfDay(today).map((group) => (
+              <View key={group.time} style={styles.group}>
                 <Text variant="small" muted accessibilityRole="header">
                   {group.name}
                 </Text>

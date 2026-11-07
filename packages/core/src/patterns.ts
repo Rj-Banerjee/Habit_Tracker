@@ -1,7 +1,7 @@
-import { ProgressDay, ProgressHabit, TodayRow } from './api';
+import { ProgressDay, ProgressHabit, TimeOfDay, TodayRow } from './api';
 import { addDays } from './dates';
 import { parseReminderTime } from './onboarding';
-import { isLogged } from './todayModel';
+import { dayPart, isLogged, timeOfDayName } from './todayModel';
 
 const MIN_LOGS_FOR_A_PATTERN = 5;
 const MIN_DAYS_FOR_A_WEEKDAY = 3;
@@ -162,6 +162,40 @@ export function planNudge(input: NudgeInput): NudgePlan | null {
         body: `${best.habit.title} usually happens around ${hourLabel(best.peak)}. The small version counts.`,
       };
     }
+  }
+  return null;
+}
+
+export interface TimeMove {
+  habitId: string;
+  title: string;
+  to: TimeOfDay;
+  // Remembers a "Keep", so the same move is never offered twice.
+  tip: string;
+  text: string;
+}
+
+export const timeKeptTip = (habitId: string, to: TimeOfDay) => `time-kept:${habitId}:${to}`;
+
+// Pro: when a habit is usually done in another part of the day than its section, offer
+// to move it. From peak hours (5 or more same-day logs). It moves only if they accept.
+export function timeOfDayMove(rows: TodayRow[], days: ProgressDay[], kept: readonly string[]): TimeMove | null {
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (!row.is_today || seen.has(row.habit_id)) continue;
+    seen.add(row.habit_id);
+    const peak = peakHour(days, row.habit_id);
+    if (peak === null) continue;
+    const to = dayPart(peak);
+    const tip = timeKeptTip(row.habit_id, to);
+    if (to === (row.time_of_day ?? 'anytime') || kept.includes(tip)) continue;
+    return {
+      habitId: row.habit_id,
+      title: row.title,
+      to,
+      tip,
+      text: `You usually do ${row.title} in the ${timeOfDayName(to).toLowerCase()}. Move it there?`,
+    };
   }
   return null;
 }

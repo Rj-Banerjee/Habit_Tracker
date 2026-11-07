@@ -1508,3 +1508,19 @@ Part W of the habit form work: migration `20261107000300_weekly_habits_and_endin
   - SQL 431 (44 new: quota met early, met with minimum sessions, extra sessions, two sessions on one day, a Grace-covered week, a repaired week, two misses in a row, part-weeks, timezone week boundaries, switching frequency, ending, no misses after the end, restart keeping history).
   - Core 1313, mobile 888, backend 216, web 28. Lint is unchanged.
 - **Known:** the SQL suite now takes 14 seconds, up from 7, because every day check also reads the habit's dated settings. Worth watching as data grows.
+
+### Time of day on Today: started (7 Nov 2026)
+
+Part 2 of the habit form work, partly done.
+
+- **Done:**
+  - Today is grouped into Morning, Afternoon, Evening and Anytime (`groupByTimeOfDay`), in reminder order, with empty sections hidden.
+  - `useToday().moveTo` changes a habit's time of day, from today on. A reminder still at the old default moves with it.
+  - The Pro suggestion logic, `timeOfDayMove`, works from peak hours, and a "Keep" is remembered.
+  - The drag gesture component, `mobile/src/today/DragToMove.tsx`, is written but not yet wired into Today.
+- **Not done yet:**
+  - Wiring the drag into Today, with all four sections as drop targets while dragging.
+  - "Move to…" in the long-press sheet.
+  - The suggestion card on Today.
+  - A preview build and the phone checklist.
+- **Tests:** core 1317, mobile screens 492.

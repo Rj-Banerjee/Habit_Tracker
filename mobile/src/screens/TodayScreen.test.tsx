@@ -343,13 +343,13 @@ describe('TodayScreen', () => {
     });
   });
 
-  it('groups habits by identity', async () => {
+  it('groups habits by time of day', async () => {
     await open([
-      row(),
-      row({ habit_id: 'h2', title: 'Read', identity_id: 'i2', identity_name: 'The Reader' }),
+      row({ time_of_day: 'evening' }),
+      row({ habit_id: 'h2', title: 'Read', identity_id: 'i2', identity_name: 'The Reader', time_of_day: 'morning' }),
     ]);
-    expect(screen.getByText('The Athlete')).toBeTruthy();
-    expect(screen.getByText('The Reader')).toBeTruthy();
+    const headers = screen.getAllByRole('header').map((h) => h.props.children);
+    expect(headers.filter((h) => ['Morning', 'Evening'].includes(h))).toEqual(['Morning', 'Evening']);
   });
 
   it('logs the full version with one tap', async () => {
@@ -504,8 +504,8 @@ describe('TodayScreen', () => {
   });
 
   describe.each([
-    [9, ['Still open from yesterday', 'The Athlete']],
-    [20, ['The Athlete', 'Still open from yesterday']],
+    [9, ['Still open from yesterday', 'Anytime']],
+    [20, ['Anytime', 'Still open from yesterday']],
   ])('at %i:00', (hour, order) => {
     it('orders the sections for that time of day', async () => {
       jest.useFakeTimers({ now: new Date(2026, 10, 3, hour), doNotFake: ['nextTick', 'setImmediate'] });

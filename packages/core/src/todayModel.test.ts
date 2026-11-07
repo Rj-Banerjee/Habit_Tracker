@@ -7,6 +7,7 @@ import {
   eveningNote,
   greeting,
   groupByIdentity,
+  groupByTimeOfDay,
   levelOptions,
   levelTarget,
   progressLabel,
@@ -211,5 +212,22 @@ describe('completed habits', () => {
     expect(celebrationText(read)).toBe(
       "You finished Read. 24 days done, best streak 12 days, 260 pages in all. That's worth a moment."
     );
+  });
+});
+
+describe('groupByTimeOfDay', () => {
+  it('makes Morning, Afternoon, Evening and Anytime, in reminder order, leaving out empty ones', () => {
+    const rows = [
+      row({ habit_id: 'a', time_of_day: 'evening', reminder_time: '21:00:00' }),
+      row({ habit_id: 'b', time_of_day: 'morning' }),
+      row({ habit_id: 'c', time_of_day: 'evening', reminder_time: '19:00:00' }),
+      row({ habit_id: 'd' }),
+      row({ habit_id: 'e', time_of_day: 'evening' }),
+    ];
+    expect(groupByTimeOfDay(rows).map((g) => [g.name, g.rows.map((r) => r.habit_id)])).toEqual([
+      ['Morning', ['b']],
+      ['Evening', ['c', 'a', 'e']],
+      ['Anytime', ['d']],
+    ]);
   });
 });

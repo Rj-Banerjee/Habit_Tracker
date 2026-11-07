@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ProgressDay, ProgressHabit, TodayRow } from './api';
 import { addDays } from './dates';
-import { habitPatterns, hourLabel, NudgeRecord, peakHour, planNudge, weakWeekday } from './patterns';
+import { habitPatterns, hourLabel, NudgeRecord, peakHour, planNudge, timeOfDayMove, weakWeekday } from './patterns';
 
 const TODAY = '2026-11-02'; // a Monday
 
@@ -181,5 +181,28 @@ describe('planNudge', () => {
 
   it('needs a known usual time', () => {
     expect(plan({ days: [day(1, 'missed'), day(2, 'done')] })).toBeNull();
+  });
+});
+
+describe('timeOfDayMove', () => {
+  const morningRow = { ...open(), title: 'Read', time_of_day: 'morning' } as TodayRow;
+
+  it('offers to move a habit to when it is usually done', () => {
+    expect(timeOfDayMove([morningRow], shaky(), [])).toEqual({
+      habitId: 'h1',
+      title: 'Read',
+      to: 'evening',
+      tip: 'time-kept:h1:evening',
+      text: 'You usually do Read in the evening. Move it there?',
+    });
+  });
+
+  it('says nothing when it is already there, or after a Keep', () => {
+    expect(timeOfDayMove([{ ...morningRow, time_of_day: 'evening' }], shaky(), [])).toBeNull();
+    expect(timeOfDayMove([morningRow], shaky(), ['time-kept:h1:evening'])).toBeNull();
+  });
+
+  it('waits for 5 same-day logs', () => {
+    expect(timeOfDayMove([morningRow], shaky().slice(0, 4), [])).toBeNull();
   });
 });

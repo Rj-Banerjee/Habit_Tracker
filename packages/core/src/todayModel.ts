@@ -1,4 +1,4 @@
-import { CompletedHabit, HabitLevel, LevelOption, TodayRow } from './api';
+import { CompletedHabit, HabitLevel, LevelOption, TimeOfDay, TodayRow } from './api';
 import { partialDetail } from './amounts';
 import { HabitCardStatus } from './habitCardStatus';
 
@@ -65,6 +65,41 @@ export function groupByIdentity(rows: TodayRow[]): IdentityGroup[] {
   }
   return [...groups.values()];
 }
+
+export interface TimeGroup {
+  time: TimeOfDay;
+  name: string;
+  rows: TodayRow[];
+}
+
+const TIME_ORDER: TimeOfDay[] = ['morning', 'afternoon', 'evening', 'anytime'];
+const TIME_NAMES: Record<TimeOfDay, string> = {
+  morning: 'Morning',
+  afternoon: 'Afternoon',
+  evening: 'Evening',
+  anytime: 'Anytime',
+};
+
+// Today's sections: Morning, Afternoon, Evening, then Anytime, each in reminder order with
+// unreminded habits after. Empty sections are left out. Identity shows by colour instead.
+export function groupByTimeOfDay(rows: TodayRow[]): TimeGroup[] {
+  const minutes = (row: TodayRow) => {
+    if (!row.reminder_time) return Number.POSITIVE_INFINITY;
+    const [h, m] = row.reminder_time.split(':').map(Number);
+    return h * 60 + m;
+  };
+  return TIME_ORDER.map((time) => ({
+    time,
+    name: TIME_NAMES[time],
+    rows: rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => (row.time_of_day ?? 'anytime') === time)
+      .sort((a, b) => minutes(a.row) - minutes(b.row) || a.index - b.index)
+      .map(({ row }) => row),
+  })).filter((group) => group.rows.length > 0);
+}
+
+export const timeOfDayName = (time: TimeOfDay) => TIME_NAMES[time];
 
 export function levelTarget(row: TodayRow, level: HabitLevel): number | null {
   const option = row.levels.find((l) => l.level === level);
