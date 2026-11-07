@@ -118,6 +118,15 @@ export function useToday() {
     );
   };
 
+  // An amount already known, such as minutes focused, added to the day.
+  const addAmountOf = async (row: TodayRow, amount: number, unit: string | null = null) => {
+    let said: string | null = null;
+    await change(row, { amount: (row.amount ?? 0) + amount }, async () => {
+      said = progressLine(await offlineTracker.addAmount(row.habit_id, row.day, amount, unit), row.title);
+    });
+    if (said) setMessage(said);
+  };
+
   const undo = (row: TodayRow) =>
     change(
       row,
@@ -146,6 +155,7 @@ export function useToday() {
     refresh,
     log,
     addAmount,
+    addAmountOf,
     moveTo,
     undo,
     skip,

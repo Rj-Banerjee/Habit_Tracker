@@ -1552,3 +1552,16 @@ The existing fracture, weld and Grace Day shimmer, extended to times-per-week ha
 - **Animation Playground:** a Finish button, a partial day with a finished chain, and a chain of weeks in the gallery.
 - **Live:** the dry run listed only this migration. 4 checks passed with temporary users, who were then deleted: this week with its session, nothing for another user, nothing with the publishable key alone, and the range capped.
 - **Tests:** SQL 436, core 1328, mobile 906. Lint is unchanged.
+
+### Tunnel Vision fitted to amounts (8 Nov 2026)
+
+Chosen by the user from three options: fit the existing Tunnel Vision to the new habits.
+
+- **A duration habit counts focused time:**
+  - Finishing a focus adds the minutes focused to the day, in the habit's own unit (30 minutes is 0.5 for a habit in hours). A 25-minute focus on a 60-minute Study no longer logs the whole hour.
+  - The reply says where the day stands, through the same progress line as other amounts.
+  - The timer starts at what's left today: 25 minutes after 35 of 60 are done, or the whole target if it's done already.
+  - Stopping early asks "Add the 12 minutes you focused?" instead of "Log the minimum version?".
+- **Other habits are unchanged:** yes/no and count habits are logged as done, and a times-per-week habit logs a session.
+- **Known:** a "Done" tapped in the notification while the app is closed, for a session whose habit is no longer on Today, still logs the habit as done rather than adding minutes. It's rare: the session has to outlive its day.
+- **Tests:** core 1332 (focus helpers), mobile 914 (the timer starting at what's left, finishing, stopping early, hours). Lint is unchanged.

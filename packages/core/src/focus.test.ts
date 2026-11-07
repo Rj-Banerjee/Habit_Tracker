@@ -7,7 +7,10 @@ import {
   clockSpoken,
   elapsedSeconds,
   FocusAction,
+  focusAddsTime,
+  focusedAmount,
   focusMinutes,
+  stopQuestionFor,
   focusReducer,
   focusStart,
   FocusState,
@@ -185,5 +188,35 @@ describe('minutesLabel', () => {
   it('says minute for one', () => {
     expect(minutesLabel(1)).toBe('1 minute');
     expect(minutesLabel(25)).toBe('25 minutes');
+  });
+});
+
+describe('focus with amounts', () => {
+  const study = { habit_type: 'duration' as const, target: 60, unit: 'min' };
+
+  it('starts at what is left today', () => {
+    expect(focusMinutes({ ...study, amount: 35 })).toBe(25);
+    expect(focusMinutes({ ...study, amount: 0 })).toBe(60);
+    expect(focusMinutes({ ...study, amount: 60 })).toBe(60);
+    expect(focusMinutes({ ...study, target: 1.5, unit: 'hours', amount: 1 })).toBe(30);
+  });
+
+  it('adds focused minutes in the habit\'s own unit', () => {
+    expect(focusAddsTime(study)).toBe(true);
+    expect(focusedAmount(study, 25 * 60)).toBe(25);
+    expect(focusedAmount({ ...study, unit: 'hours' }, 30 * 60)).toBe(0.5);
+    expect(focusedAmount(study, 10)).toBe(1);
+  });
+
+  it('logs any other habit as before', () => {
+    expect(focusAddsTime({ habit_type: 'count', target: 10, unit: 'pages' })).toBe(false);
+    expect(focusAddsTime({ habit_type: 'boolean', target: null, unit: null })).toBe(false);
+    expect(focusMinutes({ habit_type: 'count', target: 10, unit: 'pages' })).toBe(25);
+  });
+
+  it('asks to add the minutes done, or about the minimum', () => {
+    expect(stopQuestionFor(study, 12 * 60)).toBe('Add the 12 minutes you focused?');
+    expect(stopQuestionFor(study, 40)).toBe('Add the 1 minute you focused?');
+    expect(stopQuestionFor({ habit_type: 'boolean', target: null, unit: null }, 600)).toBe('Log the minimum version?');
   });
 });

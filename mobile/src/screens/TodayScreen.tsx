@@ -102,7 +102,7 @@ interface TodayScreenProps {
 
 export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScreenProps) {
   const { colors } = useTheme();
-  const { rows, repairs, loading, loadFailed, message, refresh, log, addAmount, moveTo, undo, skip, repair } =
+  const { rows, repairs, loading, loadFailed, message, refresh, log, addAmount, addAmountOf, moveTo, undo, skip, repair } =
     useToday();
   const size = useLayoutSize();
   const [shrinkRow, setShrinkRow] = useState<TodayRow | null>(null);
@@ -539,6 +539,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           saved={focusSaved}
           reducedMotion={motionSettings.reducedMotion}
           onLog={log}
+          onAddAmount={(row, amount) => void addAmountOf(row, amount)}
           onClose={() => setFocusId(null)}
         />
       ) : null}

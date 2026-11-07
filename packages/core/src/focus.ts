@@ -1,4 +1,5 @@
 import type { HabitType } from './api';
+import { convertAmount, findUnit } from './units';
 
 // Tunnel Vision: one habit, a focus timer, nothing else on screen.
 
@@ -12,14 +13,35 @@ export type FocusEventKind = 'focus.started' | 'focus.completed' | 'focus.stoppe
 const clampMinutes = (minutes: number) =>
   Math.min(MAX_FOCUS_MINUTES, Math.max(MIN_FOCUS_MINUTES, Math.round(minutes)));
 
-// A duration habit's own target, in minutes, or 25.
-export function focusMinutes(habit: { habit_type: HabitType; target: number | null; unit: string | null }) {
-  if (habit.habit_type !== 'duration' || !habit.target || habit.target <= 0) return DEFAULT_FOCUS_MINUTES;
-  const unit = (habit.unit ?? '').trim().toLowerCase();
-  if (/^(h|hr|hrs|hour|hours)$/.test(unit)) return clampMinutes(habit.target * 60);
-  if (/^(s|sec|secs|second|seconds)$/.test(unit)) return clampMinutes(habit.target / 60);
-  return clampMinutes(habit.target);
+interface FocusHabit {
+  habit_type: HabitType;
+  target: number | null;
+  unit: string | null;
+  // What's already done today, in the habit's own unit.
+  amount?: number | null;
 }
+
+// A duration habit counts focused time: its minutes add to the day. Any other habit is
+// logged as done when its focus is.
+export const focusAddsTime = (habit: FocusHabit) =>
+  habit.habit_type === 'duration' && (!habit.unit || findUnit(habit.unit)?.family === 'time');
+
+const inMinutes = (amount: number, unit: string | null) => convertAmount(amount, unit ?? 'min', 'min') ?? amount;
+
+// A duration habit's own target, less what's already done today, in minutes; or 25.
+export function focusMinutes(habit: FocusHabit) {
+  if (!focusAddsTime(habit) || !habit.target || habit.target <= 0) return DEFAULT_FOCUS_MINUTES;
+  const target = inMinutes(habit.target, habit.unit);
+  const done = habit.amount ? inMinutes(habit.amount, habit.unit) : 0;
+  // Already done in full: another session of the whole target.
+  return clampMinutes(done > 0 && done < target ? target - done : target);
+}
+
+// Minutes focused, in the habit's own unit, to add to the day.
+export const focusedAmount = (habit: FocusHabit, seconds: number) => {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return convertAmount(minutes, 'min', habit.unit ?? 'min') ?? minutes;
+};
 
 // asking: stopped early, log the minimum? timeUp: the timer ran out, is it done?
 // again: not done yet, focus again? Nothing is logged without an answer.
@@ -128,6 +150,12 @@ export function clockSpoken(ms: number) {
 export const minutesLabel = (minutes: number) => (minutes === 1 ? '1 minute' : `${minutes} minutes`);
 
 export const STOP_QUESTION = 'Log the minimum version?';
+// A duration habit counts what was done instead of asking about the minimum.
+export const stopQuestionFor = (habit: FocusHabit, seconds: number) => {
+  if (!focusAddsTime(habit)) return STOP_QUESTION;
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `Add the ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} you focused?`;
+};
 export const timeUpQuestion = (title: string) => `Time's up. Is ${title} done?`;
 export const AGAIN_QUESTION = 'Focus again?';
 
