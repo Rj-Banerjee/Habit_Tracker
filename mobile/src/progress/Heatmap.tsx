@@ -1,11 +1,13 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Svg from 'react-native-svg';
+import Svg, { G } from 'react-native-svg';
 import {
   HEAT_LABELS,
+  HeatCell as HeatCellData,
   Heatmap as HeatmapData,
   HeatKind,
   IdentityToken,
+  shortDate,
   space,
 } from '@habit-tracker/core';
 import { Text } from '@habit-tracker/ui';
@@ -27,6 +29,7 @@ const summary = ({ counts }: HeatmapData) =>
 export function Heatmap({ data, identity }: HeatmapProps) {
   const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const width = data.weeks.length * STEP;
+  const [picked, setPicked] = useState<HeatCellData | null>(null);
 
   return (
     <View style={styles.root}>
@@ -42,19 +45,17 @@ export function Heatmap({ data, identity }: HeatmapProps) {
           <Svg width={width} height={7 * STEP}>
             {data.weeks.flatMap((week, column) =>
               week.map((cell, row) => (
-                <HeatCell
-                  key={cell.date}
-                  kind={cell.kind}
-                  identity={identity}
-                  x={column * STEP}
-                  y={row * STEP}
-                  size={CELL}
-                />
+                <G key={cell.date} onPress={() => setPicked(cell)}>
+                  <HeatCell kind={cell.kind} identity={identity} x={column * STEP} y={row * STEP} size={CELL} />
+                </G>
               ))
             )}
           </Svg>
         </View>
       </ScrollView>
+      <Text variant="small" muted numeric accessibilityLiveRegion="polite">
+        {picked ? `${shortDate(picked.date)}: ${HEAT_LABELS[picked.kind]}` : 'Tap a day to see it'}
+      </Text>
       <View style={styles.legend}>
         {LEGEND.map((kind) => (
           <View key={kind} style={styles.key}>

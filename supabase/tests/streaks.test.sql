@@ -1572,6 +1572,13 @@ select is(
    where d ->> 'date' = '2026-11-05'),
   '(missed,2,10)', 'with its status, minimum and target that day'
 );
+select is(
+  (select (h ->> 'target', h -> 'schedule_days')::text
+   from jsonb_array_elements(tracker.build_analytics(t.u(120), '2026-11-02', '2026-11-05', t.noon(120, '2026-11-07')) -> 'habits') h),
+  (select (h.target::text, to_jsonb(h.schedule_days))::text from public.habits h
+   join public.identities i on i.id = h.identity_id where i.user_id = t.u(120)),
+  'each habit comes with its target and schedule, for the forecast'
+);
 select is(jsonb_array_length(tracker.build_analytics(t.u(130), '2026-11-02', '2026-11-15', t.noon(130, '2026-11-18')) -> 'weeks'), 2,
   'a times-per-week habit comes back by the week');
 select tracker.settle(t.u(130), t.noon(130, '2026-11-18'));

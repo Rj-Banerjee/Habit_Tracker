@@ -60,6 +60,39 @@ jest.mock('../services/tracker', () => ({
     listCompletedHabits: jest.fn(() => Promise.resolve([])),
     updateHabit: jest.fn(() => Promise.resolve()),
     getWeekStatuses: jest.fn(() => Promise.resolve([])),
+    getAnalytics: jest.fn((from: string, to: string) =>
+      Promise.resolve({
+        from,
+        to,
+        today: to,
+        habits: [
+          {
+            id: 'h1',
+            title: 'Run',
+            type: 'boolean',
+            unit: null,
+            frequency: 'days',
+            per_week: null,
+            target: null,
+            schedule_days: [1, 2, 3, 4, 5, 6, 7],
+            identity_id: 'i1',
+            identity_name: 'The Runner',
+            colour_token: 'identity-1',
+            starts_on: from,
+            ends_on: null,
+            reminder_time: null,
+            time_of_day: 'morning',
+            milestone_amount: null,
+            milestone_label: null,
+            current_streak: 0,
+            longest_streak: 0,
+          },
+        ],
+        days: [],
+        weeks: [],
+        grace_spent: [],
+      })
+    ),
   },
 }));
 

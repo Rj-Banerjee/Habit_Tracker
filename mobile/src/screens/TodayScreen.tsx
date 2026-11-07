@@ -547,7 +547,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       ) : null}
       {detailRow ? (
         <HabitDetailScreen
-          row={detailRow}
+          habitId={detailRow.habit_id}
+          title={detailRow.title}
+          identityName={detailRow.identity_name}
+          today={detailRow.day}
           onClose={() => setDetailRow(null)}
           onEdit={() => {
             setDetailRow(null);

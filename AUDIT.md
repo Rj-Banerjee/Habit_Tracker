@@ -1608,3 +1608,28 @@ The first part of the analytics section the user asked for: the numbers, with te
   - `rls_auto_enable` and the `ensure_rls` trigger are still there. The cache table is private like the other tracker tables: not exposed, no grants.
   - Each call took about 1 s from here (live is in eu-west-1), cached or not, so most of that time is the round trip.
 - **Tests:** SQL 454, core 1368 (28 for the metrics), mobile 920, frontend 28, backend 216. There's no screen yet, so nothing changes on the phone.
+
+### Analytics, part 2: Habit detail (8 Nov 2026)
+
+Tapping a habit's chain, or "Streak and details" in the long-press sheet, opens the new Habit detail. It's simple and functional for now, as asked.
+
+- **What's on it, top to bottom:**
+  - A range picker: 7 days, 30 days (the default), 90 days, 1 year, all time.
+  - Four tiles: strength (out of 100), completion with "25 of 29 days", current streak, best streak.
+  - The strength line. Tap it for any day's value.
+  - Day by day: a bar for each day, grouped by week, with a ring under each week. Full is the identity colour; minimum is the same colour, lighter; a day due but not done is a quiet baseline. Tap a bar or a ring for its numbers.
+  - Consistency: full and minimum rates, full vs minimum, repaired, Grace Days used, back on track after a miss, skipped, below the minimum ("shown, not counted"), and the top skip reasons. A times-per-week habit shows weeks met, repaired, protected and missed instead.
+  - Amounts, for count and duration habits: total, daily and weekly averages, target reached, best day, best week, milestones, and the Compound Forecaster.
+  - When it gets done: completion by weekday as labelled bars, a weekday × hour heatmap (tap a square), how it's logged, and the time from reminder to done.
+  - The year heatmap (now tappable here and on Progress), then the streak chain and past streaks.
+- **How it loads:** one call fetches a year (cached on the server), so changing the range is instant. Strength is worked out over the whole year, so a 7-day range starts where the habit really was, not at zero. "All time" loads up to two years, only when chosen.
+- **It opens from anywhere:** it needs only the habit's id, so the Overview's ranking can open it next. For that, analytics now returns each habit's target and schedule (migration `20261108000300_analytics_habit_settings.sql`, which also clears the cache).
+- **Empty states teach:** "Strength grows a little with every day you log…", "Log on the day itself a few times, and your usual time shows up here."
+- **No red anywhere:** every colour is a theme token or the habit's identity colour.
+- **Not yet:** insights come in part 5, with the server-checked Pro entitlement.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 9 checks passed with temporary users, who were then deleted, including that each habit now comes with its target and schedule. Calls took about 0.23 s.
+  - `rls_auto_enable` and `ensure_rls` are still there.
+  - The +test account was filled with the 120-day history: 4 habits; Read is the one with the target set too high.
+- **Tests:** SQL 455, core 1382 (the Habit detail wording, ranges, the hour grid, bar labels, weekly sessions in the bars), mobile 938 (the screen: ranges without reloading, all time, the weak weekday, amounts, weekly habits, empty states, errors), frontend 28, backend 216.

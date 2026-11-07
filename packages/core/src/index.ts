@@ -21,6 +21,7 @@ export * from './colorChecks';
 export * from './dates';
 export * from './dragOrder';
 export * from './habitCardStatus';
+export * from './habitDetail';
 export * from './habitForm';
 export * from './habitLibrary';
 export * from './habitReminders';
