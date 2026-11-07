@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
-import Svg, { G, Path } from 'react-native-svg';
-import { Chain, dayLabel, IdentityToken, LinkKind, space, statusLabels } from '@habit-tracker/core';
+import Svg, { Circle, G, Path } from 'react-native-svg';
+import { Chain, ChainNode, dayLabel, IdentityToken, LinkKind, space, statusLabels } from '@habit-tracker/core';
 import {
   CHAIN_HEIGHT,
   CHAIN_NODE,
+  chainCentres,
   CRACK_APART,
   crackPath,
+  endCapPath,
   halfLeft,
   halfRight,
   linkSpan,
   LinkSpan,
-  nodeCentres,
+  partialRadius,
   QUIET_APART,
   stitchesPath,
   wholeLink,
@@ -72,17 +74,37 @@ export function useChainColours(identity: IdentityToken): ChainColours {
   return { accent, onAccent, hollow: colors.hollow, muted: colors.textMuted };
 }
 
+const weekLabel = (date: string) =>
+  `week of ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`)
+  )}`;
+
+const nodeSummary = (node: ChainNode, unit: Chain['unit']) => {
+  const when = unit === 'week' ? weekLabel(node.date) : dayLabel(node.date);
+  const partly = node.partial !== undefined ? ', partly done' : '';
+  return `${when} ${statusLabels[node.status].toLowerCase()}${partly}`;
+};
+
 export const chainSummary = (chain: Chain) =>
-  `Last ${chain.nodes.length} days: ${chain.nodes
-    .map((node) => `${dayLabel(node.date)} ${statusLabels[node.status].toLowerCase()}`)
-    .join(', ')}`;
+  `Last ${chain.nodes.length} ${chain.unit === 'week' ? 'weeks' : 'days'}: ${chain.nodes
+    .map((node) => nodeSummary(node, chain.unit))
+    .join(', ')}${chain.ended ? '. Finished' : ''}`;
+
+// Drawn over a hollow node, in its 28-unit space: how far a day below the minimum got.
+export function PartialMark({ share, colour }: { share: number; colour: string }) {
+  return <Circle cx={14} cy={14} r={partialRadius(share)} fill={colour} opacity={0.55} />;
+}
+
+export function EndCap({ lastCentre, colour }: { lastCentre: number; colour: string }) {
+  return <Path d={endCapPath(lastCentre)} stroke={colour} strokeWidth={2} strokeLinecap="round" />;
+}
 
 // The still chain, for Progress and anywhere a streak is shown without a moment playing.
 export function StreakChain({ chain, identity, seamLabels }: StreakChainProps) {
   const colours = useChainColours(identity);
   const [width, setWidth] = useState(0);
   const [shown, setShown] = useState<string | null>(null);
-  const centres = nodeCentres(chain.nodes.length, width);
+  const centres = chainCentres(chain.nodes.length, width, chain.ended);
 
   return (
     <View
@@ -102,8 +124,12 @@ export function StreakChain({ chain, identity, seamLabels }: StreakChainProps) {
               transform={`translate(${centres[i] - CHAIN_NODE / 2} ${(CHAIN_HEIGHT - CHAIN_NODE) / 2}) scale(${CHAIN_NODE / 28})`}
             >
               <StatusShapes status={node.status} {...colours} />
+              {node.partial !== undefined ? <PartialMark share={node.partial} colour={colours.accent} /> : null}
             </G>
           ))}
+          {chain.ended && chain.nodes.length > 0 ? (
+            <EndCap lastCentre={centres[chain.nodes.length - 1]} colour={colours.accent} />
+          ) : null}
         </Svg>
       ) : null}
       {width > 0 && seamLabels

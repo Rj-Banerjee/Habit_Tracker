@@ -1522,5 +1522,26 @@ update public.habits set ends_on = '2026-11-03' where id = t.h(508);
 select t.pin(508);
 select is(tracker.week_quota(t.h(508), '2026-11-02'), 2, 'ending on Tuesday, the week asks 2');
 
+
+-- The chain of weeks.
+select t.make_user(139);
+select t.weekly(509, 139, '2026-11-02', 3::smallint);
+select t.session(509, 139, '2026-11-02');
+select is(tracker.week_repair_by(t.h(509), '2026-11-02', t.noon(139, '2026-11-11')), '2026-11-09'::date,
+  'a missed week can be repaired the next week, while it is open');
+select is(tracker.week_repair_by(t.h(509), '2026-11-02', t.noon(139, '2026-11-17')), null::date,
+  'and not once the next week has closed');
+select is(tracker.week_repair_by(t.h(501), '2026-11-02', t.noon(131, '2026-11-12')), null::date,
+  'a repaired week has nothing left to repair');
+select is(tracker.week_repair_by(t.h(502), '2026-11-09', t.noon(132, '2026-11-18')), null::date,
+  'nor after two missed weeks in a row');
+select set_config('request.jwt.claims', json_build_object('sub', t.u(130), 'role', 'authenticated')::text, true);
+select is(
+  (select (status, quota, sessions)::text from public.get_week_statuses('2026-11-02', '2026-11-08')),
+  '(met,4,5)',
+  'each week comes back with its status, quota and sessions'
+);
+select set_config('request.jwt.claims', '', true);
+
 select * from finish();
 rollback;

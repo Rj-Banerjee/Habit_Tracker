@@ -59,6 +59,7 @@ jest.mock('../services/tracker', () => ({
     markTipSeen: jest.fn(() => Promise.resolve()),
     listCompletedHabits: jest.fn(() => Promise.resolve([])),
     updateHabit: jest.fn(() => Promise.resolve()),
+    getWeekStatuses: jest.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -166,6 +167,15 @@ describe('TodayScreen', () => {
       expect(screen.getByText(/Done for this week/)).toBeTruthy();
       await fireEvent.press(screen.getByRole('button', { name: /^Workout/ }));
       expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
+    });
+
+    it('draws its chain in weeks', async () => {
+      api.getWeekStatuses.mockResolvedValueOnce([
+        { habit_id: 'h1', week_start: '2026-10-26', status: 'met', quota: 4, sessions: 4, repair_by: null },
+        { habit_id: 'h1', week_start: '2026-11-02', status: 'pending', quota: 4, sessions: 2, repair_by: null },
+      ]);
+      await open([workout()]);
+      expect(screen.getByLabelText(/^Last 2 weeks: week of 26 Oct done/)).toBeTruthy();
     });
 
     it('has nothing to skip', async () => {

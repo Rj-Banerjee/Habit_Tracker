@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { addDays, DayStatus, localDate, ProgressDay, ProgressHabit } from '@habit-tracker/core';
+import { addDays, CHAIN_WEEKS, DayStatus, localDate, ProgressDay, ProgressHabit, WeekStatusRow } from '@habit-tracker/core';
 import { tracker } from '../services/tracker';
 
 const YEAR_AND_A_WEEK = 371;
@@ -10,6 +10,7 @@ export function useProgress(active: boolean) {
   const [habits, setHabits] = useState<ProgressHabit[]>([]);
   const [days, setDays] = useState<ProgressDay[]>([]);
   const [statuses, setStatuses] = useState<DayStatus[]>([]);
+  const [weeks, setWeeks] = useState<WeekStatusRow[]>([]);
   const [today, setToday] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -31,6 +32,13 @@ export function useProgress(active: boolean) {
             .getDayStatuses(addDays(now, -REPAIR_LOOKBACK), now)
             .then(setStatuses)
             .catch(() => {});
+          // Times-per-week habits draw their chain in weeks.
+          if (list.some((habit) => habit.frequency === 'per_week')) {
+            tracker
+              .getWeekStatuses(addDays(now, -7 * CHAIN_WEEKS), now)
+              .then(setWeeks)
+              .catch(() => {});
+          }
           setToday(now);
           setLoadFailed(false);
         })
@@ -44,5 +52,5 @@ export function useProgress(active: boolean) {
     if (active) void load();
   }, [active, load]);
 
-  return { habits, days, statuses, today, loading, loadFailed, load };
+  return { habits, days, statuses, weeks, today, loading, loadFailed, load };
 }

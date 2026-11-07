@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  celebrationText,
   coachCard,
   dayPart,
   FOCUS_LINK,
@@ -37,6 +36,7 @@ import {
 } from '@habit-tracker/ui';
 import { repairHabitOf } from '../chain/CardChain';
 import { useMotionSettings } from '../chain/useMotionSettings';
+import { FinishCard } from '../chain/FinishCard';
 import { WelcomeBack } from '../chain/WelcomeBack';
 import { FocusLock, FocusSession } from '../../modules/focus-lock';
 import { FocusMode } from '../focus/FocusMode';
@@ -390,8 +390,9 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         ) : null}
 
         {completed.celebrate ? (
-          <TipCard
-            text={celebrationText(completed.celebrate)}
+          <FinishCard
+            key={completed.celebrate.habit_id}
+            habit={completed.celebrate}
             onDismiss={() => completed.celebrate && completed.dismiss(completed.celebrate)}
           />
         ) : null}

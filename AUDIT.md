@@ -1538,3 +1538,17 @@ The rest of part 2.
 - **Pro suggestion:** "You usually do Run in the evening. Move it there?", with Move and Keep, from peak hours (5 or more same-day logs). It moves only on Move, and a Keep is remembered on the server. It isn't shown until the plan has loaded, so Free never sees it.
 - **Lint fix:** the React Compiler gave up on Today when a drop callback read a ref, so the section views are kept in a stable Map instead.
 - **Tests:** core 1318, mobile 896 (new: Move to, a reminder moving with it or staying, Move and Keep). The drag gesture itself needs real touches, so it's on the phone checklist.
+
+### Streak animations for the new habits (8 Nov 2026)
+
+The existing fracture, weld and Grace Day shimmer, extended to times-per-week habits, days below the minimum and habits that end. Chosen by the user from three options.
+
+- **Times-per-week habits:** their chain is of weeks, each node a Monday (`buildWeekChain`, from the new `get_week_statuses`; migration `20261108000000_week_chain.sql`). A met week is done, a missed week cracks, a covered week shimmers, and a week repaired by an extra session the next week welds.
+  - The same moments play, once each, through the same planner.
+  - The words are in weeks: "Missed the week of 2 Nov · Repair next week", "How to repair: 5 sessions next week, one more than it asks", "Welded. 3-week streak.", "Repaired the next week with 5 sessions".
+  - The chain is back on their Today card, on the habit detail (last 12 weeks, with streak and longest in weeks) and in Progress.
+- **A day below the minimum:** its node carries a small accent dot, larger the further it got (10% to 90% of the target). Screen readers hear "partly done".
+- **A habit that ends:** a new, calm "finish" moment: one soft light along the whole chain, then an end cap after the last node, 700 ms, with no haptic and a crossfade under reduced motion. The one-time celebration on Today now plays it on the habit's own chain, with "Finished. 24 days done." Ended chains keep the cap wherever they're drawn.
+- **Animation Playground:** a Finish button, a partial day with a finished chain, and a chain of weeks in the gallery.
+- **Live:** the dry run listed only this migration. 4 checks passed with temporary users, who were then deleted: this week with its session, nothing for another user, nothing with the publishable key alone, and the range capped.
+- **Tests:** SQL 436, core 1328, mobile 906. Lint is unchanged.

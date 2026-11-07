@@ -1,4 +1,4 @@
-import type { DayStatus, HabitLevel, HabitType, ProgressDay } from './api';
+import type { DayStatus, HabitLevel, HabitType, ProgressDay, WeekStatusRow } from './api';
 import { dayCellStatus, dayName } from './dates';
 import type { HabitCardStatus } from './habitCardStatus';
 
@@ -13,21 +13,29 @@ export interface ChainNode {
   repairOn: string | null;
   // A repaired miss: the day the extra work was done, and how much.
   repairedWith: { on: string; amount: number | null } | null;
+  // Some done, but below the minimum: how far towards the target, from 0 to 1.
+  partial?: number;
 }
 
 export interface Chain {
   nodes: ChainNode[];
   // links[i] joins nodes[i] and nodes[i + 1].
   links: LinkKind[];
+  // A times-per-week habit's chain is of weeks, each dated by its Monday.
+  unit?: 'day' | 'week';
+  // The habit has run its course: the chain ends with a cap.
+  ended?: boolean;
 }
 
 export interface ChainLog {
   date: string;
   level_done: HabitLevel | null;
   amount?: number | null;
+  target?: number | null;
 }
 
 export const CHAIN_DAYS = 7;
+export const CHAIN_WEEKS = 6;
 
 function linkInto(node: ChainNode): LinkKind {
   switch (node.status) {
@@ -41,6 +49,46 @@ function linkInto(node: ChainNode): LinkKind {
     default:
       return 'chain';
   }
+}
+
+// A day with an amount below the minimum: no level, but something done.
+function partialOf(status: string, log: ChainLog | undefined): number | undefined {
+  if (!log || log.level_done || !log.amount || log.amount <= 0) return undefined;
+  if (status !== 'missed' && status !== 'open' && status !== 'due') return undefined;
+  const share = log.target ? log.amount / log.target : 0.5;
+  return Math.min(0.9, Math.max(0.1, share));
+}
+
+const WEEK_NODE: Record<WeekStatusRow['status'], ChainNode['status'] | null> = {
+  met: 'done',
+  repaired: 'repaired',
+  protected: 'protected',
+  missed: 'missed',
+  pending: 'due',
+  none: null,
+};
+
+// A times-per-week habit's chain: its last weeks, oldest first, each node a week. A
+// missed week can be repaired the week after, and a repaired one was mended there.
+export function buildWeekChain(habitId: string, weeks: WeekStatusRow[], count = CHAIN_WEEKS): Chain {
+  const own = weeks
+    .filter((week) => week.habit_id === habitId)
+    .sort((a, b) => a.week_start.localeCompare(b.week_start));
+  const all: ChainNode[] = own.flatMap((week, index) => {
+    const status = WEEK_NODE[week.status];
+    if (!status) return [];
+    const next = status === 'repaired' ? own[index + 1] : undefined;
+    return [
+      {
+        date: week.week_start,
+        status,
+        repairOn: status === 'missed' ? week.repair_by : null,
+        repairedWith: next ? { on: next.week_start, amount: next.sessions } : null,
+      },
+    ];
+  });
+  const nodes = all.slice(-count);
+  return { nodes, links: nodes.slice(1).map(linkInto), unit: 'week' };
 }
 
 // The most recent scheduled days up to today, oldest first.
@@ -61,7 +109,7 @@ export function buildChain(
   const all: ChainNode[] = scheduled.map(({ day, status }, index) => {
     // The extra work for a repair is logged on the next scheduled day.
     const next = status === 'repaired' ? scheduled[index + 1] : undefined;
-    return {
+    const node: ChainNode = {
       date: day.date,
       status,
       repairOn: status === 'missed' ? day.repair_on : null,
@@ -69,6 +117,8 @@ export function buildChain(
         ? { on: next.day.date, amount: logOn.get(next.day.date)?.amount ?? null }
         : null,
     };
+    const partial = partialOf(status, logOn.get(day.date));
+    return partial === undefined ? node : { ...node, partial };
   });
 
   const nodes = all.slice(-days);
@@ -100,7 +150,8 @@ export function habitChain(
 // Which moment to play, and when
 // ---------------------------------------------------------------------------
 
-export type MomentKind = 'fracture' | 'weld' | 'protected';
+// 'finish' is played for a habit that has run its course, never planned from a chain.
+export type MomentKind = 'fracture' | 'weld' | 'protected' | 'finish';
 
 export interface Moment {
   kind: MomentKind;
@@ -120,7 +171,7 @@ export interface MomentPlan {
   quiet: string[];
 }
 
-const PRIORITY: Record<MomentKind, number> = { weld: 0, fracture: 1, protected: 2 };
+const PRIORITY: Record<MomentKind, number> = { weld: 0, fracture: 1, protected: 2, finish: 3 };
 
 // `seen` is null the first time, so a chain that existed before this feature, or on a
 // fresh install, never plays its history.
@@ -176,6 +227,7 @@ export function planMoments(
 export function chainBefore(chain: Chain, moment: Moment): Chain {
   const index = chain.nodes.findIndex((node) => node.date === moment.date);
   if (index < 0 || moment.kind === 'protected') return chain;
+  if (moment.kind === 'finish') return { ...chain, ended: false };
   const nodes = [...chain.nodes];
   const links = [...chain.links];
   if (moment.kind === 'fracture') {
@@ -193,7 +245,14 @@ export function chainRows(chain: Chain, perRow: number): Chain[] {
   const rows: Chain[] = [];
   for (let start = 0; start < chain.nodes.length; start += perRow) {
     const nodes = chain.nodes.slice(start, start + perRow);
-    rows.push({ nodes, links: chain.links.slice(start, start + nodes.length - 1) });
+    const last = start + perRow >= chain.nodes.length;
+    rows.push({
+      nodes,
+      links: chain.links.slice(start, start + nodes.length - 1),
+      unit: chain.unit,
+      // Only the last row carries the end cap.
+      ended: last ? chain.ended : undefined,
+    });
   }
   return rows;
 }
@@ -209,10 +268,27 @@ export interface RepairHabit {
   unit: string | null;
 }
 
-export const fractureCaption = (missed: string, repairOn: string | null) =>
-  repairOn
+const weekOf = (date: string) =>
+  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`)
+  );
+
+export const fractureCaption = (missed: string, repairOn: string | null, unit: 'day' | 'week' = 'day') => {
+  if (unit === 'week') {
+    return repairOn
+      ? `Missed the week of ${weekOf(missed)} · Repair next week`
+      : `Missed the week of ${weekOf(missed)}`;
+  }
+  return repairOn
     ? `Cracked on ${dayName(missed)} · Repair on ${dayName(repairOn)}`
     : `Cracked on ${dayName(missed)}`;
+};
+
+// A missed week is repaired by one session more than the next week asks.
+export const weekRepairHint = (quota: number) => {
+  const sessions = quota + 1;
+  return `${sessions} ${sessions === 1 ? 'session' : 'sessions'} next week, one more than it asks`;
+};
 
 const hasTarget = (habit: RepairHabit) =>
   (habit.type === 'count' || habit.type === 'duration') && habit.target !== null;
@@ -225,12 +301,16 @@ export function repairHint(habit: RepairHabit, repairOn: string) {
   return `${habit.title} ${amount} on ${dayName(repairOn)}`;
 }
 
-export const weldCaption = (streak: number) => `Welded. ${streak}-day streak.`;
+export const weldCaption = (streak: number, unit: 'day' | 'week' = 'day') => `Welded. ${streak}-${unit} streak.`;
 
 export const PROTECTED_CAPTION = 'A Grace Day kept your streak safe.';
 
-export function seamLabel(node: ChainNode, habit: RepairHabit) {
+export function seamLabel(node: ChainNode, habit: RepairHabit, unit: 'day' | 'week' = 'day') {
   if (!node.repairedWith) return 'Repaired';
+  if (unit === 'week') {
+    const sessions = node.repairedWith.amount ?? 0;
+    return `Repaired the next week with ${sessions} ${sessions === 1 ? 'session' : 'sessions'}`;
+  }
   const on = dayName(node.repairedWith.on);
   const { amount } = node.repairedWith;
   if (hasTarget(habit) && amount !== null) {
@@ -240,6 +320,9 @@ export function seamLabel(node: ChainNode, habit: RepairHabit) {
 }
 
 export const WELCOME_BACK_TITLE = "Welcome back. Here's where things stand.";
+
+export const finishCaption = (daysDone: number) =>
+  `Finished. ${daysDone} ${daysDone === 1 ? 'day' : 'days'} done.`;
 
 // ---------------------------------------------------------------------------
 // Timing, in milliseconds. Each phase is [start, end].
@@ -254,6 +337,8 @@ export const WELD_MS = {
   total: 900,
 } as const;
 export const PROTECTED_MS = { shimmer: [0, 300], total: 300 } as const;
+// A habit that has run its course: a soft light along the whole chain, then the end cap.
+export const FINISH_MS = { sweep: [0, 500], cap: [400, 700], total: 700 } as const;
 export const CROSSFADE_MS = 150;
 export const WELD_CAPTION_MS = 2000;
 // How far the two segments part at a crack.
@@ -276,6 +361,7 @@ const TOTAL: Record<MomentKind, number> = {
   fracture: FRACTURE_MS.total,
   weld: WELD_MS.total,
   protected: PROTECTED_MS.total,
+  finish: FINISH_MS.total,
 };
 
 export function motionPlan(kind: MomentKind, settings: MotionSettings): MotionPlan {
@@ -307,4 +393,16 @@ export function seamLabels(
   return new Map(
     nodes.filter((node) => node.status === 'repaired').map((node) => [node.date, seamLabel(node, habit)])
   );
+}
+
+// The longest run of met or repaired weeks. A covered week keeps a run going without
+// adding to it, and a missed one ends it, as the server counts them.
+export function longestWeekRun(habitId: string, weeks: WeekStatusRow[]): number {
+  let run = 0;
+  let longest = 0;
+  for (const week of weeks.filter((w) => w.habit_id === habitId).sort((a, b) => a.week_start.localeCompare(b.week_start))) {
+    if (week.status === 'met' || week.status === 'repaired') longest = Math.max(longest, ++run);
+    else if (week.status === 'missed') run = 0;
+  }
+  return longest;
 }

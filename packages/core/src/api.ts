@@ -48,6 +48,17 @@ export interface TodayRow {
   ends_on?: string | null;
 }
 
+// One week of a times-per-week habit, for its chain.
+export interface WeekStatusRow {
+  habit_id: string;
+  week_start: string;
+  status: 'met' | 'pending' | 'missed' | 'protected' | 'repaired' | 'none';
+  quota: number;
+  sessions: number;
+  // A missed week that can still be repaired: the week to do it in.
+  repair_by: string | null;
+}
+
 // An ended habit, for Completed habits.
 export interface CompletedHabit {
   habit_id: string;
@@ -486,6 +497,9 @@ export function createTrackerApi(client: SupabaseClient) {
       ),
 
     listCompletedHabits: () => call<CompletedHabit[]>('get_completed_habits'),
+
+    getWeekStatuses: (from: string, to: string) =>
+      call<WeekStatusRow[]>('get_week_statuses', { p_from: from, p_to: to }),
 
     // A new run of an ended habit, from today. The old run keeps its history.
     restartHabit: (habitId: string) => call<string>('restart_habit', { p_habit_id: habitId }),

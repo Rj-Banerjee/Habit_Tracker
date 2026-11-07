@@ -46,3 +46,19 @@ export const CRACK_LENGTH = 17;
 // The approved seam, laid across the link: three short stitches.
 export const stitchesPath = ({ mid }: LinkSpan) =>
   [-4, 0, 4].map((dx) => `M${mid + dx} ${y - 3.5}V${y + 3.5}`).join('');
+
+// Room after the last node for an ended chain's cap, and the cap itself: a short upright
+// bar, like the end of a line of writing.
+export const CHAIN_CAP_SPACE = 10;
+export const endCapPath = (lastCentre: number) => {
+  const x = lastCentre + CHAIN_NODE / 2 + 5;
+  return `M${x} ${CHAIN_MID - 5}V${CHAIN_MID + 5}`;
+};
+
+// Node centres, leaving the cap its room when the chain has ended.
+export const chainCentres = (count: number, width: number, ended = false) =>
+  nodeCentres(count, ended ? Math.max(0, width - CHAIN_CAP_SPACE) : width);
+
+// A day below the minimum: a small dot in the hollow node, larger the further it got.
+// In the node's own 28-unit drawing space.
+export const partialRadius = (share: number) => 3 + 5 * Math.min(1, Math.max(0, share));

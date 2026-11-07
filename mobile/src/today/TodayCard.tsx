@@ -4,7 +4,6 @@ import {
   cardDetail,
   cardStatus,
   Chain,
-  isWeekly,
   layout,
   MotionSettings,
   radius,
@@ -63,8 +62,8 @@ export function TodayCard({
 }: TodayCardProps) {
   const count = useCountUp(row.current_streak);
   const weld = playing?.moment.kind === 'weld' ? playing.moment : null;
-  // A times-per-week habit has no single day to draw, so its week line says it instead.
-  const hasChain = !isWeekly(row) && chain !== undefined && chain.nodes.length > 1;
+  // A times-per-week habit's chain is of weeks; anyone else's, of days.
+  const hasChain = chain !== undefined && chain.nodes.length > 1;
 
   return (
     <HabitCard

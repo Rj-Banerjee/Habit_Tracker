@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { habitChain, habitPatterns, heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
+import { buildWeekChain, habitChain, habitPatterns, heatmap, identityScores, layout, radius, space, streakHistory, topHabits } from '@habit-tracker/core';
 import { Button, Chip, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
 import { useProgress } from '../hooks/useProgress';
 import { Forecaster } from '../progress/Forecaster';
@@ -31,7 +31,7 @@ interface ProgressScreenProps {
 export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
   const { colors, identity: identityColor } = useTheme();
   const size = useLayoutSize();
-  const { habits, days, statuses, today, loading, loadFailed, load } = useProgress(active);
+  const { habits, days, statuses, weeks, today, loading, loadFailed, load } = useProgress(active);
   const [chosen, setChosen] = useState<string | null>(null);
 
   const wide = size !== 'compact';
@@ -119,7 +119,11 @@ export function ProgressScreen({ active, onOpenReview }: ProgressScreenProps) {
             <Section title="Streak history">
               <StreakHistory
                 runs={streakHistory(days, habit.id)}
-                chain={habitChain(habit.id, days, today, PROGRESS_CHAIN_DAYS, statuses)}
+                chain={
+                  habit.frequency === 'per_week'
+                    ? buildWeekChain(habit.id, weeks)
+                    : habitChain(habit.id, days, today, PROGRESS_CHAIN_DAYS, statuses)
+                }
                 habit={{ ...habit, identity: habit.identities.colour_token }}
               />
             </Section>
