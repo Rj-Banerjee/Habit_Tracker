@@ -2,24 +2,23 @@ import React, { useEffect } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  EXAMPLE_HABITS,
   FIELD_LIMITS,
-  IDENTITY_SUGGESTIONS,
   layout,
   onboardingHabitErrors,
   radius,
   space,
   STREAK_RULES,
+  suggestedMinimum,
 } from '@habit-tracker/core';
 import {
   Button,
-  Chip,
   FormMessage,
   Text,
   TextField,
   useLayoutSize,
   useTheme,
 } from '@habit-tracker/ui';
-import { ReminderPicker } from '../components/ReminderPicker';
 import { STEPS, useOnboarding } from '../hooks/useOnboarding';
 
 interface OnboardingScreenProps {
@@ -52,42 +51,6 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
             Step {flow.stepNumber} of {STEPS.length}
           </Text>
 
-          {flow.step === 'identity' ? (
-            <>
-              <View style={styles.heading}>
-                <Text variant="title" accessibilityRole="header">
-                  Who do you want to become?
-                </Text>
-                <Text muted>Habits stick when they say something about you.</Text>
-              </View>
-              <View style={styles.chips}>
-                {IDENTITY_SUGGESTIONS.map(({ name }) => (
-                  <Chip
-                    key={name}
-                    label={name}
-                    selected={flow.identity === name}
-                    onPress={() => flow.setIdentity(name)}
-                  />
-                ))}
-              </View>
-              <TextField
-                label="Or write your own"
-                value={flow.suggestion ? '' : flow.identity}
-                maxLength={FIELD_LIMITS.identityName}
-                error={flow.identityError}
-                onChangeText={flow.setIdentity}
-              />
-              <TextField
-                label="Why does this matter to you?"
-                hint="Optional. The coach uses this to encourage you."
-                value={flow.whyText}
-                maxLength={FIELD_LIMITS.whyText}
-                onChangeText={flow.setWhyText}
-              />
-              <Button label="Next" onPress={flow.nextFromIdentity} />
-            </>
-          ) : null}
-
           {flow.step === 'habits' ? (
             <>
               <View style={styles.heading}>
@@ -95,8 +58,8 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
                   Your first habits
                 </Text>
                 <Text muted>
-                  Give each one a minimum version: the smallest thing that still counts on a hard
-                  day.
+                  Add as many as you like. Each gets a minimum version, the smallest thing that
+                  still counts on a hard day. We suggest one, and you can write your own.
                 </Text>
               </View>
               {flow.habits.map((habit, index) => {
@@ -113,7 +76,7 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
                   >
                     <TextField
                       label={`Habit ${index + 1}`}
-                      placeholder={index === 0 ? flow.suggestion?.example : undefined}
+                      placeholder={index === 0 ? EXAMPLE_HABITS[0] : undefined}
                       value={habit.title}
                       maxLength={FIELD_LIMITS.title}
                       error={index === 0 || !blank ? errors.title : undefined}
@@ -121,7 +84,7 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
                     />
                     <TextField
                       label={`Minimum version of habit ${index + 1}`}
-                      placeholder={index === 0 ? flow.suggestion?.minimum : undefined}
+                      placeholder={suggestedMinimum(habit.title) || undefined}
                       value={habit.minimum}
                       maxLength={FIELD_LIMITS.levelDescription}
                       error={index === 0 || !blank ? errors.minimumDescription : undefined}
@@ -140,7 +103,6 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
               <Button label="Add another habit" quiet onPress={flow.addHabit} />
               <FormMessage message={flow.problem ?? undefined} />
               <Button label="Next" disabled={flow.saving} onPress={() => void flow.saveHabits()} />
-              <Button label="Back" quiet disabled={flow.saving} onPress={flow.back} />
             </>
           ) : null}
 
@@ -148,21 +110,27 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
             <>
               <View style={styles.heading}>
                 <Text variant="title" accessibilityRole="header">
-                  When should we remind you?
+                  Reminders
                 </Text>
                 <Text muted>
                   {Platform.OS === 'web'
-                    ? 'One reminder a day, on your phone. You can change this any time in You.'
-                    : 'One reminder a day. You can change this any time in You.'}
+                    ? 'Each habit reminds you on your phone, at its own time. You can change it in the habit.'
+                    : 'Each habit reminds you at its own time. You can change it, or turn it off, in the habit.'}
                 </Text>
               </View>
-              <ReminderPicker value={flow.reminder} onChange={flow.setReminder} />
               <FormMessage message={flow.problem ?? undefined} />
               <Button
-                label="Next"
+                label="Turn on reminders"
                 disabled={flow.saving}
-                onPress={() => void flow.saveReminder()}
+                onPress={() => void flow.saveReminder(true)}
               />
+              <Button
+                label="Not now"
+                quiet
+                disabled={flow.saving}
+                onPress={() => void flow.saveReminder(false)}
+              />
+              <Button label="Back" quiet disabled={flow.saving} onPress={flow.back} />
             </>
           ) : null}
 
@@ -205,7 +173,6 @@ const styles = StyleSheet.create({
   },
   contentWide: { paddingTop: space.xxl },
   heading: { gap: space.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   card: {
     gap: space.md,
     padding: space.lg,

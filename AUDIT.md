@@ -1411,3 +1411,47 @@ Part 4 of the habit form work.
   - Unit conversion, and units that don't mix ("lines" for pages).
 - **Moved:** the backfill of existing habits runs at the end of part 3, not here. It needs part 3's minimum decoding and its AI suggestions for Pro test users.
 - **Tests:** core 1213, web 28. Core and mobile typecheck.
+
+### The new habit form, per-habit reminders, and existing habits filled in (7 Nov 2026)
+
+Part 3 of the habit form work, with part 6's backfill.
+
+**Creating a habit** (`mobile/src/screens/HabitFormScreen.tsx`, `mobile/src/hooks/useHabitForm.ts`, `mobile/src/habits/`):
+- **The form:**
+  - Name, with live suggestion chips. "Run 20 km" saves as Run with a 20 km target, and the form says so.
+  - Target, hidden for yes/no.
+  - Days: Specific days, or Times per week from 1 to 6 (pressing past 6 switches to every day). Shown with the suggestion's reason.
+  - Time of day, as four chips.
+  - Minimum version, with its decoded amount as a chip to confirm or turn down.
+  - End this habit: off by default; after N days or on a date. A "30-day challenge" offers 30 days but never turns it on.
+- **"We set these up for you":** type and unit, identity, reminder, setup level and voice names. "Accept all", or tap a line to change it in a sheet. The identity is never asked for.
+- **Suggestions follow the name** into every field the person hasn't changed. A time named in the habit wins ("Evening run" is in the evening).
+- **Edit** keeps the same fields, with identity, full version, minimum target, setup, reminder, voice names and milestone under "More".
+- **Core, `habitSetup.ts`:** `parseHabitName`, `parseAmount` (ranges use the lower number; "10,000" and "10k steps" work), `decodeMinimum` (converts units, and keeps other units as a description), `suggestSetup` (the library, then parsing) and `safetyCheck` (a gentler start with a calm note above the caps; intense exercise always keeps rest days). Also `fromAiSuggestion`, which checks every field the AI sends; `endsAfterDays`; and `reviewLines`.
+- **Pro:**
+  - The new `POST /habits/suggest` (`backend/app/habit_setup.py`) needs the new `ai.setup` entitlement and is rate-limited. The app asks it only for names the library doesn't know, after 3 letters and a 600 ms pause, with answers cached in the app and on the service.
+  - The service checks and caps every field again. If there's no answer it says it's unavailable, and the app keeps its own values.
+  - Free never sends a request: nothing is sent until the plan is known.
+  - Saving never waits for the AI. Tests cover the AI being slow, down and refused.
+- **Live model (Gemini free tier, made-up names):**
+  - Answers took 1.6 to 8 seconds, and two of the first five timed out at 25 seconds.
+  - So the under-1.5-second target holds for the library and parsing, which answer at once, but not for AI suggestions on the free tier. The form never waits for them.
+  - "Run 60 km every day" came back as 3 km, 3 times a week, with a calm note.
+  - Units are now normalised ("minutes" becomes "min"), and the prompt asks for no note unless the goal is risky.
+  - Calligraphy was still put under an existing "The Reader" identity, so identity picking from existing identities is loose.
+
+**Onboarding:** the identity step is gone. Steps are now habits, reminders, then the rules. Each first habit is set up from the library like the form, with its own identity, made once per name; the minimum is suggested when left blank. There's no limit on how many habits.
+
+**Reminders:**
+- Each habit reminds at its own time, planned a week ahead and capped at 56 (iPhone keeps 64).
+- They're refreshed on opening the app and whenever Today changes, so a done habit stops reminding. They carry the habit's Done button.
+- Times-per-week habits remind any day, and an ended habit stops.
+- The old single daily reminder is cancelled when found. The You screen now explains the per-habit reminders and has "Turn on reminders"; onboarding has the same choice.
+- A nudge never goes to a habit whose own reminder is within an hour, and still goes to another habit.
+
+**Existing habits on live (part 6):**
+- All 11 test habits matched the library, so none needed the AI.
+- `backfillHabit` in core (tested) gave each a time of day, on the habit and all its versions. The one count habit's "2 pages" became a structured 2-page minimum, dated from today.
+- No log was changed: 183 before and after.
+
+**Tests:** core 1286, mobile 864 (form 81 per platform, onboarding 40, reminders 30, shared form 18), backend 210, web 28. Lint is unchanged: 11 old warnings.

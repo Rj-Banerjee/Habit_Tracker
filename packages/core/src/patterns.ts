@@ -89,7 +89,6 @@ interface NudgeInput {
   today: string;
   // Minutes since midnight, in the person's day.
   nowMinutes: number;
-  reminder: string | null;
   // Newest first.
   history: NudgeRecord[];
 }
@@ -116,12 +115,15 @@ function ignoredInARow(history: NudgeRecord[], habitId: string) {
   return count;
 }
 
-// At most one nudge, so with the daily reminder nobody gets more than two a day. It goes
-// to the habit most at risk, before the time they usually do it.
+const minutesOf = (time: string | null | undefined) => {
+  const parsed = time ? parseReminderTime(time.slice(0, 5)) : null;
+  return parsed ? parsed.hour * 60 + parsed.minute : null;
+};
+
+// At most one nudge a day, on top of each habit's own reminder. It goes to the habit most
+// at risk, before the time they usually do it, and never close to that habit's reminder.
 export function planNudge(input: NudgeInput): NudgePlan | null {
-  const { habits, days, rows, today, nowMinutes, reminder, history } = input;
-  const reminderTime = reminder ? parseReminderTime(reminder) : null;
-  const reminderMinutes = reminderTime ? reminderTime.hour * 60 + reminderTime.minute : null;
+  const { habits, days, rows, today, nowMinutes, history } = input;
 
   const candidatesOn = (date: string) => {
     const due =
@@ -140,6 +142,7 @@ export function planNudge(input: NudgeInput): NudgePlan | null {
       const fire = peak * 60 - NUDGE_LEAD_MINUTES;
       if (fire < 0) return [];
       if (date === today && fire < nowMinutes + MIN_LEAD_MINUTES) return [];
+      const reminderMinutes = minutesOf(habit.reminder_time);
       if (reminderMinutes !== null && Math.abs(fire - reminderMinutes) < REMINDER_GAP_MINUTES) {
         return [];
       }

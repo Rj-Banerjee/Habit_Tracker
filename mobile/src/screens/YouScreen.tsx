@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isLogged, layout, space } from '@habit-tracker/core';
@@ -15,13 +15,12 @@ import {
 } from '@habit-tracker/ui';
 import { WhySection } from '../coach/WhySection';
 import { NudgeSetting } from '../components/NudgeSetting';
-import { ReminderPicker } from '../components/ReminderPicker';
 import {
   openPhoneSettings,
   reminderMessage,
   ReminderResult,
   sendTestReminder,
-  setDailyReminder,
+  syncHabitReminders,
 } from '../services/reminders';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
@@ -40,17 +39,8 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const [confirming, setConfirming] = useState(false);
   const [testingVoice, setTestingVoice] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  // Undefined until loaded, so the picker doesn't flash a choice they didn't make.
-  const [reminder, setReminder] = useState<string | null | undefined>(undefined);
   const [note, setNote] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
-
-  useEffect(() => {
-    tracker
-      .getProfile()
-      .then((profile) => setReminder(profile.reminder_time?.slice(0, 5) ?? null))
-      .catch(() => setReminder(null));
-  }, []);
 
   const show = (result: ReminderResult, success: string | null) => {
     setProblem(reminderMessage(result));
@@ -58,15 +48,10 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
     setBlocked(result.status === 'blocked' || result.status === 'denied');
   };
 
-  const changeReminder = async (time: string | null) => {
-    setReminder(time);
+  // Each habit has its own reminder time, set in the habit. This only lets them through.
+  const turnOn = async () => {
     setProblem(null);
-    try {
-      await tracker.setReminderTime(userId, time);
-      show(await setDailyReminder(time), time ? `Reminder set for ${time}.` : null);
-    } catch (err) {
-      setProblem((err as Error).message);
-    }
+    show(await syncHabitReminders({ ask: true }), 'Reminders are on. Each habit reminds you at its own time.');
   };
 
   const test = async () => {
@@ -117,23 +102,24 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
           />
           <ThemePicker />
         </View>
-        {reminder !== undefined ? (
-          <View style={styles.group}>
-            <Text variant="small" muted>
-              Daily reminder
+        <View style={styles.group}>
+          <Text variant="small" muted>
+            Reminders
+          </Text>
+          <Text variant="small">
+            Each habit reminds you at its own time. Change it, or turn it off, when you edit the habit.
+          </Text>
+          <Button label="Turn on reminders" quiet onPress={() => void turnOn()} />
+          <Button label="Send a test reminder" quiet onPress={() => void test()} />
+          {note ? (
+            <Text variant="small" muted accessibilityLiveRegion="polite">
+              {note}
             </Text>
-            <ReminderPicker value={reminder} onChange={(time) => void changeReminder(time)} />
-            <Button label="Send a test reminder" quiet onPress={() => void test()} />
-            {note ? (
-              <Text variant="small" muted accessibilityLiveRegion="polite">
-                {note}
-              </Text>
-            ) : null}
-            {blocked ? (
-              <Button label="Open phone settings" quiet onPress={() => void openPhoneSettings()} />
-            ) : null}
-          </View>
-        ) : null}
+          ) : null}
+          {blocked ? (
+            <Button label="Open phone settings" quiet onPress={() => void openPhoneSettings()} />
+          ) : null}
+        </View>
         <NudgeSetting />
         <WhySection />
         {COMING_SOON.map((label) => (

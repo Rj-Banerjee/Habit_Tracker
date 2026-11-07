@@ -37,6 +37,7 @@ import { WelcomeBack } from '../chain/WelcomeBack';
 import { FocusLock, FocusSession } from '../../modules/focus-lock';
 import { FocusMode } from '../focus/FocusMode';
 import { offlineTracker } from '../services/logQueue';
+import { syncHabitReminders } from '../services/reminders';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
@@ -82,6 +83,10 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
   const habitTip = useHabitTip(rows);
+  // Whenever Today changes, a done habit stops reminding and a new one starts.
+  useEffect(() => {
+    if (!loading) void syncHabitReminders();
+  }, [rows, loading]);
   const { chains, ready: chainsReady } = useChains(rows);
   const moments = useMoments(chains, chainsReady && !loading);
   const motionSettings = useMotionSettings();

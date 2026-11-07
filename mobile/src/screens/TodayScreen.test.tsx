@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { watchMyActivity } from '../services/live';
+import { syncHabitReminders } from '../services/reminders';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
@@ -33,6 +34,7 @@ jest.mock('../services/reminders', () => ({
   showHeldNotifications: jest.fn(() => Promise.resolve()),
   notificationsAllowed: jest.fn(() => Promise.resolve(true)),
   askForNotifications: jest.fn(() => Promise.resolve()),
+  syncHabitReminders: jest.fn(() => Promise.resolve({ status: 'set' })),
 }));
 jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
@@ -139,6 +141,11 @@ describe('TodayScreen', () => {
   });
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('refreshes each habit\'s reminders when Today changes', async () => {
+    await open([row()]);
+    expect(syncHabitReminders).toHaveBeenCalled();
+  });
 
   describe('the habit tip', () => {
     const tip = 'Starting with a few makes them stick.';

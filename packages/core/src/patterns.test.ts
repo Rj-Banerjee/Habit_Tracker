@@ -43,7 +43,6 @@ const plan = (patch: Partial<Parameters<typeof planNudge>[0]> = {}) =>
     rows: [open()],
     today: TODAY,
     nowMinutes: 9 * 60,
-    reminder: null,
     history: [],
     ...patch,
   });
@@ -149,9 +148,15 @@ describe('planNudge', () => {
     expect(plan({ nowMinutes: 20 * 60, habits: [habit({ schedule_days: [1] })] })).toBeNull();
   });
 
-  it('keeps away from the daily reminder', () => {
-    expect(plan({ reminder: '19:00' })).toBeNull();
-    expect(plan({ reminder: '07:00' })).not.toBeNull();
+  it("keeps away from the habit's own reminder", () => {
+    expect(plan({ habits: [habit({ reminder_time: '19:00:00' })] })).toBeNull();
+    expect(plan({ habits: [habit({ reminder_time: '07:00' })] })).not.toBeNull();
+  });
+
+  it("still nudges another habit when one has a reminder at that time", () => {
+    const days = [...shaky('h1'), ...shaky('h2')];
+    const habits = [habit({ reminder_time: '19:00' }), habit({ id: 'h2', title: 'Walk' })];
+    expect(plan({ habits, days, rows: [open('h1'), open('h2')] })?.habitId).toBe('h2');
   });
 
   it('stops after 3 ignored nudges in a row', () => {

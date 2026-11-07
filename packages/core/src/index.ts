@@ -20,6 +20,8 @@ export * from './dates';
 export * from './habitCardStatus';
 export * from './habitForm';
 export * from './habitLibrary';
+export * from './habitReminders';
+export * from './habitSetup';
 export * from './todayModel';
 export * from './theme';
 export * from './themeChoice';

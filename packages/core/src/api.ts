@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
+import type { ReminderHabit } from './habitReminders';
 import { IdentityToken } from './tokens';
 
 export type HabitLevel = 'full' | 'minimum' | 'setup';
@@ -101,6 +102,7 @@ export interface ProgressHabit {
   schedule_days: number[];
   milestone_amount: number | null;
   milestone_label: string | null;
+  reminder_time?: string | null;
   identities: { name: string; colour_token: IdentityToken };
 }
 
@@ -161,6 +163,7 @@ export interface HabitDetail {
   frequency: HabitFrequency;
   per_week: number | null;
   ends_on: string | null;
+  starts_on?: string;
   habit_levels: LevelOption[];
 }
 
@@ -329,7 +332,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, time_of_day, reminder_time, frequency, per_week, ends_on, habit_levels(level, description, target)'
+            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, time_of_day, reminder_time, frequency, per_week, ends_on, starts_on, habit_levels(level, description, target)'
           )
           .eq('id', habitId)
           .single()
@@ -392,10 +395,19 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, identities(name, colour_token)'
+            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, reminder_time, identities(name, colour_token)'
           )
           .is('archived_at', null)
           .order('created_at')
+      ),
+
+    // What each habit's own reminder needs.
+    listReminderHabits: () =>
+      select<ReminderHabit[]>(
+        client
+          .from('habits')
+          .select('id, title, reminder_time, schedule_days, frequency, starts_on, ends_on')
+          .is('archived_at', null)
       ),
 
     getHabitDays: (from: string, to: string) =>

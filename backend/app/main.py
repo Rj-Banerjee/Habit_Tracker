@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import coach, jobs, voice
+from . import coach, habit_setup, jobs, voice
 from .auth import CurrentUser, current_user
 from .config import Settings, get_settings
 from .data_policy import may_reach_provider
@@ -161,6 +161,14 @@ class VoiceRequest(BaseModel):
     transcript: str = Field(min_length=1, max_length=500)
 
 
+class SetupRequest(BaseModel):
+    name: str = Field(min_length=3, max_length=100)
+
+
+# Shared by everyone using this service, so a common habit costs one model call.
+SETUP_CACHE = habit_setup.SetupCache()
+
+
 @app.get("/health")
 async def health(settings: Settings = Depends(get_settings)) -> dict[str, str]:
     return {"status": "ok", "provider": settings.ai_provider}
@@ -302,6 +310,28 @@ async def voice_parse(
     metered = MeteredProvider(provider)
     try:
         return await voice.parse(metered, tracker, body.transcript)
+    finally:
+        await tracker.close()
+        await request.app.state.db.spend(allowance_scope(user), metered.tokens, DAY)
+
+
+@app.post("/habits/suggest")
+async def habits_suggest(
+    body: SetupRequest,
+    request: Request,
+    user: CurrentUser = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+    provider: LLMProvider = Depends(get_provider),
+) -> dict:
+    """Settings for a habit the app's library doesn't know. Only suggests: nothing is
+    saved until the person accepts it in the app."""
+    await admit(request, user, settings, "setup", settings.ai_user_setup_per_hour, feature="ai.setup")
+    tracker = Tracker(settings, user)
+    metered = MeteredProvider(provider)
+    try:
+        identities = [row["name"] for row in await tracker.identities()]
+        habits = [row["title"] for row in await tracker.habits()]
+        return await habit_setup.suggest(metered, SETUP_CACHE, body.name, identities, habits)
     finally:
         await tracker.close()
         await request.app.state.db.spend(allowance_scope(user), metered.tokens, DAY)

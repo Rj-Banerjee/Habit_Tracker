@@ -36,6 +36,18 @@ describe('createAiClient', () => {
     );
   });
 
+  it('asks the service to suggest a setup for a name', async () => {
+    const send = vi.fn(async () => Response.json({ type: 'count', target: 2 }));
+    await expect(client(send as unknown as typeof fetch).suggestSetup('Polish telescopes')).resolves.toEqual({
+      type: 'count',
+      target: 2,
+    });
+    expect(send).toHaveBeenCalledWith(
+      'http://ai.test/habits/suggest',
+      expect.objectContaining({ body: JSON.stringify({ name: 'Polish telescopes' }) })
+    );
+  });
+
   it('streams a reply, even when an event splits across chunks', async () => {
     const send = async () =>
       streamed('data: {"type":"delta","text":"Hel', 'lo"}\n\ndata: {"type":"delta","text":" you"}\n\n', 'data: {"type":"done"}\n\n');

@@ -98,6 +98,10 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
     parseVoice: async (transcript: string): Promise<VoiceParse> =>
       (await post('/voice/parse', { transcript })).json(),
 
+    // Settings for a habit the library doesn't know. Checked again by fromAiSuggestion.
+    suggestSetup: async (name: string): Promise<Record<string, unknown>> =>
+      (await post('/habits/suggest', { name })).json(),
+
     // The spoken voice test: what the phone heard for one phrase, kept on the AI service.
     voiceSample: async (phraseId: string, heard: string, language: string) => {
       await post('/voice/samples', { phrase_id: phraseId, heard, language });

@@ -1,12 +1,8 @@
 import { emptyHabitForm, HabitFormValues, validateHabitForm } from './habitForm';
+import { decodeMinimum, parseHabitName, suggestSetup } from './habitSetup';
 
-export const IDENTITY_SUGGESTIONS = [
-  { name: 'The Reader', example: 'Read', minimum: 'One page' },
-  { name: 'The Athlete', example: 'Go for a run', minimum: 'Put on my shoes and walk for 5 minutes' },
-  { name: 'The Calm One', example: 'Meditate', minimum: 'One slow breath' },
-  { name: 'The Maker', example: 'Work on my project', minimum: 'Open it and do one small thing' },
-  { name: 'The Learner', example: 'Study', minimum: 'Five minutes' },
-];
+// Shown as examples on the first screen. Each is in the habit library.
+export const EXAMPLE_HABITS = ['Read', 'Go for a run', 'Meditate', 'Drink water', 'Study'];
 
 export interface OnboardingHabit {
   title: string;
@@ -15,20 +11,45 @@ export interface OnboardingHabit {
 
 export const blankOnboardingHabit = (): OnboardingHabit => ({ title: '', minimum: '' });
 
-export function onboardingHabitForm(habit: OnboardingHabit, identityId: string): HabitFormValues {
+// A first habit, set up like the habit form does it: from the library, or from the name.
+// The minimum they typed wins; left blank, the suggested one is used.
+export function onboardingHabitSetup(habit: OnboardingHabit): { values: HabitFormValues; identity: string } {
+  const { setup } = suggestSetup(habit.title);
+  const parsed = parseHabitName(habit.title);
+  const minimumText = habit.minimum.trim() || setup.minimumText;
+  const minimum = decodeMinimum(minimumText, setup.unit);
   return {
-    ...emptyHabitForm(identityId),
-    title: habit.title,
-    minimumDescription: habit.minimum,
+    identity: setup.identity,
+    values: {
+      ...emptyHabitForm(null),
+      title: parsed.target !== null ? parsed.title : habit.title.trim(),
+      type: setup.type,
+      target: setup.target !== null ? String(setup.target) : '',
+      unit: setup.unit ?? '',
+      frequency: setup.frequency,
+      perWeek: setup.perWeek ?? 3,
+      timeOfDay: setup.timeOfDay,
+      reminderTime: setup.reminderTime,
+      minimumDescription: minimumText,
+      minimumTarget: minimum.target !== null ? String(minimum.target) : '',
+      setupDescription: setup.setup,
+      voiceAliases: setup.voiceAliases.join(', '),
+    },
   };
 }
+
+// The suggested minimum, shown as the placeholder until they write their own.
+export const suggestedMinimum = (title: string) => (title.trim() ? suggestSetup(title).setup.minimumText : '');
 
 // A habit left completely blank is just an unused slot.
 export const filledHabits = (habits: OnboardingHabit[]) =>
   habits.filter((habit) => habit.title.trim() || habit.minimum.trim());
 
 export function onboardingHabitErrors(habit: OnboardingHabit) {
-  return validateHabitForm(onboardingHabitForm(habit, 'identity'));
+  const { values } = onboardingHabitSetup(habit);
+  // The identity comes with the habit, so it's never asked for here.
+  const { identityId: _identity, ...errors } = validateHabitForm(values, 'identity');
+  return errors;
 }
 
 export const REMINDER_CHOICES = ['07:00', '08:00', '12:00', '18:00', '20:00', '21:00'];

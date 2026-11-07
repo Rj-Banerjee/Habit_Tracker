@@ -4,14 +4,47 @@ import { IdentityToken } from '@habit-tracker/core';
 import { Chip } from './Chip';
 import { ColourPicker } from './ColourPicker';
 import { SegmentedControl } from './SegmentedControl';
+import { Stepper } from './Stepper';
 import { TextField } from './TextField';
 import { ThemeProvider } from './ThemeProvider';
+import { ToggleRow } from './ToggleRow';
 import { WeekdayPicker } from './WeekdayPicker';
 
 const inTheme = (element: React.ReactElement) =>
   render(<ThemeProvider forced="light">{element}</ThemeProvider>);
 
 describe('form components', () => {
+  it('steps a number between its limits', async () => {
+    const onChange = jest.fn();
+    const onPastMax = jest.fn();
+    await inTheme(
+      <Stepper label="Times a week" unit="times a week" value={6} min={1} max={6} onChange={onChange} onPastMax={onPastMax} />
+    );
+    expect(screen.getByText('6 times a week')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Fewer, Times a week'));
+    expect(onChange).toHaveBeenCalledWith(5);
+    await fireEvent.press(screen.getByLabelText('More, Times a week'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onPastMax).toHaveBeenCalled();
+  });
+
+  it('lets a screen reader adjust a stepper', async () => {
+    const onChange = jest.fn();
+    await inTheme(<Stepper label="Times a week" value={3} min={1} max={6} onChange={onChange} />);
+    const stepper = screen.getByRole('adjustable', { name: 'Times a week' });
+    await fireEvent(stepper, 'accessibilityAction', { nativeEvent: { actionName: 'increment' } });
+    expect(onChange).toHaveBeenCalledWith(4);
+  });
+
+  it('switches a toggle row from the whole row', async () => {
+    const onChange = jest.fn();
+    await inTheme(<ToggleRow label="End this habit" value={false} onChange={onChange} />);
+    const row = screen.getByRole('switch', { name: 'End this habit' });
+    expect(row.props.accessibilityState).toMatchObject({ checked: false });
+    await fireEvent.press(row);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
   it('shows an error in place of a hint', async () => {
     await inTheme(<TextField label="Name" hint="A short name" error="Give the habit a name" />);
     expect(screen.getByText('Give the habit a name')).toBeTruthy();

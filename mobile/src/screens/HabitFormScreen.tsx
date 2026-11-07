@@ -12,33 +12,30 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  ALL_DAYS,
+  DEFAULT_REMINDERS,
   FIELD_LIMITS,
-  HABIT_TYPE_LABELS,
   HabitFormField,
-  HabitType,
   layout,
   space,
+  suggestNames,
   usesTarget,
 } from '@habit-tracker/core';
 import {
   BottomSheet,
   Button,
+  Chip,
   FormMessage,
-  SegmentedControl,
   SheetOption,
   Text,
   TextField,
   useLayoutSize,
   useTheme,
-  WeekdayPicker,
 } from '@habit-tracker/ui';
+import { DaysField, EndField, MinimumField, ReminderField, TimeOfDayField } from '../habits/HabitFields';
 import { IdentitySection } from '../habits/IdentitySection';
+import { ReviewCard } from '../habits/ReviewCard';
 import { useHabitForm } from '../hooks/useHabitForm';
-
-const TYPE_OPTIONS = (Object.keys(HABIT_TYPE_LABELS) as HabitType[]).map((value) => ({
-  value,
-  label: HABIT_TYPE_LABELS[value],
-}));
 
 interface FieldAnchorProps {
   field: HabitFormField;
@@ -47,7 +44,7 @@ interface FieldAnchorProps {
   children: React.ReactNode;
 }
 
-const MORE_OPTIONS_FIELDS: HabitFormField[] = ['milestoneAmount', 'milestoneLabel'];
+const MORE_FIELDS: HabitFormField[] = ['identityId', 'minimumTarget', 'milestoneAmount', 'milestoneLabel'];
 
 // Remembers where a field sits, so a save with problems can scroll to it.
 function FieldAnchor({ field, onMeasure, style, children }: FieldAnchorProps) {
@@ -82,7 +79,7 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
   const scrollTo = (field: HabitFormField) => {
     const y = positions.current[field];
     if (y === undefined) {
-      // Under "More options", which is only now opening.
+      // Under "More", which is only now opening.
       scrollPending.current = field;
       return;
     }
@@ -98,7 +95,7 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
   const submit = async () => {
     const problem = await form.save();
     if (!problem) return;
-    if (MORE_OPTIONS_FIELDS.includes(problem)) setShowMore(true);
+    if (form.isEditing && MORE_FIELDS.includes(problem)) setShowMore(true);
     scrollTo(problem);
   };
 
@@ -146,10 +143,96 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
     );
   }
 
-  const { values, errors } = form;
+  const { values, errors, suggestion } = form;
   const hasTarget = usesTarget(values.type);
+  const creating = !form.isEditing;
   // On a phone, Done should only close the keyboard.
   const enterSaves = size === 'compact' ? {} : { onSubmitEditing: () => void submit() };
+  const names = creating ? suggestNames(values.title).filter((habit) => habit.name !== values.title) : [];
+  const parsed = form.parsedName;
+  // Enter saves from whichever text field is last on screen.
+  const endsAfter = values.endMode === 'after';
+  const lastIsMinimum = !endsAfter && (creating || !showMore);
+  const save = enterSaves.onSubmitEditing;
+
+  const shared = (
+    <>
+      {hasTarget ? (
+        <FieldAnchor field="target" onMeasure={measured} style={styles.row}>
+          <View style={styles.rowField}>
+            <TextField
+              label="Target"
+              value={values.target}
+              keyboardType="decimal-pad"
+              error={errors.target}
+              onChangeText={(target) => form.set('target', target)}
+            />
+          </View>
+          <View style={styles.rowField}>
+            <TextField
+              label="Unit"
+              value={values.unit}
+              maxLength={FIELD_LIMITS.unit}
+              onChangeText={(unit) => form.set('unit', unit)}
+            />
+          </View>
+        </FieldAnchor>
+      ) : null}
+      {creating && suggestion.setup.note ? (
+        <Text variant="small" muted accessibilityLiveRegion="polite">
+          {suggestion.setup.note}
+        </Text>
+      ) : null}
+
+      <FieldAnchor field="scheduleDays" onMeasure={measured}>
+        <DaysField
+          frequency={values.frequency}
+          days={values.scheduleDays}
+          perWeek={values.perWeek}
+          reason={creating ? suggestion.setup.reason : null}
+          error={errors.scheduleDays}
+          onFrequency={(frequency) => form.set('frequency', frequency)}
+          onDays={(days) => form.set('scheduleDays', days)}
+          onPerWeek={(perWeek) => form.set('perWeek', perWeek)}
+          onEveryDay={() => {
+            form.set('frequency', 'days');
+            form.set('scheduleDays', ALL_DAYS);
+          }}
+        />
+      </FieldAnchor>
+
+      <TimeOfDayField value={values.timeOfDay} onChange={(time) => form.set('timeOfDay', time)} />
+
+      <FieldAnchor field="minimumDescription" onMeasure={measured}>
+        <MinimumField
+          value={values.minimumDescription}
+          error={errors.minimumDescription}
+          amount={creating && hasTarget ? form.minimum.target : null}
+          unit={hasTarget ? values.unit.trim() || null : null}
+          otherUnit={creating ? form.minimum.otherUnit : null}
+          declined={form.minimum.declined}
+          onChange={(text) => form.set('minimumDescription', text)}
+          onDecline={form.setMinimumDeclined}
+          onSubmitEditing={lastIsMinimum ? save : undefined}
+        />
+      </FieldAnchor>
+
+      <FieldAnchor field="endsOn" onMeasure={measured}>
+        <EndField
+          mode={values.endMode}
+          afterDays={values.endAfterDays}
+          endsOn={values.endsOn}
+          startsOn={form.startsOn}
+          error={errors.endsOn}
+          suggestedDays={creating ? suggestion.setup.suggestedEndDays : null}
+          onMode={(mode) => form.set('endMode', mode)}
+          onAfterDays={(days) => form.set('endAfterDays', days)}
+          onEndsOn={(date) => form.set('endsOn', date)}
+          onSubmitEditing={endsAfter && (creating || !showMore) ? save : undefined}
+        />
+      </FieldAnchor>
+    </>
+  );
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.canvas }]}>
@@ -173,19 +256,7 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
             </Text>
           </View>
 
-          <FieldAnchor field="identityId" onMeasure={measured}>
-            <IdentitySection
-              identities={form.identities}
-              selectedId={values.identityId}
-              draft={form.draft}
-              error={errors.identityId}
-              onChoose={form.chooseIdentity}
-              onToggleNew={form.toggleNewIdentity}
-              onDraftChange={form.setDraft}
-            />
-          </FieldAnchor>
-
-          <FieldAnchor field="title" onMeasure={measured}>
+          <FieldAnchor field="title" onMeasure={measured} style={styles.field}>
             <TextField
               label="Name"
               value={values.title}
@@ -193,126 +264,126 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
               error={errors.title}
               onChangeText={(title) => form.set('title', title)}
             />
-          </FieldAnchor>
-
-          {form.isEditing ? null : (
-            <View style={styles.field}>
-              <Text variant="small">Type</Text>
-              <SegmentedControl
-                options={TYPE_OPTIONS}
-                value={values.type}
-                onChange={(type) => form.set('type', type)}
-              />
-            </View>
-          )}
-
-          {hasTarget ? (
-            <FieldAnchor field="target" onMeasure={measured} style={styles.row}>
-              <View style={styles.rowField}>
-                <TextField
-                  label="Target"
-                  value={values.target}
-                  keyboardType="decimal-pad"
-                  error={errors.target}
-                  onChangeText={(target) => form.set('target', target)}
-                />
+            {names.length > 0 ? (
+              <View style={styles.chips} accessibilityLabel="Suggestions">
+                {names.map((habit) => (
+                  <Chip
+                    key={habit.id}
+                    label={habit.name}
+                    accessibilityLabel={`Use ${habit.name}`}
+                    selected={false}
+                    onPress={() => form.set('title', habit.name)}
+                  />
+                ))}
               </View>
-              <View style={styles.rowField}>
-                <TextField
-                  label="Unit"
-                  value={values.unit}
-                  maxLength={FIELD_LIMITS.unit}
-                  onChangeText={(unit) => form.set('unit', unit)}
-                />
-              </View>
-            </FieldAnchor>
-          ) : null}
-
-          <FieldAnchor field="scheduleDays" onMeasure={measured} style={styles.field}>
-            <Text variant="small">Days</Text>
-            <WeekdayPicker
-              days={values.scheduleDays}
-              onChange={(days) => form.set('scheduleDays', days)}
-            />
-            <FormMessage message={errors.scheduleDays} />
+            ) : null}
+            {creating && parsed.target !== null ? (
+              <Text variant="small" muted>
+                {`Saved as ${parsed.title}, with a target of ${parsed.target} ${parsed.unit}.`}
+              </Text>
+            ) : null}
           </FieldAnchor>
 
-          <TextField
-            label="Full version"
-            value={values.fullDescription}
-            placeholder={values.title.trim() || undefined}
-            maxLength={FIELD_LIMITS.levelDescription}
-            onChangeText={(text) => form.set('fullDescription', text)}
-          />
+          {shared}
 
-          <FieldAnchor field="minimumDescription" onMeasure={measured}>
-            <TextField
-              label="Minimum version"
-              hint="The smallest version that still counts on a hard day."
-              value={values.minimumDescription}
-              maxLength={FIELD_LIMITS.levelDescription}
-              error={errors.minimumDescription}
-              onChangeText={(text) => form.set('minimumDescription', text)}
+          {creating ? (
+            <ReviewCard
+              lines={form.review}
+              accepted={form.accepted}
+              pending={suggestion.pending}
+              onAcceptAll={form.acceptAll}
+              type={values.type}
+              unit={values.unit}
+              identities={form.identities}
+              identityName={form.identityName}
+              reminderTime={values.reminderTime}
+              timeOfDay={values.timeOfDay}
+              setup={values.setupDescription}
+              voiceAliases={values.voiceAliases}
+              onType={(type) => form.set('type', type)}
+              onUnit={(unit) => form.set('unit', unit)}
+              onChooseIdentity={form.chooseIdentity}
+              onNameIdentity={form.nameNewIdentity}
+              onReminder={(time) => form.set('reminderTime', time)}
+              onSetup={(text) => form.set('setupDescription', text)}
+              onVoiceAliases={(text) => form.set('voiceAliases', text)}
             />
-          </FieldAnchor>
-
-          {hasTarget ? (
-            <FieldAnchor field="minimumTarget" onMeasure={measured}>
-              <TextField
-                label="Minimum target"
-                value={values.minimumTarget}
-                keyboardType="decimal-pad"
-                error={errors.minimumTarget}
-                onChangeText={(target) => form.set('minimumTarget', target)}
-              />
-            </FieldAnchor>
-          ) : null}
-
-          <TextField
-            label="Just set up"
-            hint="The first step, like putting on your shoes."
-            value={values.setupDescription}
-            maxLength={FIELD_LIMITS.levelDescription}
-            onChangeText={(text) => form.set('setupDescription', text)}
-            {...(showMore ? {} : enterSaves)}
-          />
-
-          <Button
-            label={showMore ? 'Fewer options' : 'More options'}
-            quiet
-            onPress={() => setShowMore(!showMore)}
-          />
-
-          {showMore ? (
+          ) : (
             <>
-              <TextField
-                label="Voice names"
-                hint="Other names you might say out loud."
-                value={values.voiceAliases}
-                onChangeText={(aliases) => form.set('voiceAliases', aliases)}
-              />
-              <FieldAnchor field="milestoneAmount" onMeasure={measured}>
-                <TextField
-                  label="Milestone amount"
-                  hint="For example, 300 pages = 1 book."
-                  value={values.milestoneAmount}
-                  keyboardType="decimal-pad"
-                  error={errors.milestoneAmount}
-                  onChangeText={(amount) => form.set('milestoneAmount', amount)}
-                />
-              </FieldAnchor>
-              <FieldAnchor field="milestoneLabel" onMeasure={measured}>
-                <TextField
-                  label="Milestone label"
-                  value={values.milestoneLabel}
-                  maxLength={FIELD_LIMITS.milestoneLabel}
-                  error={errors.milestoneLabel}
-                  onChangeText={(label) => form.set('milestoneLabel', label)}
-                  {...enterSaves}
-                />
-              </FieldAnchor>
+              <Button label={showMore ? 'Less' : 'More'} quiet onPress={() => setShowMore(!showMore)} />
+              {showMore ? (
+                <>
+                  <FieldAnchor field="identityId" onMeasure={measured}>
+                    <IdentitySection
+                      identities={form.identities}
+                      selectedId={values.identityId}
+                      draft={form.draft}
+                      error={errors.identityId}
+                      onChoose={form.chooseIdentity}
+                      onToggleNew={form.toggleNewIdentity}
+                      onDraftChange={form.setDraft}
+                    />
+                  </FieldAnchor>
+                  <TextField
+                    label="Full version"
+                    value={values.fullDescription}
+                    placeholder={values.title.trim() || undefined}
+                    maxLength={FIELD_LIMITS.levelDescription}
+                    onChangeText={(text) => form.set('fullDescription', text)}
+                  />
+                  {hasTarget ? (
+                    <FieldAnchor field="minimumTarget" onMeasure={measured}>
+                      <TextField
+                        label="Minimum target"
+                        value={values.minimumTarget}
+                        keyboardType="decimal-pad"
+                        error={errors.minimumTarget}
+                        onChangeText={(target) => form.set('minimumTarget', target)}
+                      />
+                    </FieldAnchor>
+                  ) : null}
+                  <TextField
+                    label="Just set up"
+                    hint="The first step, like putting on your shoes."
+                    value={values.setupDescription}
+                    maxLength={FIELD_LIMITS.levelDescription}
+                    onChangeText={(text) => form.set('setupDescription', text)}
+                  />
+                  <ReminderField
+                    value={values.reminderTime}
+                    fallback={DEFAULT_REMINDERS[values.timeOfDay] ?? '09:00'}
+                    onChange={(time) => form.set('reminderTime', time)}
+                  />
+                  <TextField
+                    label="Voice names"
+                    hint="Other names you might say out loud."
+                    value={values.voiceAliases}
+                    onChangeText={(aliases) => form.set('voiceAliases', aliases)}
+                  />
+                  <FieldAnchor field="milestoneAmount" onMeasure={measured}>
+                    <TextField
+                      label="Milestone amount"
+                      hint="For example, 300 pages = 1 book."
+                      value={values.milestoneAmount}
+                      keyboardType="decimal-pad"
+                      error={errors.milestoneAmount}
+                      onChangeText={(amount) => form.set('milestoneAmount', amount)}
+                    />
+                  </FieldAnchor>
+                  <FieldAnchor field="milestoneLabel" onMeasure={measured}>
+                    <TextField
+                      label="Milestone label"
+                      value={values.milestoneLabel}
+                      maxLength={FIELD_LIMITS.milestoneLabel}
+                      error={errors.milestoneLabel}
+                      onChangeText={(label) => form.set('milestoneLabel', label)}
+                      {...enterSaves}
+                    />
+                  </FieldAnchor>
+                </>
+              ) : null}
             </>
-          ) : null}
+          )}
 
           <View style={styles.footer}>
             <FormMessage message={form.saveError} />
@@ -373,6 +444,7 @@ const styles = StyleSheet.create({
   header: { gap: space.sm, alignItems: 'flex-start' },
   notice: { gap: space.md },
   field: { gap: space.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   row: { flexDirection: 'row', gap: space.md },
   rowField: { flex: 1 },
   footer: { gap: space.md },

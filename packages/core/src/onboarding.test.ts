@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EXAMPLE_HABITS,
   filledHabits,
-  IDENTITY_SUGGESTIONS,
   onboardingHabitErrors,
-  onboardingHabitForm,
+  onboardingHabitSetup,
+  suggestedMinimum,
   parseReminderTime,
   reminderKey,
   REMINDER_CHOICES,
@@ -12,10 +13,10 @@ import {
 import { toHabitInput } from './habitForm';
 
 describe('onboarding habits', () => {
-  it('needs a name and a minimum version', () => {
-    expect(onboardingHabitErrors({ title: 'Read', minimum: '' }).minimumDescription).toBeTruthy();
+  it('needs only a name: the minimum is suggested when left blank', () => {
     expect(onboardingHabitErrors({ title: '', minimum: 'One page' }).title).toBeTruthy();
-    expect(onboardingHabitErrors({ title: 'Read', minimum: 'One page' })).toEqual({});
+    expect(onboardingHabitErrors({ title: 'Read', minimum: '' })).toEqual({});
+    expect(onboardingHabitErrors({ title: 'Polish telescopes', minimum: '' })).toEqual({});
   });
 
   it('ignores a blank slot but not a half-filled one', () => {
@@ -27,16 +28,25 @@ describe('onboarding habits', () => {
     expect(filledHabits(habits).map((habit) => habit.title)).toEqual(['Read', 'Run']);
   });
 
-  it('builds a yes or no habit for every day with a full and minimum version', () => {
-    const input = toHabitInput(onboardingHabitForm({ title: ' Read ', minimum: 'One page' }, 'i1'));
-    expect(input).toMatchObject({ identityId: 'i1', title: 'Read', type: 'boolean' });
-    expect(input.scheduleDays).toHaveLength(7);
-    expect(input.levels.map((level) => level.level)).toEqual(['full', 'minimum']);
+  it('sets up a habit the way the form does, with its identity', () => {
+    const { values, identity } = onboardingHabitSetup({ title: ' Read ', minimum: '' });
+    const input = toHabitInput(values, '2026-11-07');
+    expect(identity).toBe('The Reader');
+    expect(input).toMatchObject({ title: 'Read', type: 'count', target: 10, unit: 'pages', timeOfDay: 'evening' });
+    expect(input.levels[1]).toEqual({ level: 'minimum', description: 'Read at least 2 pages', target: 2 });
   });
 
-  it('gives every suggestion an example', () => {
-    for (const suggestion of IDENTITY_SUGGESTIONS) {
-      expect(onboardingHabitErrors({ title: suggestion.example, minimum: suggestion.minimum })).toEqual({});
+  it('keeps the minimum they wrote, and an amount in the name', () => {
+    const { values } = onboardingHabitSetup({ title: 'Run 5 km', minimum: 'Run at least 500 m' });
+    const input = toHabitInput(values, '2026-11-07');
+    expect(input).toMatchObject({ title: 'Run', target: 5, unit: 'km', frequency: 'per_week', perWeek: 3 });
+    expect(input.levels[1]).toMatchObject({ description: 'Run at least 500 m', target: 0.5 });
+  });
+
+  it('suggests a minimum for every example', () => {
+    for (const example of EXAMPLE_HABITS) {
+      expect(suggestedMinimum(example)).not.toBe('');
+      expect(onboardingHabitErrors({ title: example, minimum: '' })).toEqual({});
     }
   });
 });

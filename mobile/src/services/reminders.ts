@@ -2,12 +2,16 @@ import { Linking, Platform } from 'react-native';
 import type { NotificationContentInput } from 'expo-notifications';
 import { isHolding, keepForLater } from './focusHold';
 import {
+  isHabitReminderId,
+  isLogged,
+  localDate,
   NUDGE_CATEGORY,
-  parseReminderTime,
+  planHabitReminders,
   REMINDER_BODY,
   REMINDER_TITLE,
-  ReminderTime,
+  reminderId,
 } from '@habit-tracker/core';
+import { tracker } from './tracker';
 
 export type ReminderStatus = 'set' | 'denied' | 'blocked' | 'unavailable';
 
@@ -57,7 +61,7 @@ export async function showHeldNotifications(held: NotificationContentInput[]) {
 
 export type Notifications = ReturnType<typeof loadNotifications>;
 
-// Named, so the daily reminder and a nudge can each be replaced without touching the other.
+// The single daily reminder from before each habit had its own. Cleared when found.
 const DAILY_ID = 'daily-reminder';
 
 const failed = (error: unknown): ReminderResult => {
@@ -91,53 +95,6 @@ async function allowed(notifications: Notifications): Promise<ReminderResult | n
   if (answer.granted) return null;
   // Once refused for good, the phone won't ask again, so only its settings can change it.
   return { status: answer.canAskAgain ? 'denied' : 'blocked' };
-}
-
-async function scheduleDaily(
-  notifications: Notifications,
-  time: ReminderTime,
-  channelId: string | undefined
-) {
-  await notifications.cancelScheduledNotificationAsync(DAILY_ID).catch(() => {});
-  await notifications.scheduleNotificationAsync({
-    identifier: DAILY_ID,
-    content: { title: REMINDER_TITLE, body: REMINDER_BODY },
-    trigger: {
-      type: notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: time.hour,
-      minute: time.minute,
-      channelId,
-    },
-  });
-}
-
-const isScheduled = (scheduled: { identifier: string }[]) =>
-  scheduled.some((item) => item.identifier === DAILY_ID);
-
-// Never throws: a reminder that can't be set must not stop anyone getting into the app.
-export async function setDailyReminder(time: string | null): Promise<ReminderResult> {
-  if (Platform.OS === 'web') return { status: 'unavailable' };
-  try {
-    const notifications = loadNotifications();
-    if (time === null) {
-      await notifications.cancelScheduledNotificationAsync(DAILY_ID);
-      return { status: 'set' };
-    }
-    const parsed = parseReminderTime(time);
-    if (!parsed) return { status: 'unavailable', detail: `Not a time: ${time}` };
-
-    const channelId = await prepareChannel(notifications);
-    const refused = await allowed(notifications);
-    if (refused) return refused;
-
-    await scheduleDaily(notifications, parsed, channelId);
-    const scheduled = await notifications.getAllScheduledNotificationsAsync();
-    return isScheduled(scheduled)
-      ? { status: 'set' }
-      : { status: 'unavailable', detail: 'The phone accepted the reminder but has none scheduled.' };
-  } catch (error) {
-    return failed(error);
-  }
 }
 
 // Fires in a few seconds, so nobody has to wait to find out if reminders work. Given an
@@ -174,21 +131,58 @@ export async function sendTestReminder(habit?: {
   }
 }
 
-// On opening the app: restores the handler after a restart, and the reminder on a new
-// phone. Never asks for permission, because nobody is looking at a reminder setting.
-export async function restoreDailyReminder(time: string | null) {
-  if (Platform.OS === 'web' || !time) return;
+// Each habit's own reminder, planned a week ahead. Run when the app opens, after a log
+// and after a habit changes, so a done habit stops reminding and a new one starts.
+// Asks for permission only when told to, from a setting someone is looking at.
+export async function syncHabitReminders({ ask = false }: { ask?: boolean } = {}): Promise<ReminderResult> {
+  if (Platform.OS === 'web') return { status: 'unavailable' };
   try {
     const notifications = loadNotifications();
-    const parsed = parseReminderTime(time);
-    const { granted } = await notifications.getPermissionsAsync();
-    if (!parsed || !granted) return;
-    const scheduled = await notifications.getAllScheduledNotificationsAsync();
-    if (!isScheduled(scheduled)) {
-      await scheduleDaily(notifications, parsed, await prepareChannel(notifications));
+    const channelId = await prepareChannel(notifications);
+    if (ask) {
+      const refused = await allowed(notifications);
+      if (refused) return refused;
+    } else if (!(await notifications.getPermissionsAsync()).granted) {
+      return { status: 'denied' };
     }
+
+    const [habits, rows] = await Promise.all([tracker.listReminderHabits(), tracker.getToday()]);
+    const doneToday = new Set(rows.filter((row) => row.is_today && isLogged(row)).map((row) => row.habit_id));
+    const now = new Date();
+    const plan = planHabitReminders({
+      habits,
+      doneToday,
+      today: localDate(Intl.DateTimeFormat().resolvedOptions().timeZone, now),
+      nowMinutes: now.getHours() * 60 + now.getMinutes(),
+    });
+
+    const scheduled = await notifications.getAllScheduledNotificationsAsync();
+    for (const item of scheduled) {
+      // The old single daily reminder is replaced by these.
+      if (isHabitReminderId(item.identifier) || item.identifier === DAILY_ID) {
+        await notifications.cancelScheduledNotificationAsync(item.identifier).catch(() => {});
+      }
+    }
+    for (const reminder of plan) {
+      const [year, month, day] = reminder.date.split('-').map(Number);
+      await notifications.scheduleNotificationAsync({
+        identifier: reminderId(reminder),
+        content: {
+          title: reminder.title,
+          body: REMINDER_BODY,
+          categoryIdentifier: NUDGE_CATEGORY,
+          data: { habitId: reminder.habitId },
+        },
+        trigger: {
+          type: notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(year, month - 1, day, reminder.hour, reminder.minute),
+          channelId,
+        },
+      });
+    }
+    return { status: 'set' };
   } catch (error) {
-    failed(error);
+    return failed(error);
   }
 }
 
