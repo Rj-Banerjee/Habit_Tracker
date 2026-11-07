@@ -1,6 +1,6 @@
 # Habit Tracker — Build Plan
 
-Last updated: 1 Nov 2026
+Last updated: 7 Nov 2026
 
 ## Product summary
 
@@ -12,9 +12,9 @@ We ship a mobile-first habit tracker in about 24 weeks, in five phases: foundati
 
 - **Calm by default, deep on demand.** Three surfaces for three time scales: Glance (Today, about 10 seconds), Reflect (evening, about 2 minutes), Review (Sunday, about 10 minutes).
 - **Logging takes under 2 seconds**, from the app, a widget, a notification or your voice. Most days the user should not need to open the app at all.
-- **Identity first.** Habits are grouped under identities ("The Athlete"), and each identity owns one accent colour.
+- **Identity, shown by colour.** Each habit belongs to an identity ("The Athlete"), worked out from the habit itself, and each identity owns one accent colour. Today is grouped by time of day (Morning, Afternoon, Evening, Anytime); the accent keeps the identity visible, and Progress keeps the identity score.
 - **No shame states.** Misses are hollow dots, never red. Coming back after a gap starts small.
-- **Start with 3 habits.** More unlock after 2 consistent weeks.
+- **No habit limit.** People add as many habits as they like. After the 6th active habit, one gentle tip, shown once: "Starting with a few makes them stick." Nothing is ever blocked.
 
 ## Scope by release
 
@@ -22,12 +22,12 @@ The launch release (v1) is the core tracker, the AI coach and voice logging. Eve
 
 | Area | v1 — launch | v2 — after launch | v3 — later |
 | --- | --- | --- | --- |
-| Tracking | Today screen; identities; yes/no, count, duration and quit habits; tap / long-press / swipe logging; Shrink It ladder (full, minimum, setup-only); evening back-log; 3-habit onboarding cap | Weekly routines and monthly goals; archetype routine templates; CSV import | — |
+| Tracking | Today screen grouped by time of day; identities; yes/no, count, duration and quit habits; specific days or times per week; ending a habit; tap / long-press / swipe logging; amounts that add up through the day; Shrink It ladder (full, minimum, setup-only); evening back-log; built-in habit library and a four-field habit form | Monthly goals; archetype routine templates; CSV import | — |
 | Streaks | Fractured chain view; Grace Day bank; 24-hour back-log; 1.5x Streak Repair | — | — |
 | Progress | Identity score; yearly heatmap; streak history; Compound Forecaster; top habits; desktop 31-day grid | Exportable reports | — |
 | AI coach | Coach cards on Today; coach chat; miss review; preemptive nudges; peak hours from completion times; Sunday Review; Future-Self letter; "Why" card | Next-physical-action mode; worst-case prompts | — |
 | Voice | Siri via App Intents; in-app voice (hold-to-talk + wake word while open); Android voice tile and widget | Gemini on Android via AppFunctions; Apple Watch | Opt-in always-listening wake word on Android |
-| Reminders | Smart reminders, max 2 per day, actionable from the lock screen; home and lock-screen widgets | — | — |
+| Reminders | A reminder per habit at its own time, plus at most one preemptive nudge a day, actionable from the lock screen; home and lock-screen widgets | — | — |
 | Focus | Tunnel Vision mode with a focus timer | Chrome extension: time budgets and in-page blocking | Geofenced reminders; wearable sync |
 | Social and game | — | Accountability pods | Gamification (RPG, rewards) |
 
@@ -37,8 +37,8 @@ Pricing is still undecided, and these plans may change. Payments aren't built ye
 
 | Plan | What it includes |
 | --- | --- |
-| **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. 10+ normal themes, each customizable (colours, fonts, accent per identity). |
-| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
+| **Free** | Manual habit tracking: everything in the core tracker (habits, Shrink levels, streaks, Grace Days, repair, back-log, Progress, reminders, widgets). No AI features. Voice logging uses a simple on-device matcher only, for clear phrases like "done with Read" or "read 20 pages", with no model calls. Habit setup uses the built-in habit library and simple parsing, with no model calls. 10+ normal themes, each customizable (colours, fonts, accent per identity). |
+| **Pro** | Everything in Free, plus the full AI layer: coach, preemptive nudges, miss review, Sunday letter, AI voice parsing with mishearing correction, coach actions, AI habit setup (targets, minimums, days, time of day and identity suggested for habits the library doesn't know), and suggestions to move a habit to the time of day it's actually done. Gamified themes: a complete game version of the app. Game progress is computed continuously from the activity log, even when no game theme is selected, so switching to a game theme always shows up-to-date progress and never starts from zero. Game themes are downloaded when picked, not bundled. Social accountability, inspired by Habitica's parties and challenges: friends or people with the same goals form groups, see each other's progress and compete on streaks. Opt-in, and users choose which habits are shared. Any group penalty (like Habitica's party damage) is an optional challenge mode, never the default. |
 | **Ultra** | Everything in Pro, plus the AI-powered workspace (design not decided yet). Habits sync with the workspace: for example a "Work" habit updates automatically from work done in the workspace, via the activity log. |
 | **Enterprise** | Team workspaces and the features teams need: roles, a manager view of company work, audit history. Personal habits stay private from managers, always. |
 
@@ -84,15 +84,17 @@ Nine core tables in Postgres cover v1. Streaks are computed from `habit_logs`, n
 | --- | --- | --- |
 | `users` | id, timezone, wake\_time, tone (gentle / direct / drill), mode (strict / grace, default grace), assistant\_name | Timezone decides where "today" ends |
 | `identities` | id, user\_id, name, colour\_token, why\_text, why\_image\_url | "The Athlete"; the Why card lives here |
-| `habits` | id, identity\_id, title, type (boolean / count / duration / quit), target, unit, schedule (days, time window), voice\_aliases\[\], milestone (optional) | `voice_aliases` lets "work" match "Deep work" |
+| `habits` | id, identity\_id, title, type (boolean / count / duration / quit), target, unit, frequency (specific days / times per week), schedule (days, time window), per\_week, time\_of\_day (morning / afternoon / evening / anytime), reminder\_time, ends\_on, previous\_run\_id, voice\_aliases\[\], milestone (optional) | `voice_aliases` lets "work" match "Deep work". `previous_run_id` links a restarted habit to its earlier run |
 | `habit_levels` | habit\_id, level (full / minimum / setup), description, target | The Shrink It ladder, defined at creation |
-| `habit_logs` | id, habit\_id, date, level\_done, amount, status (done / skipped / repaired), skip\_reason, source (tap / widget / notification / siri / voice / coach), logged\_at | One row per habit per day; `source` tells us which surfaces get used. "Missed" is never stored (see Streak rules) |
+| `habit_logs` | id, habit\_id, date, level\_done, amount, status (partial / done / skipped / repaired), skip\_reason, source (tap / widget / notification / siri / voice / coach), logged\_at | One row per habit per day, holding the day's total; `partial` means progress below the minimum, which doesn't count. `source` tells us which surfaces get used. "Missed" is never stored (see Streak rules) |
 | `grace_days` | user\_id, earned\_at, spent\_on\_habit, spent\_for\_date | Earned bank; spending one marks the day protected |
 | `reflections` | user\_id, week\_start, wins\[3\], month\_note, mood\_line | Sunday Review and evening line |
 | `coach_events` | id, user\_id, kind (nudge / miss\_review / letter / chat), payload, sent\_at, outcome | Every coach action and whether it helped; feeds the patterns |
 | `activity_events` | id, user\_id, occurred\_at, kind, subject\_id, payload (jsonb), source, actor (user / ai\_assisted / ai) | Append-only; written in the same transaction as every `habit_logs` change |
 
-Schedules, targets and Shrink level definitions are dated, so a change never rewrites the past. See Streak rules.
+Schedules, times per week, targets, Shrink level definitions, time of day and end dates are dated, so a change never rewrites the past. See Streak rules. `users.seen_tips` records one-time tips and celebrations, so they show once on every device.
+
+**Built-in habit library:** about 150 common habits in `packages/core` as data, each with a name, English and Hinglish synonyms, type, default target and unit, minimum and setup versions, days (specific days or times per week, with a one-line reason), time of day, identity and voice aliases. Free uses it with simple parsing; Pro uses it first and asks the fast model only for habits it doesn't know.
 
 A derived `user_patterns` view (best hours, weak weekdays, common skip reasons) is rebuilt nightly and given to the coach as context.
 
@@ -102,9 +104,24 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 ### What counts
 
-- All three Shrink levels (full, minimum, setup) count toward the streak.
+- All three Shrink levels (full, minimum, setup) count toward the streak, when chosen as a level (a tap, a long-press or "just the setup").
 - The level is stored, so Progress can show them differently.
 - Unscheduled days are ignored.
+
+### Amounts
+
+- Amounts add up across logs on the same day: "read 3 pages", then later "read 8 more", is 11 pages.
+- The day's status comes from its total, from any source (tap, voice, coach, widget), against that day's dated minimum and target:
+  - below the minimum: progress noted but not counted ("1 of 10 pages, 1 more for your minimum");
+  - at or above the minimum but below the target: done at the minimum level;
+  - at or above the target: done.
+- A habit without a minimum amount counts any amount above zero as the minimum.
+- A range uses the lower number: "2-3 pages" is 2.
+- Standard units convert (m and km, minutes and hours, ml and litres). A unit that can't be converted ("2-3 lines" for a pages habit) doesn't count toward the target, and nothing is logged as done; the reply says calmly that it's below the minimum.
+- Choosing a level by tap raises the day's total to that level's target; it never lowers it.
+- Every reply says where the person stands and what's left.
+- Undo takes back the last amount added. Undoing a tap removes the day's log.
+- Streaks, Grace Days, repair, the identity score and the Compound Forecaster all use the day's total and the dated target. The Forecaster also counts amounts below the minimum, because that is real work done.
 
 ### Day boundary
 
@@ -120,7 +137,7 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 ### Grace Days
 
-- Earn 1 for every 7 consecutive scheduled days where every due habit was completed, at any Shrink level.
+- Earn 1 for every 7 consecutive scheduled days where every due habit was completed, at any Shrink level. Times-per-week habits are judged by the week instead (see Times per week).
 - A skip pauses the 7-day count: it doesn't reset it and doesn't add to it.
 - A repaired day counts toward the 7 days, because it was earned.
 - A Grace-protected day resets the 7-day count.
@@ -131,7 +148,7 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 ### Streak Repair
 
-- After a miss, do 1.5x the target (rounded up) on the habit's next scheduled day after the missed day, with the normal 24-hour back-log for that day.
+- After a miss, do 1.5x the target (rounded up) on the habit's next scheduled day after the missed day, with the normal 24-hour back-log for that day. Amounts added through that day count toward it, and the repair happens when the day's total reaches it.
 - A sparse schedule never makes a miss unrepairable: on a Mon/Thu habit, a miss on Monday is repaired on Thursday.
 - For yes/no habits, do the full version plus the minimum version again.
 - One repair fixes one miss only, and only the most recent miss.
@@ -148,9 +165,34 @@ These are the final rules for streaks. Streaks are computed from `habit_logs` us
 
 Changing mode only affects days from then on.
 
+### Times per week
+
+A habit is set to specific days (the default: all seven, untick days to skip) or to a number of times per week, from 1 to 6. Choosing 7 means every day, so it becomes specific days with all seven ticked.
+
+- Weeks run Monday to Sunday in the user's timezone.
+- The habit shows on Today every day as "This week: 2 of 4" until the quota is met, then as done for the week. Extra sessions are allowed and counted.
+- At most one session a day counts toward the quota. A session is a day done at any Shrink level; a day below the minimum isn't a session.
+- No single day is ever a miss. When the quota is still reachable but tight, a calm hint: "2 more this week, 3 days left".
+- A week that starts or ends part-way (the habit's first week, or its last before it ends) has a quota of the smaller of the quota and the days the habit is active that week.
+- A week that ends below the quota is a missed week. A Grace Day covers it automatically, if one is available and the mode is Grace. Otherwise it can be repaired by doing one extra session the next week on top of the quota. One repair fixes one missed week only.
+- The streak is counted in weeks ("6-week streak").
+- For the Grace Day run, its days are neutral. At the week's end, a met week keeps the run going, and a missed week breaks it unless a Grace Day or repair covers it.
+- Identity score: a day with a session counts as done and other days are neutral. In a week that ended missed, the days after the last chance to meet the quota count as not done.
+- The 30-day views and the heatmap show session days as done and other days as neutral. The Compound Forecaster uses sessions per week.
+- Times per week is a dated setting, like the schedule, so changing it, or switching between specific days and times per week, never rewrites past weeks.
+
+### Ending a habit
+
+- "End this habit" is off by default. When on: after N calendar days from the start date, or on a date.
+- The AI may suggest an end for clearly time-limited goals ("30-day challenge" means after 30 days), but never turns it on by itself.
+- After the end, the habit isn't due, is never counted as missed, and its reminders stop. It moves to "Completed habits" with a short summary: days done, best streak, total amount.
+- One calm celebration shows the next time the app opens.
+- Restarting creates a new run, linked to the old one, whose history is kept. The new run's streak starts fresh.
+- The end date can be edited, and is a dated setting.
+
 ### Changing a habit
 
-- A change to a schedule, target or Shrink level takes effect from the day it's made. Earlier days keep the settings they had.
+- A change to a schedule, times per week, target, Shrink level, time of day or end date takes effect from the day it's made. Earlier days keep the settings they had.
 - Streak Repair uses the target that applied on the missed day.
 - The Compound Forecaster uses the target that applied on each day it reads.
 
@@ -178,11 +220,12 @@ The streak chain draws each scheduled day as a node, joined by links, using the 
 
 Streaks and Grace Days are computed purely from `habit_logs` and settings, so the result is identical whenever it's read. They can update lazily on read rather than in a nightly job. `pg_cron` is enabled when reminders are built.
 
-### Habit unlocks
+### Time of day
 
-- "2 consistent weeks" means 14 consecutive days where at least 80% of due habits were completed, at any Shrink level. Repaired days count; protected days don't.
-- Days with nothing due are neutral: they neither count toward the 14 days nor break the run.
-- It unlocks 2 more habits, and the same rule then repeats.
+- Each habit has a time of day: Morning, Afternoon, Evening or Anytime. It's asked in the form, with the AI (Pro) or the library (Free) pre-selecting one.
+- Today shows a section for each, in that order, ordered within by reminder time. Empty sections are hidden.
+- The user can change it any time: drag the card between sections on Today, use "Move to…" on its long-press sheet, or edit the habit.
+- Pro: when peak hours show a habit is usually done in another part of the day, a coach card suggests moving it. It moves only if the user accepts, and a "Keep" is remembered.
 
 ### Progress definitions
 
@@ -197,13 +240,32 @@ Streaks and Grace Days are computed purely from `habit_logs` and settings, so th
 
 **Peak hours:** the hour a habit is most often logged, from 5 or more same-day logs. Back-logs are left out, because they say when someone caught up, not when they did it.
 
-**Preemptive nudges:** at most one a day, so with the daily reminder nobody gets more than two. It goes to the habit most at risk (under 90% over the last 14 days), 30 minutes before its usual time, and at least an hour from the reminder. It's cancelled if the habit is logged first. Each nudge is recorded as helped or ignored, and a habit stops getting them after 3 ignored in a row. For now they're local notifications with text written on the phone, so they only plan ahead when the app is opened. Server-sent nudges need remote push, which needs a development build.
+**Reminders:** each habit sends its own reminder at its reminder time, on the days it's due, unless it's already logged. A times-per-week habit stops reminding once the week's quota is met, and an ended habit stops altogether. The default time follows the time of day (Morning 08:00, Afternoon 13:00, Evening 19:00, Anytime none), and the user can change or turn it off.
+
+**Preemptive nudges:** at most one a day, on top of the habits' own reminders. It goes to the habit most at risk (under 90% over the last 14 days), 30 minutes before its usual time, and never to a habit whose own reminder is within an hour. It's cancelled if the habit is logged first. Each nudge is recorded as helped or ignored, and a habit stops getting them after 3 ignored in a row. For now they're local notifications with text written on the phone, so they only plan ahead when the app is opened. Server-sent nudges need remote push, which needs a development build.
 
 ### Scope decisions
 
 - Expo gets the new UI first. Next.js is limited to the desktop 31-day grid and the weekly review.
 - The demo data is deleted.
-- Weekly and monthly habits are removed, and rebuilt in v2.
+- The old weekly and monthly habits are removed. Times-per-week habits are part of v1 (see Streak rules); monthly goals are rebuilt in v2.
+
+## Creating a habit
+
+The form asks only for what can't be guessed well, and suggests even that:
+
+1. **Name**, with live suggestions while typing. Targets in the name are parsed out: "Run 20 km" is Run with a target of 20 km; "Read 10 pages daily" is Read, 10 pages.
+2. **Target** (amount and unit), from the name or suggested ("Run" 5 km, "Read" 10 pages, "Meditate" 10 min). Yes/no habits show no amount.
+3. **Days:** "Specific days" (all seven ticked) or "Times per week" (1 to 6), with the suggested option pre-selected and a one-line reason ("rest days help you recover").
+4. **Time of day:** Morning, Afternoon, Evening or Anytime, pre-selected.
+5. **Minimum version:** free text, pre-filled with a suggestion ("Read at least 2 pages"), decoded into a structured minimum (2 pages) shown as a chip to confirm. For yes/no habits it stays a description.
+6. **End this habit:** off by default; after N days or on a date.
+
+Every suggestion follows the name as it changes, until the user edits that field. Everything else is inferred and shown in one compact card, "We set these up for you", with "Accept all" or tap a line to change it: habit type and unit, identity (an existing one or a new one, such as Run → The Athlete), reminder time, the setup-only level and voice aliases. The identity is never asked for at creation. Advanced settings (milestone and the rest) are in the habit's edit screen under "More".
+
+- **Where suggestions come from:** the built-in library first. Pro asks the fast model only for habits the library doesn't know, after 3 or more characters and a pause of about 600 ms, with results cached. Suggestions appear in under 1.5 seconds. Free never calls a model.
+- **Saving always works**, even when the AI is slow, down or unavailable: it falls back to the library and simple parsing, and the user can fill in the target.
+- **Safe suggestions:** no extreme targets or frequencies; intense exercise keeps rest days. For clearly risky goals (very long fasts, extreme daily distances), it suggests a gentler start and says so calmly.
 
 ## Voice assistant
 
@@ -226,7 +288,7 @@ Users will be able to log by voice without opening the app, but not with our own
 ### How one voice log works
 
 1. Speech becomes text on the device where the phone supports it (iOS Speech framework, Android SpeechRecognizer), in `en-IN` or `hi-IN`, with the command words and habit names as hints. Where a phone can't do that language on-device, its own recogniser may use its maker's servers. Our servers never receive audio.
-2. The text goes to our intent parser: an LLM call with a small, fixed tool list — `log_habit`, `log_amount`, `shrink_habit`, `skip_habit`, `undo_last`, `ask_coach` — and the user's habit list with its `voice_aliases`.
+2. The text goes to our intent parser: an LLM call with a small, fixed tool list — `log_habit`, `log_amount` (an amount, with its unit if one was said), `shrink_habit`, `skip_habit`, `undo_last`, `ask_coach` — and the user's habit list with its `voice_aliases`. Amounts follow the Amounts rules: "read 8 more" adds to the day, and a range uses the lower number.
 3. Misheard words are found first, by sound and spelling against the command words and habit names, and offered to the parser as suggestions. Confidence then decides the reply, and the app always shows what it heard:
    - **Clear match:** log it and speak back. "Logged Deep Work. 12-day streak." With an undo for 10 seconds.
    - **A guess at a misheard word:** ask first. "Did you mean: Undo the last log?" with Yes and No.
@@ -266,7 +328,7 @@ Launch lands at about week 24, assuming 2 developers and 1 designer. Each phase 
 | Phase | Weeks | Deliverables | Gate to pass before next phase |
 | --- | --- | --- | --- |
 | 0 · Foundations | 1–2 | User interviews, design system, repo and Supabase setup, analytics events | — |
-| 1 · Core tracker | 3–10 | Today screen, logging gestures, Shrink It ladder, identities, 3-habit onboarding, streaks (Grace Days, back-log, repair), reminders, widgets, Progress, desktop grid | 10 testers log daily for 2 weeks with no streak bugs |
+| 1 · Core tracker | 3–10 | Today screen, logging gestures, Shrink It ladder, identities, onboarding, the habit library and form, times-per-week habits, streaks (Grace Days, back-log, repair), reminders, widgets, Progress, desktop grid | 10 testers log daily for 2 weeks with no streak bugs |
 | 2 · AI coach | 11–16 | Coach cards and chat, miss review, preemptive nudges, peak hours, Sunday Review, Future-Self letter, Why card, per-user AI cost limits | Coach nudges lead to a log more often than plain reminders |
 | 3 · Voice assistant | 17–20 | Siri via App Intents, in-app voice with wake word, Android tile and voice widget, intent parser, 10-second undo, 200-phrase test set | 95% correct habit match on the voice test set |
 | 4 · Beta and launch | 21–24 | Closed beta (50–100 users, 4 weeks), fixes, store listings, launch | Day-7 retention of 40% or more in the beta |
@@ -290,7 +352,7 @@ Design runs one phase ahead of build: screens for phase N are tested before phas
 **Screens in build order:**
 
 1. Today (morning and evening states), habit card, long-press Shrink sheet, swipe-to-skip
-2. Onboarding: pick an identity, create up to 3 habits with their minimum version, set reminders
+2. Onboarding: create the first habits with the habit form (identity, time of day and reminders are suggested), then the streak rules card
 3. Habit creation and editing
 4. Progress: identity score, heatmap, streak history, forecaster
 5. Coach card, coach chat, miss review, Sunday Review, Future-Self letter

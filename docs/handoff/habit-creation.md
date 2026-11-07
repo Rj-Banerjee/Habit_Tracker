@@ -1,113 +1,76 @@
 # Hand-off: habit creation and editing
 
-Build the screens that let someone add and edit a habit in the Expo app.
+The screens that let someone add and edit a habit in the Expo app. Rewritten on 7 Nov 2026 for the habit form changes in PLAN.md ("Creating a habit", "Amounts", "Times per week", "Ending a habit", "Time of day"). The first version, with its 3-habit cap, is kept in `habit-creation-notes.md` for the record.
 
-This is a UI task. Rules, validation and data access already exist, so **don't write any of your own**. If something seems missing, stop and ask instead of working around it.
+This is a UI task. Rules, validation, parsing, suggestions and data access live in shared code, so **don't write any of your own**. If something seems missing, stop and ask instead of working around it.
 
 ## Read first
 
-- `PLAN.md`: Product summary, Design workflow and Streak rules
+- `PLAN.md`: Product summary, Creating a habit, and Streak rules (Amounts, Times per week, Ending a habit, Time of day)
 - `packages/ui/src/index.ts`: the shared components
-- `packages/core/src/habitForm.ts` and `packages/core/src/api.ts`
+- `packages/core/src/habitForm.ts`, `habitSetup.ts`, `habitLibrary.ts` and `api.ts`
 - `mobile/src/screens/TodayScreen.tsx`: the pattern to follow
 
 ## Rules
 
-1. Keep screens thin. No streak rules, date logic or validation in a screen.
-2. Use `tracker` from `mobile/src/services/tracker.ts` for all data. Never import `supabase` in a screen.
+1. Keep screens thin. No streak rules, date logic, parsing or validation in a screen.
+2. Use `tracker` from `mobile/src/services/tracker.ts` for all data, and `ai` from `mobile/src/services/ai.ts` for AI suggestions. Never import `supabase` in a screen.
 3. Use tokens from `@habit-tracker/core` for every colour, size and space. No hex values or magic numbers.
 4. Use shared components from `@habit-tracker/ui` before writing a new one.
-5. Don't change anything in `packages/`, `supabase/`, `frontend/` or `PLAN.md`. Ask if you think you need to.
-6. No red, no pure white or black, no glassmorphism, no gradients.
-7. Every interactive element is at least 48px tall and has an accessibility label.
-8. No wording that blames the user.
-9. Don't add a dependency without asking.
+5. No red, no pure white or black, no glassmorphism, no gradients.
+6. Every interactive element is at least 48px tall and has an accessibility label.
+7. No wording that blames the user, and no wording that pushes: suggestions are offers.
+8. Don't add a dependency without asking.
 
-## Files to create
+## The create form
 
-| File | What it is |
+Only these fields, in this order. Everything else is in the review card.
+
+| Field | Notes |
 | --- | --- |
-| `mobile/src/screens/HabitFormScreen.tsx` | The form, for both creating and editing |
-| `mobile/src/screens/HabitFormScreen.test.tsx` | Tests for every state below |
-| `mobile/src/hooks/useHabitForm.ts` | Loads, holds and saves form state |
-| `mobile/src/habits/IdentitySection.tsx` | Choose an identity, or add one |
+| Name | Required. Live suggestion chips under it from `suggestNames(text)`. Typing "Run 20 km" fills Name "Run" and Target 20 km, through `parseHabitName` |
+| Target | Amount and unit. Hidden for yes/no habits. Pre-filled from the name, or from the suggestion |
+| Days | `SegmentedControl`: "Specific days" (the `WeekdayPicker`, all seven ticked) or "Times per week" (a stepper, 1 to 6). The suggested option is pre-selected, with its one-line reason under it in small muted text. Choosing 7 on the stepper switches to Specific days with all seven ticked |
+| Time of day | Four `Chip`s: Morning, Afternoon, Evening, Anytime. One is pre-selected |
+| Minimum version | Free text, pre-filled with the suggestion. Under it, the decoded minimum from `decodeMinimum` as a chip to confirm ("Minimum: 2 pages"). For yes/no habits there's no chip; the text is the minimum |
+| End this habit | A toggle, off by default. On: "After [N] days" or "On [date]". A suggested end ("30-day challenge") shows as a hint beside the toggle, and never turns it on |
 
-## Files to change
+Then the **"We set these up for you"** card, one line each: habit type and unit, identity, reminder time, the setup-only level, voice names. "Accept all" accepts them. Tapping a line opens a `BottomSheet` to change just that one. An identity line can pick an existing identity or name a new one (with its colour defaulting to the first unused of `IDENTITY_TOKENS`).
 
-| File | Change |
-| --- | --- |
-| `mobile/src/screens/TodayScreen.tsx` | Add an "Add habit" button, and show it in the empty state |
-| `mobile/src/today/ShrinkSheet.tsx` | Add an "Edit habit" option |
-| `mobile/App.tsx` | Show the form when asked. There is no router yet, so use a simple state switch |
+**Suggestions follow the name.** Each field shows the suggestion for the current name until the user edits that field; from then on, that field is theirs. Changing the name never overwrites a field they edited.
 
-## Shared code to use
+## Where suggestions come from
 
-**Components from `@habit-tracker/ui`:** `TextField`, `SegmentedControl`, `WeekdayPicker`, `ColourPicker`, `Chip`, `Button`, `FormMessage`, `Text`, `useTheme`, `useLayoutSize`.
+`useHabitSetup(name, minimumText)` in `mobile/src/hooks/` does all of this. The screen only renders what it returns.
 
-**Helpers from `@habit-tracker/core`:** `emptyHabitForm`, `validateHabitForm`, `hasErrors`, `toHabitInput`, `habitFormFromDetail`, `habitLimitMessage`, `HABIT_TYPE_LABELS`, `IDENTITY_TOKENS`, plus the `space`, `radius` and `layout` tokens.
-
-**API from `tracker`:**
-
-| Function | Use |
-| --- | --- |
-| `getHabitAllowance()` | Returns `{ allowed, active, can_add }`. Call it when opening the create form |
-| `listIdentities()` | Fills the identity choices |
-| `createHabit(toHabitInput(values))` | Saves a new habit. The server enforces the limit. Pass a new identity as the second argument and both save together |
-| `getHabit(id)` | Loads a habit to edit. Pass the result to `habitFormFromDetail` |
-| `updateHabit(id, changes)` | Saves edits. Pass only what changed; null clears a field, and identityId or newIdentity moves the habit |
-| `archiveHabit(id)` | Removes a habit from Today and keeps its history |
-
-## Form fields, in order
-
-| Field | Shown | Notes |
-| --- | --- | --- |
-| Identity | Always | See Identity section |
-| Name | Always | `title`. Required |
-| Type | Create only | `SegmentedControl` using `HABIT_TYPE_LABELS`. A habit's type can't change later |
-| Target and unit | Count and duration only | `target` is required. Number keyboard |
-| Days | Always | `WeekdayPicker`. At least one day |
-| Full version | Always | `fullDescription`. Optional: defaults to the name |
-| Minimum version | Always | `minimumDescription`. Required. Hint: "The smallest version that still counts on a hard day." |
-| Minimum target | Count and duration only | `minimumTarget`. Optional |
-| Just set up | Always | `setupDescription`. Optional. Hint: "The first step, like putting on your shoes." |
-| Voice names | Under "More options" | `voiceAliases`, comma separated. Hint: "Other names you might say out loud." |
-| Milestone | Under "More options" | `milestoneAmount` and `milestoneLabel`. Hint: "For example, 300 pages = 1 book." |
-
-The form scrolls. "More options" starts collapsed.
+1. The library, `matchLibrary(name)`. Instant. This is all Free ever uses.
+2. On Pro, for a name the library doesn't know: `ai.suggestSetup` after 3+ characters and a 600 ms pause, cached per name. A reply for an older name is dropped.
+3. Simple parsing (`parseHabitName`, `decodeMinimum`) fills anything still missing.
 
 ## Every screen state
 
 | State | When | What the user sees |
 | --- | --- | --- |
-| Loading | Fetching allowance, identities or a habit | A small `ActivityIndicator`, with the label "Loading". No form yet |
+| Loading | Fetching identities or a habit | A small `ActivityIndicator`, with the label "Loading". No form yet |
 | Load failed | Any fetch fails | "This couldn't load." with a "Try again" button. Never an empty form |
-| At the limit | `can_add` is false on create | No form. Show `habitLimitMessage(allowed, active)`, with a "Back" button |
-| Empty create | Opening the form, under the limit | Blank form. Title: "New habit". Identity preselected if there is only one |
-| No identities yet | `listIdentities()` returns nothing | Show the add-identity fields in place of the choices |
-| Editing | Opening with a habit | Filled form. Title: "Edit habit". Type is hidden |
+| Empty create | Opening the form | Blank name, all seven days, Anytime. Title: "New habit" |
+| Suggesting | Waiting on the AI for an unknown habit | Fields keep what the library and parsing gave. A quiet "Finding suggestions…" line in the review card. Saving still works |
+| Suggestion failed | The AI is slow, down, refused, or it's Free | Nothing on screen says it failed. The library and parsing values stay; for an unknown count habit the Target field is empty for the user to fill |
+| Safety note | The suggestion was made gentler | One calm line under the target, from the suggestion's `note` ("Starting at 5 km a day is easier on your body. You can raise it any time.") |
 | Field errors | Save pressed with problems | `validateHabitForm` errors under each field. Scroll to the first. Nothing is sent |
 | Saving | Save pressed, form valid | Save button disabled. All fields stay visible |
-| Save failed | The server refuses, or the network fails | Show `error.message` in a `FormMessage` above the button. Keep everything typed |
-| Limit reached on save | Server says "You have reached your habit limit." | Same as Save failed. This can happen if another device added a habit |
-| Saved | Save succeeded | Return to Today, which refreshes and shows the habit if it's due |
-| Unsaved changes | Back pressed after typing | Ask "Discard your changes?" with "Keep editing" and "Discard" in a `BottomSheet` |
-| Archive | "Archive habit" pressed, edit only | Confirm in a `BottomSheet`: "Archive Read? Its history is kept." with "Archive" and "Keep" |
+| Save failed | The server refuses, or the network fails | `error.message` in a `FormMessage` above the button. Keep everything typed |
+| Saved | Save succeeded | Return to Today, which refreshes and shows the habit in its time-of-day section if it's due |
+| Habit tip | The save made the 7th active habit, and `shouldShowHabitTip` is true | Once only, on Today: "Starting with a few makes them stick." with "Got it". Never blocks anything |
+| Unsaved changes | Back pressed after typing | "Discard your changes?" with "Keep editing" and "Discard" in a `BottomSheet` |
 
-An edit note sits above the save button: "Changes apply from today. Past days stay as they were."
+There is no habit limit and no "At the limit" state.
 
-## Identity section
+## The edit form
 
-- Show existing identities as `Chip`s.
-- "New identity" reveals a name field, `ColourPicker` and an optional "Why this matters" field.
-- Default the colour to the first of `IDENTITY_TOKENS` that isn't in use.
-- Create the identity when the habit is saved, not before.
-- An identity name is required, up to 80 characters.
+Title: "Edit habit". Name, Target, Days, Time of day, Minimum version and End this habit, as on create, filled from `habitFormFromDetail`. No live suggestions. Then a collapsed **"More"** with: identity, the full version's description, the minimum target, the setup-only level, reminder time, voice names and milestone. Type can't change.
 
-## The 3-habit cap
-
-- The server enforces it. Your job is to explain it, not to count.
-- Don't hide "Add habit" at the limit. Tapping it shows the At the limit state.
-- Archived habits don't count, and the server handles that.
+An edit note sits above the save button: "Changes apply from today. Past days stay as they were." Archive stays as before: "Archive Read? Its history is kept." with "Archive" and "Keep".
 
 ## Wide screens
 
@@ -117,17 +80,15 @@ An edit note sits above the save button: "Changes apply from today. Past days st
 
 ## What "done" looks like
 
-- [ ] `npm run typecheck` passes.
-- [ ] `npm test` passes, including new tests for every row of the state table.
-- [ ] A habit can be created for each of the four types, and appears on Today when due.
-- [ ] Editing a habit changes today without changing past days.
-- [ ] Creating a 4th habit on a new account shows the At the limit state.
-- [ ] Archiving removes a habit from Today, and frees a slot.
+- [ ] `npm run typecheck` and `npm test` pass, with a test for every row of the state table.
+- [ ] "Run 20 km" fills Run, 20 km, a running minimum, Morning and The Athlete.
+- [ ] "Read" fills 10 pages, "Read at least 2 pages", every day.
+- [ ] "Workout" suggests 4 times a week with its reason.
+- [ ] A habit the library doesn't know still saves on Free and with the AI service stopped.
+- [ ] A habit can be ended after N days or on a date, and switched between specific days and times per week.
 - [ ] A server error keeps everything the user typed.
-- [ ] `npx expo start --web` logs no errors or warnings on any state.
 - [ ] Light and dark themes both checked, at 390px and 1200px wide.
-- [ ] Nothing changed outside the files listed above.
 
 ## Out of scope
 
-Reminders, onboarding, habit templates, reordering habits, and bringing back archived habits.
+Bringing back archived habits, reordering within a section, and habit templates beyond the library.
