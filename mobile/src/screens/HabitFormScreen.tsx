@@ -134,16 +134,11 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
         <View style={[styles.content, styles.notice]}>
           {form.status === 'loading' ? (
             <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading" />
-          ) : form.status === 'failed' ? (
+          ) : (
             <>
               <Text>This couldn&apos;t load.</Text>
               <Button label="Try again" onPress={form.retry} />
               <Button label="Back" quiet onPress={onClose} />
-            </>
-          ) : (
-            <>
-              <Text numeric>{form.limitMessage}</Text>
-              <Button label="Back" onPress={onClose} />
             </>
           )}
         </View>

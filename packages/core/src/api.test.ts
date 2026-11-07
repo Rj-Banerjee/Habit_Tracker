@@ -91,8 +91,33 @@ describe('createTrackerApi', () => {
     await expect(api.logHabit('h1', '2030-01-01')).rejects.toThrow('That day has not happened yet');
   });
 
-  it('unwraps the single allowance row', async () => {
-    rpc.mockResolvedValue({ data: [{ allowed: 3, active: 2, can_add: true }], error: null });
-    await expect(api.getHabitAllowance()).resolves.toEqual({ allowed: 3, active: 2, can_add: true });
+  it('records a tip as seen', async () => {
+    await api.markTipSeen('habit-tip');
+    expect(rpc).toHaveBeenCalledWith('mark_tip_seen', { p_tip: 'habit-tip' });
+  });
+
+  it('sends the new settings when creating a habit', async () => {
+    await api.createHabit({
+      identityId: 'i1',
+      title: 'Workout',
+      levels: [],
+      timeOfDay: 'morning',
+      reminderTime: '07:30',
+      frequency: 'per_week',
+      perWeek: 4,
+      endsOn: '2026-12-01',
+    });
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_time_of_day: 'morning',
+      p_reminder_time: '07:30',
+      p_frequency: 'per_week',
+      p_per_week: 4,
+      p_ends_on: '2026-12-01',
+    });
+  });
+
+  it('sends no times per week for a specific-days habit', async () => {
+    await api.createHabit({ identityId: 'i1', title: 'Read', levels: [], perWeek: 3 });
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_frequency: 'days', p_per_week: null, p_time_of_day: 'anytime' });
   });
 });

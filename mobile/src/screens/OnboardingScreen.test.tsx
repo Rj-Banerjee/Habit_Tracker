@@ -107,12 +107,11 @@ describe('OnboardingScreen', () => {
       expect(api.createHabit).not.toHaveBeenCalled();
     });
 
-    it('stops at three', async () => {
+    it('has no limit on habits', async () => {
       await toHabits();
-      await press('Add another habit');
-      await press('Add another habit');
-      expect(screen.getByLabelText('Habit 3')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Add another habit' })).toBeNull();
+      for (let i = 0; i < 4; i++) await press('Add another habit');
+      expect(screen.getByLabelText('Habit 5')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Add another habit' })).toBeTruthy();
     });
 
     it('can take one away', async () => {

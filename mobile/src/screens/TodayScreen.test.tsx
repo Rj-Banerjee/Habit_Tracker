@@ -50,6 +50,9 @@ jest.mock('../services/tracker', () => ({
     getHabitDays: jest.fn(() => Promise.resolve([])),
     getDayStatuses: jest.fn(() => Promise.resolve([])),
     recordFocus: jest.fn(() => Promise.resolve()),
+    getProfile: jest.fn(() => Promise.resolve({ seen_tips: [] })),
+    countActiveHabits: jest.fn(() => Promise.resolve(2)),
+    markTipSeen: jest.fn(() => Promise.resolve()),
   },
 }));
 
@@ -136,6 +139,32 @@ describe('TodayScreen', () => {
   });
 
   beforeEach(() => jest.clearAllMocks());
+
+  describe('the habit tip', () => {
+    const tip = 'Starting with a few makes them stick.';
+
+    it('says nothing up to 6 habits', async () => {
+      api.countActiveHabits.mockResolvedValue(6);
+      await open([row()]);
+      expect(screen.queryByText(tip)).toBeNull();
+    });
+
+    it('shows once past 6 habits, and is remembered when dismissed', async () => {
+      api.countActiveHabits.mockResolvedValue(7);
+      await open([row()]);
+      expect(screen.getByText(tip)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Got it' }));
+      expect(screen.queryByText(tip)).toBeNull();
+      expect(api.markTipSeen).toHaveBeenCalledWith('habit-tip');
+    });
+
+    it('stays away once seen, on any device', async () => {
+      api.countActiveHabits.mockResolvedValue(12);
+      api.getProfile.mockResolvedValue({ seen_tips: ['habit-tip'] } as never);
+      await open([row()]);
+      expect(screen.queryByText(tip)).toBeNull();
+    });
+  });
 
   describe('streak chain', () => {
     const week = Array.from({ length: 7 }, (_, i) => `2026-10-${String(28 + i).padStart(2, '0')}`)

@@ -11,7 +11,6 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   HabitDetail,
-  habitLimitMessage,
   HabitType,
   Identity,
   space,
@@ -35,7 +34,9 @@ jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 jest.mock('../services/tracker', () => ({
   tracker: {
     listVoiceHabits: jest.fn(() => Promise.resolve([])),
-    getHabitAllowance: jest.fn(),
+    getProfile: jest.fn(() => Promise.resolve({ seen_tips: [] })),
+    countActiveHabits: jest.fn(() => Promise.resolve(1)),
+    markTipSeen: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(),
     createHabit: jest.fn(),
     getHabit: jest.fn(),
@@ -77,6 +78,11 @@ const readHabit: HabitDetail = {
   voice_aliases: ['book'],
   milestone_amount: 300,
   milestone_label: 'book',
+  time_of_day: 'evening',
+  reminder_time: null,
+  frequency: 'days',
+  per_week: null,
+  ends_on: null,
   habit_levels: [
     { level: 'full', description: 'Read', target: 30 },
     { level: 'minimum', description: 'One page', target: 1 },
@@ -116,7 +122,6 @@ const fillRequired = async () => {
 describe('HabitFormScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 1, can_add: true });
     api.listIdentities.mockResolvedValue([athlete]);
     api.createHabit.mockResolvedValue('new-habit');
     api.getHabit.mockResolvedValue(readHabit);
@@ -133,19 +138,15 @@ describe('HabitFormScreen', () => {
       expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     });
 
-    it('asks for the allowance on create but not on edit', async () => {
+    it('loads the habit when editing', async () => {
       await openForm('h1');
-      expect(api.getHabitAllowance).not.toHaveBeenCalled();
       expect(api.getHabit).toHaveBeenCalledWith('h1');
     });
   });
 
   describe('load failed', () => {
-    it.each([
-      ['identities', () => api.listIdentities.mockRejectedValueOnce(new Error('offline'))],
-      ['the allowance', () => api.getHabitAllowance.mockRejectedValueOnce(new Error('offline'))],
-    ])('offers a retry when %s fail, never an empty form', async (_name, fail) => {
-      fail();
+    it('offers a retry when identities fail, never an empty form', async () => {
+      api.listIdentities.mockRejectedValueOnce(new Error('offline'));
       await openForm();
       expect(screen.getByText("This couldn't load.")).toBeTruthy();
       expect(screen.queryByLabelText('Name')).toBeNull();
@@ -163,30 +164,20 @@ describe('HabitFormScreen', () => {
     });
   });
 
-  describe('the habit cap', () => {
-    it('explains the limit in place of the form, with a way back', async () => {
-      api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 3, can_add: false });
+  describe('no habit limit', () => {
+    it('opens the form however many habits there are', async () => {
+      api.countActiveHabits.mockResolvedValue(40);
       await openForm();
-      expect(screen.getByText(habitLimitMessage(3, 3))).toBeTruthy();
-      expect(screen.queryByLabelText('Name')).toBeNull();
-      await press('Back');
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it("doesn't apply to editing a habit", async () => {
-      api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 3, can_add: false });
-      await openForm('h1');
       expect(screen.getByLabelText('Name')).toBeTruthy();
     });
 
-    it('shows the server message and keeps the form when another device took the slot', async () => {
-      const message = 'You have reached your habit limit. 2 consistent weeks unlock 2 more.';
-      api.createHabit.mockRejectedValueOnce(new Error(message));
+    it('shows a server refusal and keeps the form', async () => {
+      api.createHabit.mockRejectedValueOnce(new Error('Choose at least one day'));
       await openForm();
       await fillRequired();
       await press('Save');
       await settle();
-      expect(screen.getByText(message)).toBeTruthy();
+      expect(screen.getByText('Choose at least one day')).toBeTruthy();
       expect(screen.getByLabelText('Name').props.value).toBe('Run');
       expect(onClose).not.toHaveBeenCalled();
     });
@@ -963,7 +954,7 @@ describe('Today entry points', () => {
     expect(onAddHabit).toHaveBeenCalled();
   });
 
-  it('offers Add habit under a full list, so the limit can explain itself', async () => {
+  it('offers Add habit under the list, with no limit', async () => {
     await openToday([row]);
     await press('Add habit');
     expect(onAddHabit).toHaveBeenCalled();

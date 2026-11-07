@@ -1373,3 +1373,17 @@ The new one matters most: a mishearing that reverses a log without asking. It's 
 - "aaj sirf thoda sa padha" logs Study instead of Read.
 
 Details are in `docs/voice-accuracy.md`.
+
+### No habit limit, and the new habit settings (7 Nov 2026)
+
+Part 1 of the habit form work. PLAN.md and `docs/handoff/habit-creation.md` were updated first.
+
+- **Limit removed:** the 3-habit cap and the "2 consistent weeks" unlock are gone from the server (`habit_allowance`, `active_habits` and `get_habit_allowance` dropped), from core, from the form's At the limit state and from onboarding. After the 6th active habit, Today shows "Starting with a few makes them stick." once. It's remembered in the new `users.seen_tips`, so it shows once on every device, and it never blocks anything.
+- **New settings, stored and dated:** `time_of_day`, `reminder_time`, `frequency` (specific days or times per week, 1 to 6), `per_week`, `ends_on` and `previous_run_id` on habits. Time of day, frequency, times per week and the end date are in `habit_versions`, so edits apply from today. `create_habit` and `update_habit` take them, and the API sends them. Nothing uses them yet: times per week and ending get their rules in a later part, and Today's sections come last.
+- **Migration:** `20261107000000_open_habits_and_new_settings.sql`.
+  - Locally, 358 SQL tests pass. The new ones cover no limit (12 habits), every new setting, the rule against 7 a week, an end before the start, switching frequency (dated), and tips.
+  - The dry run against live listed only this migration, and the push applied it.
+  - Live, with two temporary users who were then deleted, 13 checks passed: create with the new settings, read, edit, 8 habits saved, the allowance function gone, tip remembered, logging and Today working. Another user can't read or edit the habit; a user sees only their own profile; the publishable key alone reads no habits and can't mark tips.
+  - `rls_auto_enable()` and the `ensure_rls` trigger are still on live, and RLS is on for every public table.
+- **Tests:** core 1011, mobile 864 (including the Today tip and an onboarding test with no limit), web 28, backend 195. Lint is unchanged: 11 old warnings.
+- **Existing data (part 6):** existing habits got "anytime" and "specific days". Assigning each one a real time of day, and parsing its minimum text, needs the habit library. That runs as a backfill once the library exists (part 4).

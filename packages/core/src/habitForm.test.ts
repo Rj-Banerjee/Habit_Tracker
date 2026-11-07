@@ -3,7 +3,9 @@ import {
   emptyHabitForm,
   FIELD_LIMITS,
   habitFormFromDetail,
-  habitLimitMessage,
+  HABIT_TIP,
+  HABIT_TIP_TEXT,
+  shouldShowHabitTip,
   hasErrors,
   toggleDay,
   toHabitInput,
@@ -100,6 +102,11 @@ describe('habitFormFromDetail', () => {
       voice_aliases: ['book', 'reading'],
       milestone_amount: 300,
       milestone_label: 'book',
+      time_of_day: 'evening',
+      reminder_time: null,
+      frequency: 'days',
+      per_week: null,
+      ends_on: null,
       habit_levels: [
         { level: 'minimum', description: 'One page', target: 1 },
         { level: 'full', description: 'Twenty pages', target: 20 },
@@ -133,7 +140,10 @@ describe('helpers', () => {
     expect(toggleDay([1], 3)).toEqual([1, 3]);
   });
 
-  it('explains the habit limit', () => {
-    expect(habitLimitMessage(3, 3)).toBe("You're using 3 of 3 habits. 2 consistent weeks unlock 2 more.");
+  it('shows the habit tip after the 6th active habit, once', () => {
+    expect(shouldShowHabitTip(6)).toBe(false);
+    expect(shouldShowHabitTip(7)).toBe(true);
+    expect(shouldShowHabitTip(20, [HABIT_TIP])).toBe(false);
+    expect(HABIT_TIP_TEXT).toBe('Starting with a few makes them stick.');
   });
 });

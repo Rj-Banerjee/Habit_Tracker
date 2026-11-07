@@ -7,7 +7,6 @@ import {
   HabitFormField,
   HabitFormValues,
   HabitInput,
-  habitLimitMessage,
   hasErrors,
   Identity,
   IDENTITY_TOKENS,
@@ -51,7 +50,7 @@ export interface NewIdentity {
   whyText: string;
 }
 
-type Status = 'loading' | 'failed' | 'limit' | 'ready';
+type Status = 'loading' | 'failed' | 'ready';
 
 const firstFreeColour = (identities: Identity[]) =>
   IDENTITY_TOKENS.find((token) => !identities.some((i) => i.colour_token === token)) ??
@@ -103,7 +102,6 @@ interface HabitFormOptions {
 export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOptions) {
   const [status, setStatus] = useState<Status>('loading');
   const [attempt, setAttempt] = useState(0);
-  const [limitMessage, setLimitMessage] = useState('');
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [initial, setInitial] = useState(emptyHabitForm);
   const [values, setValues] = useState(emptyHabitForm);
@@ -115,17 +113,8 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
   const busy = useRef(false);
 
   useEffect(() => {
-    Promise.all([
-      tracker.listIdentities(),
-      habitId ? tracker.getHabit(habitId) : null,
-      habitId ? null : tracker.getHabitAllowance(),
-    ])
-      .then(([list, habit, allowance]) => {
-        if (allowance && !allowance.can_add) {
-          setLimitMessage(habitLimitMessage(allowance.allowed, allowance.active));
-          setStatus('limit');
-          return;
-        }
+    Promise.all([tracker.listIdentities(), habitId ? tracker.getHabit(habitId) : null])
+      .then(([list, habit]) => {
         const start = habit
           ? formFromHabit(habit)
           : { ...emptyHabitForm(list.length === 1 ? list[0].id : null), title: initialTitle };
@@ -203,7 +192,6 @@ export function useHabitForm({ habitId, initialTitle = '', onDone }: HabitFormOp
   return {
     status,
     retry,
-    limitMessage,
     isEditing: !!habitId,
     identities,
     values,

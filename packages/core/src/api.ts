@@ -8,6 +8,8 @@ export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
 export type LogStatus = 'done' | 'skipped' | 'repaired';
 export type LogSource = 'tap' | 'voice' | 'coach' | 'widget' | 'notification';
 export type StreakMode = 'strict' | 'grace';
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'anytime';
+export type HabitFrequency = 'days' | 'per_week';
 
 export interface LevelOption {
   level: HabitLevel;
@@ -59,12 +61,6 @@ export interface DayStatus {
   date: string;
   status: string;
   repair_on: string | null;
-}
-
-export interface HabitAllowance {
-  allowed: number;
-  active: number;
-  can_add: boolean;
 }
 
 export interface Identity {
@@ -139,6 +135,7 @@ export interface Profile {
   mode: StreakMode;
   onboarded_at: string | null;
   reminder_time: string | null;
+  seen_tips?: string[];
 }
 
 export interface Reflection {
@@ -159,6 +156,11 @@ export interface HabitDetail {
   voice_aliases: string[];
   milestone_amount: number | null;
   milestone_label: string | null;
+  time_of_day: TimeOfDay;
+  reminder_time: string | null;
+  frequency: HabitFrequency;
+  per_week: number | null;
+  ends_on: string | null;
   habit_levels: LevelOption[];
 }
 
@@ -175,6 +177,11 @@ export interface HabitInput {
   voiceAliases?: string[];
   milestoneAmount?: number | null;
   milestoneLabel?: string | null;
+  timeOfDay?: TimeOfDay;
+  reminderTime?: string | null;
+  frequency?: HabitFrequency;
+  perWeek?: number | null;
+  endsOn?: string | null;
 }
 
 export interface NewIdentityInput {
@@ -267,8 +274,6 @@ export function createTrackerApi(client: SupabaseClient) {
         p_elapsed_seconds: elapsedSeconds,
       }),
 
-    getHabitAllowance: async () => (await call<HabitAllowance[]>('get_habit_allowance'))[0],
-
     // A new identity saves with the habit, so a refused habit leaves nothing behind.
     createHabit: (input: HabitInput, newIdentity?: NewIdentityInput) =>
       call<string>('create_habit', {
@@ -285,6 +290,11 @@ export function createTrackerApi(client: SupabaseClient) {
         p_voice_aliases: input.voiceAliases ?? [],
         p_milestone_amount: input.milestoneAmount ?? null,
         p_milestone_label: input.milestoneLabel ?? null,
+        p_time_of_day: input.timeOfDay ?? 'anytime',
+        p_reminder_time: input.reminderTime ?? null,
+        p_frequency: input.frequency ?? 'days',
+        p_per_week: input.frequency === 'per_week' ? (input.perWeek ?? null) : null,
+        p_ends_on: input.endsOn ?? null,
       }),
 
     // Changes apply from today, never to past days. A moved habit keeps its logs.
@@ -303,6 +313,11 @@ export function createTrackerApi(client: SupabaseClient) {
           milestone_label: changes.milestoneLabel,
           levels: changes.levels,
           identity_id: changes.identityId,
+          time_of_day: changes.timeOfDay,
+          reminder_time: changes.reminderTime,
+          frequency: changes.frequency,
+          per_week: changes.perWeek,
+          ends_on: changes.endsOn,
           new_identity: changes.newIdentity && toNewIdentity(changes.newIdentity),
         },
       }),
@@ -314,7 +329,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, habit_levels(level, description, target)'
+            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, time_of_day, reminder_time, frequency, per_week, ends_on, habit_levels(level, description, target)'
           )
           .eq('id', habitId)
           .single()
@@ -392,8 +407,20 @@ export function createTrackerApi(client: SupabaseClient) {
 
     getProfile: () =>
       select<Profile>(
-        client.from('users').select('timezone, mode, onboarded_at, reminder_time').single()
+        client.from('users').select('timezone, mode, onboarded_at, reminder_time, seen_tips').single()
       ),
+
+    countActiveHabits: async () => {
+      const { count, error } = await client
+        .from('habits')
+        .select('id', { count: 'exact', head: true })
+        .is('archived_at', null);
+      if (error) throw new Error(friendly(error.message));
+      return count ?? 0;
+    },
+
+    // One-time tips and celebrations, kept on the server so each shows once everywhere.
+    markTipSeen: (tip: string) => call('mark_tip_seen', { p_tip: tip }),
 
     setReminderTime: (userId: string, time: string | null) =>
       select(client.from('users').update({ reminder_time: time }).eq('id', userId)),

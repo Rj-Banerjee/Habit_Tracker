@@ -1,7 +1,5 @@
 import { emptyHabitForm, HabitFormValues, validateHabitForm } from './habitForm';
 
-export const MAX_ONBOARDING_HABITS = 3;
-
 export const IDENTITY_SUGGESTIONS = [
   { name: 'The Reader', example: 'Read', minimum: 'One page' },
   { name: 'The Athlete', example: 'Go for a run', minimum: 'Put on my shoes and walk for 5 minutes' },

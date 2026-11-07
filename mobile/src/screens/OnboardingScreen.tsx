@@ -5,7 +5,6 @@ import {
   FIELD_LIMITS,
   IDENTITY_SUGGESTIONS,
   layout,
-  MAX_ONBOARDING_HABITS,
   onboardingHabitErrors,
   radius,
   space,
@@ -93,7 +92,7 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
             <>
               <View style={styles.heading}>
                 <Text variant="title" accessibilityRole="header">
-                  Start with up to {MAX_ONBOARDING_HABITS} habits
+                  Your first habits
                 </Text>
                 <Text muted>
                   Give each one a minimum version: the smallest thing that still counts on a hard
@@ -138,9 +137,7 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
                   </View>
                 );
               })}
-              {flow.habits.length < MAX_ONBOARDING_HABITS ? (
-                <Button label="Add another habit" quiet onPress={flow.addHabit} />
-              ) : null}
+              <Button label="Add another habit" quiet onPress={flow.addHabit} />
               <FormMessage message={flow.problem ?? undefined} />
               <Button label="Next" disabled={flow.saving} onPress={() => void flow.saveHabits()} />
               <Button label="Back" quiet disabled={flow.saving} onPress={flow.back} />

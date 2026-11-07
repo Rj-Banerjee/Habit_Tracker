@@ -9,6 +9,7 @@ import {
   eveningNote,
   greeting,
   groupByIdentity,
+  HABIT_TIP_TEXT,
   HabitLevel,
   isLogged,
   lockedMessage,
@@ -39,11 +40,12 @@ import { offlineTracker } from '../services/logQueue';
 import { CoachCard } from '../coach/CoachCard';
 import { CoachDrawer } from '../coach/CoachDrawer';
 import { MissReview } from '../coach/MissReview';
-import { RuleCard } from '../components/RuleCard';
+import { RuleCard, TipCard } from '../components/RuleCard';
 import { useActions } from '../hooks/useActions';
 import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
 import { useEntitlements } from '../hooks/useEntitlements';
+import { useHabitTip } from '../hooks/useHabitTip';
 import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
 import { useRuleCard } from '../hooks/useRuleCard';
@@ -79,6 +81,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const coachLocked = can('ai.coach') ? undefined : lockedMessage('ai.coach');
   useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
+  const habitTip = useHabitTip(rows);
   const { chains, ready: chainsReady } = useChains(rows);
   const moments = useMoments(chains, chainsReady && !loading);
   const motionSettings = useMotionSettings();
@@ -302,6 +305,8 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         ) : null}
 
         {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
+
+        {habitTip.show ? <TipCard text={HABIT_TIP_TEXT} onDismiss={habitTip.dismiss} /> : null}
 
         {message ? (
           <Text variant="small" muted accessibilityLiveRegion="polite">

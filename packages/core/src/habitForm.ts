@@ -179,6 +179,10 @@ export function toggleDay(days: number[], day: number): number[] {
   return days.includes(day) ? days.filter((d) => d !== day) : [...days, day];
 }
 
-export function habitLimitMessage(allowed: number, active: number): string {
-  return `You're using ${active} of ${allowed} habits. 2 consistent weeks unlock 2 more.`;
-}
+// There's no limit on habits. Past this many, one gentle tip, shown once.
+export const HABIT_TIP_AFTER = 6;
+export const HABIT_TIP = 'habit-tip';
+export const HABIT_TIP_TEXT = 'Starting with a few makes them stick.';
+
+export const shouldShowHabitTip = (activeHabits: number, seenTips: readonly string[] = []) =>
+  activeHabits > HABIT_TIP_AFTER && !seenTips.includes(HABIT_TIP);

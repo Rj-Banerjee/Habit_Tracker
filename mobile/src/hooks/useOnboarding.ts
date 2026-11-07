@@ -4,7 +4,6 @@ import {
   filledHabits,
   hasErrors,
   IDENTITY_SUGGESTIONS,
-  MAX_ONBOARDING_HABITS,
   onboardingHabitErrors,
   onboardingHabitForm,
   OnboardingHabit,
@@ -64,10 +63,7 @@ export function useOnboarding(userId: string, onDone: () => void) {
       current.map((habit, at) => (at === index ? { ...habit, ...patch } : habit))
     );
 
-  const addHabit = () =>
-    setHabits((current) =>
-      current.length < MAX_ONBOARDING_HABITS ? [...current, blankOnboardingHabit()] : current
-    );
+  const addHabit = () => setHabits((current) => [...current, blankOnboardingHabit()]);
 
   const removeHabit = (index: number) =>
     setHabits((current) => current.filter((_, at) => at !== index));
