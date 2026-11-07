@@ -1,8 +1,11 @@
-"""Fills the one account in AI_TEST_USER_IDS with 60 days of made-up history, so Progress
-has something to show. Safe to re-run: it replaces that account's logs and nothing else.
+"""Fills the one account in AI_TEST_USER_IDS with 120 days of made-up history, so Progress
+and Analytics have something to show. Safe to re-run: it replaces that account's logs and
+nothing else.
 
 It replays each day through the real logging rules with a backdated clock, so repairs
-and protected days are genuine. Run from backend/:
+and protected days are genuine. The history has patterns for analytics to find: good
+and bad weeks, Wednesdays that slip, and one amount habit whose target is too high (it
+mostly reaches its minimum, and sometimes falls short). Run from backend/:
 
     .venv/bin/python scripts/seed_test_history.py
 """
@@ -18,7 +21,11 @@ from psycopg.rows import dict_row
 sys.path.insert(0, ".")
 from app.config import Settings  # noqa: E402
 
-DAYS = 60
+DAYS = 120
+# Wednesday slips more than other days.
+WEAK_WEEKDAY = 3
+SOURCES = ["tap"] * 6 + ["notification"] * 2 + ["widget"] + ["voice"] * 2
+SKIP_REASONS = ["Busy day", "Feeling unwell", "Travelling", "Rest day"]
 SEED = "habit-tracker-test-history"
 
 
@@ -109,7 +116,7 @@ def clear(conn, user_id, start) -> None:
 def load_habits(conn, user_id) -> list[dict]:
     return conn.execute(
         """
-        select h.id, h.title, h.type, h.target,
+        select h.id, h.title, h.type, h.target, h.unit, h.frequency, h.per_week, h.ends_on,
           (select target from public.habit_levels l
            where l.habit_id = h.id and l.level = 'minimum') as minimum
         from public.habits h
@@ -145,30 +152,70 @@ def attempt(conn, sql: str, values: tuple) -> bool:
         return False
 
 
+def week_shift(date) -> float:
+    """Some weeks go well and some don't: a good week makes a miss less likely."""
+    monday = date.toordinal() - date.isoweekday() + 1
+    kind = random.Random(f"{SEED}week{monday}").random()
+    if kind < 0.25:
+        return -0.12
+    if kind > 0.8:
+        return 0.25
+    return 0.0
+
+
+def stretched_habit(habits) -> dict | None:
+    """The first amount habit, whose target is set too high for it."""
+    return next(
+        (h for h in habits if h["type"] in ("count", "duration") and h["frequency"] == "days"),
+        None,
+    )
+
+
+def log_weekly(conn, user_id, habit, date, now, tally) -> None:
+    """A times-per-week habit: some days have a session, about as often as the quota asks."""
+    if habit["ends_on"] is not None and date > habit["ends_on"]:
+        return
+    roll = random.Random(f"{SEED}{habit['title']}{date}").random() + week_shift(date)
+    if roll < (habit["per_week"] or 1) / 7 * 1.1:
+        source = random.Random(f"{SEED}source{habit['title']}{date}").choice(SOURCES)
+        conn.execute(
+            "select tracker.log_habit(%s, %s, %s, 'full', %s, %s, %s)",
+            (user_id, habit["id"], date, habit["target"], source, now),
+        )
+        tally["done"] += 1
+
+
 def replay(conn, user_id, habits, dates) -> dict[str, int]:
-    tally = {"done": 0, "minimum": 0, "skipped": 0, "missed": 0, "repaired": 0}
+    tally = {"done": 0, "minimum": 0, "partial": 0, "skipped": 0, "missed": 0, "repaired": 0}
     missed_last = {habit["id"]: False for habit in habits}
+    stretched = stretched_habit(habits)
 
     for date in dates:
         for habit in habits:
             now = usual_time(conn, user_id, date, habit)
+            if habit["frequency"] == "per_week":
+                log_weekly(conn, user_id, habit, date, now, tally)
+                continue
             scheduled = conn.execute(
                 "select tracker.is_scheduled(%s, %s) as yes", (habit["id"], date)
             ).fetchone()
             if not scheduled["yes"]:
                 continue
 
-            roll = random.Random(f"{SEED}{habit['title']}{date}").random()
+            roll = random.Random(f"{SEED}{habit['title']}{date}").random() + week_shift(date)
+            if date.isoweekday() == WEAK_WEEKDAY:
+                roll += 0.35
             weekend = date.isoweekday() >= 6
             target = habit["target"]
             has_target = habit["type"] in ("count", "duration")
+            source = random.Random(f"{SEED}source{habit['title']}{date}").choice(SOURCES)
 
             if missed_last[habit["id"]] and roll < 0.6:
                 amount = math.ceil(float(target) * 1.5) if has_target else None
                 repaired = attempt(
                     conn,
-                    "select tracker.repair_habit(%s, %s, %s, %s, %s, 'tap', %s)",
-                    (user_id, habit["id"], date, amount, not has_target, now),
+                    "select tracker.repair_habit(%s, %s, %s, %s, %s, %s, %s)",
+                    (user_id, habit["id"], date, amount, not has_target, source, now),
                 )
                 if repaired:
                     tally["repaired"] += 1
@@ -176,27 +223,44 @@ def replay(conn, user_id, habits, dates) -> dict[str, int]:
                     continue
 
             missed_last[habit["id"]] = False
-            if roll < (0.62 if weekend else 0.72):
+            if stretched is not None and habit["id"] == stretched["id"] and roll < 0.91:
+                # Mostly the minimum or a bit more, now and then short of it, rarely the target.
+                minimum = float(habit["minimum"] or 1)
+                share = random.Random(f"{SEED}share{date}").random()
+                if share < 0.1:
+                    amount = float(target)
+                elif share < 0.3:
+                    amount = max(minimum / 2, 1)
+                else:
+                    amount = minimum + (float(target) - minimum) * share / 3
+                result = conn.execute(
+                    "select tracker.add_amount(%s, %s, %s, %s, %s, %s, %s) as r",
+                    (user_id, habit["id"], date, round(amount), habit["unit"], source, now),
+                ).fetchone()["r"]
+                tally["partial" if result["status"] == "partial" else "done"] += 1
+            elif roll < (0.62 if weekend else 0.72):
                 conn.execute(
-                    "select tracker.log_habit(%s, %s, %s, 'full', %s, 'tap', %s)",
-                    (user_id, habit["id"], date, target if has_target else None, now),
+                    "select tracker.log_habit(%s, %s, %s, 'full', %s, %s, %s)",
+                    (user_id, habit["id"], date, target if has_target else None, source, now),
                 )
                 tally["done"] += 1
             elif roll < 0.86:
                 conn.execute(
-                    "select tracker.log_habit(%s, %s, %s, 'minimum', %s, 'tap', %s)",
-                    (user_id, habit["id"], date, habit["minimum"] if has_target else None, now),
+                    "select tracker.log_habit(%s, %s, %s, 'minimum', %s, %s, %s)",
+                    (user_id, habit["id"], date, habit["minimum"] if has_target else None, source, now),
                 )
                 tally["minimum"] += 1
             elif roll < 0.91:
+                reason = random.Random(f"{SEED}reason{habit['title']}{date}").choice(SKIP_REASONS)
                 conn.execute(
-                    "select tracker.skip_habit(%s, %s, %s, 'Busy day', 'tap', %s)",
-                    (user_id, habit["id"], date, now),
+                    "select tracker.skip_habit(%s, %s, %s, %s, %s, %s)",
+                    (user_id, habit["id"], date, reason, source, now),
                 )
                 tally["skipped"] += 1
             else:
                 tally["missed"] += 1
-                missed_last[habit["id"]] = True
+                # A slipped Wednesday isn't made up, so the weak day shows.
+                missed_last[habit["id"]] = date.isoweekday() != WEAK_WEEKDAY
     return tally
 
 
@@ -234,6 +298,9 @@ def main() -> None:
         ).fetchone()["n"]
 
     print(f"{len(habits)} habits, {DAYS} days:", tally, "protected:", protected)
+    stretched = stretched_habit(habits)
+    if stretched is not None:
+        print(f"Target set too high: {stretched['title']}")
 
 
 main()

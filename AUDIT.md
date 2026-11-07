@@ -1585,3 +1585,26 @@ Asked for by the user: no "Move to…" options in the long-press sheet. Instead,
   - The dry run listed only this migration, and the push applied it.
   - 3 checks passed with temporary users, who were then deleted: an evening section kept the order it was given, another user couldn't reorder it, and the publishable key alone couldn't either.
 - **Tests:** SQL 438, core 1340 (the drag math), mobile 920 (the drag board's springs and landing, no "Move to", empty sections). The gesture itself needs a real finger, so it's on the phone checklist.
+
+### Analytics, part 1: the data and the metrics (8 Nov 2026)
+
+The first part of the analytics section the user asked for: the numbers, with tests, before any screen. The design went into PLAN.md ("Analytics") first.
+
+- **In the database** (`20261108000200_analytics.sql`):
+  - `get_analytics(from, to)` returns every habit's days and weeks over a range, with streaks over the whole history and the Grace Days spent.
+  - The result is cached (`tracker.analytics_cache`), keyed by a fingerprint of everything it depends on, including the date, so days that close are seen. Entries older than 2 days are cleared. Ranges over about two years are refused.
+  - Times-per-week habits are judged by the week, all weeks at once. A test checks every fixture week against `week_status`, its quota and its sessions, and the streaks against `streak_stats` and `week_streak_stats`.
+- **Faster Grace Days** (`20261108000150_faster_settle.sql`):
+  - Building the first analytics for a year of 20 habits took 75 s, mostly in `settle`, which recounted each habit's history on every day.
+  - `tracker.day_facts` now works out every habit's raw status over a range in one query, and `settle` walks the days once, keeping its counts. The rules are unchanged: a test checks `day_facts` against `day_status` on every fixture day, and every earlier Grace Day test still passes.
+  - **Now:** a year of 20 habits loads cold in 0.83 s on the local database (Grace Days 0.58 s, analytics 0.21 s), and 9 ms from the cache. The target was under 1 s.
+- **In core** (`packages/core/src/metrics.ts`): consistency (full and minimum rates, strength, streaks, repairs, Grace Days, recovery speed, skips and reasons), volume (totals, averages, target hit rate, personal bests, milestones), timing (by hour and weekday, log sources, reminder to completion), headline cards and the previous-period comparison, ranking, the weekly bars and helpful habit pairs.
+  - Habit strength is `s = s·k + v·(1−k)`, as PLAN.md documents. Weekly habits count in weeks. Partial days are shown but never counted. Repaired and protected stay apart.
+- **Test history** (`backend/scripts/seed_test_history.py`): now 120 days, still +test accounts only. It has good and bad weeks, Wednesdays that slip and aren't made up, one amount habit whose target is too high (it mostly reaches its minimum, rarely the target, and is sometimes short), times-per-week sessions, varied skip reasons and log sources.
+  - A local run on a throwaway +test account: Wednesday was the weakest day for both daily habits (41% and 71%); the stretched Read reached its target 13 times in 120 days.
+- **Live:**
+  - The dry run listed only these two migrations, and the push applied them.
+  - 8 checks passed with two temporary users, who were then deleted: a log was written; analytics read it back; the second read came from the cache; the other user's analytics had none of it, nor could they read the logs; the publishable key alone got neither; a too-long range was refused.
+  - `rls_auto_enable` and the `ensure_rls` trigger are still there. The cache table is private like the other tracker tables: not exposed, no grants.
+  - Each call took about 1 s from here (live is in eu-west-1), cached or not, so most of that time is the round trip.
+- **Tests:** SQL 454, core 1368 (28 for the metrics), mobile 920, frontend 28, backend 216. There's no screen yet, so nothing changes on the phone.

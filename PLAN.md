@@ -24,7 +24,7 @@ The launch release (v1) is the core tracker, the AI coach and voice logging. Eve
 | --- | --- | --- | --- |
 | Tracking | Today screen grouped by time of day; identities; yes/no, count, duration and quit habits; specific days or times per week; ending a habit; tap / long-press / swipe logging; amounts that add up through the day; Shrink It ladder (full, minimum, setup-only); evening back-log; built-in habit library and a four-field habit form | Monthly goals; archetype routine templates; CSV import | — |
 | Streaks | Fractured chain view; Grace Day bank; 24-hour back-log; 1.5x Streak Repair | — | — |
-| Progress | Identity score; yearly heatmap; streak history; Compound Forecaster; top habits; desktop 31-day grid | Exportable reports | — |
+| Progress | Analytics: Overview with ranges and comparisons, habit detail, habit strength, timing and volume stats, weekly report, AI insights with one-tap actions (Pro); identity score; yearly heatmap; streak history; Compound Forecaster; desktop 31-day grid | Exportable reports | — |
 | AI coach | Coach cards on Today; coach chat; miss review; preemptive nudges; peak hours from completion times; Sunday Review; Future-Self letter; "Why" card | Next-physical-action mode; worst-case prompts | — |
 | Voice | Siri via App Intents; in-app voice (hold-to-talk + wake word while open); Android voice tile and widget | Gemini on Android via AppFunctions; Apple Watch | Opt-in always-listening wake word on Android |
 | Reminders | A reminder per habit at its own time, plus at most one preemptive nudge a day, actionable from the lock screen; home and lock-screen widgets | — | — |
@@ -267,6 +267,64 @@ Every suggestion follows the name as it changes, until the user edits that field
 - **Where suggestions come from:** the built-in library first. Pro asks the fast model only for habits the library doesn't know, after 3 or more characters and a pause of about 600 ms, with results cached. Suggestions appear in under 1.5 seconds. Free never calls a model.
 - **Saving always works**, even when the AI is slow, down or unavailable: it falls back to the library and simple parsing, and the user can fill in the target.
 - **Safe suggestions:** no extreme targets or frequencies; intense exercise keeps rest days. For clearly risky goals (very long fasts, extreme daily distances), it suggests a gentler start and says so calmly.
+
+## Analytics
+
+A detailed view of how each habit is going, in the spirit of YouTube Studio, kept calm: misses are hollow, never red, and every number explains itself.
+
+### What is measured
+
+Per habit and overall, for any date range, from `habit_logs`, `activity_events` and the dated settings (targets, schedules, times per week). Times-per-week habits are measured in weeks. A day below the minimum (`partial`) is shown but never counted as done. Repaired and protected days stay distinct everywhere.
+
+- **Consistency:** completion rate (full and minimum separately), habit strength, current and best streak, repairs and Grace Days used, the full-vs-minimum ratio, recovery speed (average scheduled days from a miss to the next completion), skip count and the top skip reasons.
+- **Volume** (count and duration habits): total amount, daily and weekly average, target hit rate (days at or above the full target), personal bests (best day, best week, longest run), milestones and the Compound Forecaster.
+- **Timing:** completions by hour of day (same-day logs only, as for peak hours), completion rate by weekday, where logs came from (tap, voice, widget, notification, coach), and time from reminder to completion.
+- **Comparisons:** this period against the one before it, habits ranked by strength and completion rate, identity scores, and habit pairs that tend to happen together. A pair is reported only with at least 20 days when both were due, and a phi correlation of 0.4 or more, so it never reports noise.
+
+**Habit strength (0–100):** a forgiving exponential score, like Loop Habit Tracker's. It moves a little with every judged period and never resets to zero:
+
+    strength = strength × k + value × (1 − k)        (starts at 0)
+
+- Periods are scheduled days, or weeks for a times-per-week habit.
+- value is 1 for full or repaired, 0.8 for minimum or setup, and 0 for a miss or a day below the minimum. Skipped, protected and pending periods leave it unchanged.
+- k = 0.5^(1/13) for days, so a run of misses halves the score in 13 scheduled days; k = 0.5^(1/4) for weeks, so it halves in 4 weeks.
+- It's shown as a whole number, multiplied by 100.
+
+### Where it's computed
+
+The heavy part runs in the database: each habit's status on every day and week of the range, worked out from logs, Grace Days, repairs and the dated settings, along with each day's amount, minimum, target, source, logged hour and skip reason. It's one SQL function, cached per person and range, and refreshed when anything changes (the cache key includes the latest `activity_events` time and the date, since days close as time passes). A year of data for 20 habits loads in under a second.
+
+The metrics are sums and averages over those days, computed in `packages/core` (`metrics.ts`), so each one is unit-tested and the phone, the web and the AI service's insights all use the same numbers.
+
+### Screens
+
+Mobile first, with wide layouts for the future desktop app:
+
+1. **Overview (the Progress tab):**
+   - A range picker (7 days, 30 days, 90 days, 1 year, all time) with "Compare to previous period".
+   - Four headline cards, each with a trend arrow against the previous period: completion rate, average habit strength, total done, best active streak.
+   - Daily bars grouped by week: each bar is stacked full and minimum and coloured by identity, with a donut under each week showing that week's completion.
+   - A habit ranking, then the insight cards.
+2. **Habit detail** (tap a habit anywhere):
+   - All the metrics above for that habit.
+   - A habit strength line, the daily-by-week bars, a year heatmap (repaired, minimum, protected and hollow days distinct), and a weekday × hour heatmap.
+   - The streak timeline with the chain marks, volume and personal bests, and skip reasons.
+   - That habit's insights.
+3. **Weekly report:** generated each Sunday and shown in the Sunday Review card: the week's completion, strongest and weakest habit, best day, and the change from last week.
+
+Every chart can be tapped or hovered for the exact value and date, has a screen-reader label, and has an empty state that teaches ("Log a few days to see your best time"). Charts are drawn with react-native-svg, which already draws the chains and heatmap on the phone and the web. Colours come from theme tokens, so themes restyle them.
+
+### Insights (Pro)
+
+2–3 insights per view (overall and per habit), generated in the nightly job from the computed metrics and cached, so opening analytics never waits on the AI. Each states the number behind it ("You complete Read 40% of Thursdays vs 85% overall"). Free sees every chart and metric, with a calm "Insights are available on Pro" card in their place, and the server refuses insights without the entitlement.
+
+- **Kinds:** weak weekday, wrong time of day, target too high (mostly minimum), getting stronger (a celebration), declining trend (a gentle check-in), helpful habit pairs, a reminder that isn't working.
+- **One action each**, done in one tap after a confirmation: move the time of day, change the target, switch to times per week, add a reminder, or use the minimum on a given weekday.
+  - Actions are recorded in `activity_events` with actor `ai_assisted`.
+  - The insight then offers Undo.
+  - A dismissed insight isn't shown again for 30 days.
+- **Coach chat** can answer questions about the person's own analytics ("Why did my reading drop this month?") from the same metrics.
+- **Tone:** calm, specific, never shaming.
 
 ## Voice assistant
 

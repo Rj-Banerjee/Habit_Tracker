@@ -6,6 +6,7 @@ export * from './coachCard';
 export * from './entitlements';
 export * from './focus';
 export * from './live';
+export * from './metrics';
 export * from './notificationActions';
 export * from './ruleCards';
 export * from './offline';
