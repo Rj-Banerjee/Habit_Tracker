@@ -1701,3 +1701,24 @@ Two features the user asked to plan, written into PLAN.md:
   - The job was run by hand against live from the Mac, with a one-off secret: 7 insights for the +test account (weak Wednesdays for Read and Morning run, Read's 30-page target, Run done in the morning but set for the evening) and 3 accounts cleared.
 - **Docker** was started only for the SQL tests and the push, then closed.
 - **Tests:** SQL 491, core 1397 (action wording, the shared fixture), mobile 974 (the cards: confirm, cancel, Undo, Not useful, errors, empty, the Free card; the edit form's lighter days; the screens), frontend 28, backend 240 (every rule, an even pattern and too little history finding nothing, wording checks, the job on Pro and Free, running twice, a failed run, the coach's numbers).
+
+### Habit connections, part 1: the daily check-in (8 Nov 2026)
+
+- **The card on Today** (every plan, optional): energy 1–5, hours slept (a stepper by halves, starting at 7) and mood 1–5, then Save, or "Skip for today". It says "Only you can see this."
+  - It shows once a day at most: on the morning setting all day until answered, on the evening setting from 5pm, never when set to Never.
+  - A voice "slept 6 hours" leaves it open for energy and mood.
+  - After 3 skipped days in a row it asks once: "Turn off the daily check-in?", with Keep it or Turn off.
+- **By voice:** "slept 6 hours, energy low", "6 ghante soya, energy kam", "mood great" or "feeling tired" are saved on the phone, on every plan, with no AI. The reply is, for example, "Check-in saved: 6 hours of sleep, energy low." A habit called Sleep keeps "slept 8 hours"; energy and mood always go to the check-in.
+- **You screen:** "Daily check-in: Morning / Evening / Never". Its off option is "Never", because the nudge setting above already has an "Off". "Delete my check-ins" asks first.
+- **Private:**
+  - `checkins` is readable only by its owner, and written only through `save_checkin`.
+  - Each save is recorded as `checkin.daily` (AI-assisted when by voice).
+  - Deleting check-ins removes those events too. That's the activity log's only exception to append-only: allowed just for that person's check-in events, inside `delete_checkins`. A test shows every other event still can't be deleted.
+- **Room for wearables:** the same fields, with source `wearable`.
+- **Migration** `20261108000500_checkins.sql`.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 14 checks passed with two temporary users, who were then deleted: saving and adding to the same day; the card's state; reading their own; another user can't read or write theirs; the publishable key can do neither; skipping; moving to the evening; deleting check-ins and their events while the rest of the log stays.
+  - `rls_auto_enable` and `ensure_rls` are still there; `checkins` has RLS on.
+- **Docker** was on only for the SQL tests and the push.
+- **Tests:** SQL 517, core 1416 (when the card shows; 13 spoken phrases including Hinglish; non-check-in phrases; the replies), mobile 990 (the card: taps, Save, skip, the evening setting, the offer, failing quietly; voice: saving and a Sleep habit; the You setting and delete), frontend 28, backend 240.

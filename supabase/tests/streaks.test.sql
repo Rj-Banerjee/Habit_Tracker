@@ -1816,5 +1816,92 @@ select is(
   'and everyone with a habit is considered'
 );
 
+
+-- ---------------------------------------------------------------------------
+-- The daily check-in
+-- ---------------------------------------------------------------------------
+select t.make_user(180, 'Asia/Kolkata');
+select t.make_user(181);
+select is(
+  ((tracker.save_checkin(t.u(180), null, null, 6, null, 'voice', '2026-11-08 08:00+05:30')).sleep_hours),
+  6.0::numeric, 'a check-in saves just what was given'
+);
+select tracker.save_checkin(t.u(180), null, 2::smallint, null, null, 'voice', '2026-11-08 08:01+05:30');
+select is(
+  (select (energy, sleep_hours, mood)::text from public.checkins where user_id = t.u(180) and date = '2026-11-08'),
+  '(2,6.0,)', 'and a second part joins the same day'
+);
+select is(
+  (select count(*)::int from public.activity_events where user_id = t.u(180) and kind = 'checkin.daily'), 2,
+  'each is recorded as checkin.daily'
+);
+select is(
+  (select actor::text from public.activity_events where user_id = t.u(180) and kind = 'checkin.daily' limit 1),
+  'ai_assisted', 'by voice, as AI-assisted'
+);
+select is(
+  ((tracker.save_checkin(t.u(180), null, null, 7.3, null, 'tap', '2026-11-08 09:00+05:30')).sleep_hours),
+  7.5::numeric, 'sleep is kept to the half hour'
+);
+select throws_like($$ select tracker.save_checkin(t.u(180), null, 6::smallint, null, null, 'tap', now()) $$,
+  '%1 to 5%', 'energy goes from 1 to 5');
+select throws_like($$ select tracker.save_checkin(t.u(180), null, null, 20, null, 'tap', now()) $$,
+  '%0 and 16%', 'sleep stays sensible');
+select throws_like($$ select tracker.save_checkin(t.u(180), '2026-11-01', 3::smallint, null, null, 'tap', '2026-11-08 09:00+05:30') $$,
+  '%today or yesterday%', 'only today or yesterday');
+select throws_like($$ select tracker.save_checkin(t.u(180), null, null, null, null, 'tap', now()) $$,
+  '%Nothing to save%', 'an empty check-in saves nothing');
+select lives_ok($$ select tracker.save_checkin(t.u(180), '2026-11-07', 3::smallint, null, null, 'tap', '2026-11-08 09:00+05:30') $$,
+  'a late one for yesterday is fine');
+
+select is(
+  (tracker.checkin_state(t.u(180), '2026-11-08 09:30+05:30') -> 'checkin' ->> 'energy'), '2',
+  'the card knows today is done'
+);
+select is((tracker.checkin_state(t.u(180), '2026-11-08 09:30+05:30') ->> 'hour'), '9', 'and the local hour');
+
+-- Three skipped days in a row ask, once, about turning it off.
+select tracker.skip_checkin(t.u(181), '2026-11-05 09:00+00');
+select tracker.skip_checkin(t.u(181), '2026-11-06 09:00+00');
+select tracker.skip_checkin(t.u(181), '2026-11-06 18:00+00');
+select is((tracker.checkin_state(t.u(181), '2026-11-06 19:00+00') ->> 'ask_to_turn_off'), 'false',
+  'two days skipped is not yet three, however many taps');
+select is((tracker.checkin_state(t.u(181), '2026-11-06 19:00+00') ->> 'skipped_today'), 'true', 'a skip hides it for the day');
+select tracker.skip_checkin(t.u(181), '2026-11-07 09:00+00');
+select is((tracker.checkin_state(t.u(181), '2026-11-07 10:00+00') ->> 'ask_to_turn_off'), 'true', 'the third asks');
+select tracker.skip_checkin(t.u(181), '2026-11-09 09:00+00');
+select is((select checkin_skips from public.users where id = t.u(181)), 1::smallint, 'a gap starts the count again');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(181), 'role', 'authenticated')::text, true);
+update public.users set checkin_skips = 3 where id = t.u(181);
+select public.answer_checkin_offer(false);
+select is((select (checkin_time, checkin_offer_answered)::text from public.users where id = t.u(181)), '(off,t)',
+  '"Turn off" turns it off, and is not asked again');
+select public.set_checkin_time('evening');
+select is((select checkin_time::text from public.users where id = t.u(181)), 'evening', 'the time can be changed');
+set local role authenticated;
+select is((select count(*)::int from public.checkins), 0, 'one person cannot read another''s check-ins');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', t.u(180), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select is((select count(*)::int from public.checkins), 2, 'but reads their own');
+select throws_like($$ insert into public.checkins (user_id, date, energy) values (t.u(180), '2026-11-09', 3) $$,
+  '%permission denied%', 'and only writes through save_checkin');
+reset role;
+select is(public.delete_checkins(), 2, 'they can delete them all');
+select is(
+  (select count(*)::int from public.activity_events where user_id = t.u(180) and kind = 'checkin.daily'), 0,
+  'with their events'
+);
+select throws_like($$ delete from public.activity_events where user_id = t.u(171) $$,
+  '%append-only%', 'every other event stays append-only');
+select throws_like(
+  $$ select set_config('tracker.deleting_checkins', t.u(170)::text, true);
+     delete from public.activity_events where user_id = t.u(170) and kind <> 'checkin.daily' $$,
+  '%append-only%', 'even with the setting, only check-in events can go'
+);
+select set_config('request.jwt.claims', '', true);
+select is(has_table_privilege('anon', 'public.checkins', 'select'), false, 'the publishable key alone reads none');
+
 select * from finish();
 rollback;

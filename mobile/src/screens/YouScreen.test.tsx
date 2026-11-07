@@ -30,6 +30,9 @@ jest.mock('../services/tracker', () => ({
     ),
     updateIdentityWhy: jest.fn(() => Promise.resolve()),
     getToday: jest.fn(() => Promise.resolve([])),
+    getCheckinState: jest.fn(() => Promise.resolve({ time: 'morning' })),
+    setCheckinTime: jest.fn(() => Promise.resolve()),
+    deleteCheckins: jest.fn(() => Promise.resolve(12)),
   },
 }));
 jest.mock('../services/reminders', () => ({
@@ -67,6 +70,25 @@ describe('YouScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     signOut.mockResolvedValue({ error: null });
+  });
+
+  it('sets when the daily check-in shows', async () => {
+    await open();
+    expect(screen.getByRole('button', { name: 'Morning', selected: true })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Evening' }));
+    expect(tracker.setCheckinTime).toHaveBeenCalledWith('evening');
+    await fireEvent.press(screen.getByRole('button', { name: 'Never' }));
+    expect(tracker.setCheckinTime).toHaveBeenLastCalledWith('off');
+  });
+
+  it('deletes every check-in, after asking', async () => {
+    await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete my check-ins' }));
+    expect(tracker.deleteCheckins).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Delete' }));
+    await act(async () => {});
+    expect(tracker.deleteCheckins).toHaveBeenCalled();
+    expect(screen.getByText('12 check-ins deleted.')).toBeTruthy();
   });
 
   it('shows the signed-in email', async () => {

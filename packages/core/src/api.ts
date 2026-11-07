@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
 import type { ReminderHabit } from './habitReminders';
+import type { CheckinAnswer, CheckinState, CheckinTime } from './checkin';
 import type { Insight } from './insights';
 import type { AnalyticsData } from './metrics';
 import { IdentityToken } from './tokens';
@@ -516,6 +517,21 @@ export function createTrackerApi(client: SupabaseClient) {
     undoInsight: (id: string) => call('undo_insight', { p_insight_id: id }),
     // Not shown again for 30 days.
     dismissInsight: (id: string) => call('dismiss_insight', { p_insight_id: id }),
+
+    // The daily check-in. Private to its owner.
+    getCheckinState: () => call<CheckinState>('get_checkin_state'),
+    saveCheckin: (answer: CheckinAnswer, source: 'tap' | 'voice' = 'tap') =>
+      call('save_checkin', {
+        p_energy: answer.energy ?? null,
+        p_sleep: answer.sleep ?? null,
+        p_mood: answer.mood ?? null,
+        p_source: source,
+      }),
+    skipCheckin: () => call('skip_checkin'),
+    setCheckinTime: (time: CheckinTime) => call('set_checkin_time', { p_time: time }),
+    // After 3 skipped days in a row: keep it, or turn it off. Asked once.
+    answerCheckinOffer: (keep: boolean) => call('answer_checkin_offer', { p_keep: keep }),
+    deleteCheckins: () => call<number>('delete_checkins'),
 
     // Weekdays (1 is Monday) when the minimum is the habit's goal. Dated.
     setLightDays: (habitId: string, days: number[]) =>

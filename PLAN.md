@@ -355,7 +355,8 @@ Pro (the daily check-in is on every plan). Built after Analytics. It finds how h
 ### Daily check-in (all plans, optional)
 
 - **The card:** a one-tap card on Today, in the morning or the evening (the person chooses), with energy 1–5, hours slept (a stepper) and mood 1–5. Under 5 seconds. Skippable, shown at most once a day, and never nags: dismissing it on 3 days in a row asks once whether to turn it off.
-- **By voice:** "slept 6 hours, energy low" fills it in. Low, okay and high map to 2, 3 and 4.
+- **By voice:** "slept 6 hours, energy low" fills it in, on the phone and on every plan. Low, okay and high map to 2, 3 and 4; words like "great" and "exhausted" are 5 and 1. A phrase about sleep alone goes to a habit called Sleep if there is one; energy and mood always mean the check-in.
+- **Setting:** in You, the check-in shows in the morning (all day until answered), the evening (from 5pm), or never. "Delete my check-ins" removes them all, with their `checkin.daily` events: the one exception to the activity log being append-only.
 - **Private:** stored in `checkins` (owner-only RLS, never shared with groups or teams) and recorded in `activity_events` as `checkin.daily`.
 - **Later:** wearable sleep (Health Connect, HealthKit) fills the same fields, with source `wearable`.
 

@@ -2,6 +2,7 @@ export * from './ai';
 export * from './amounts';
 export * from './analytics';
 export * from './chain';
+export * from './checkin';
 export * from './coachCard';
 export * from './entitlements';
 export * from './focus';

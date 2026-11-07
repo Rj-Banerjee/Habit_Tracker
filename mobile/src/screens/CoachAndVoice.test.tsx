@@ -38,6 +38,8 @@ jest.mock('../services/tracker', () => ({
       Promise.resolve([{ id: 'h1', title: 'Read', voice_aliases: ['book'], type: 'count', unit: 'pages' }])
     ),
     getPlan: jest.fn(() => Promise.resolve('pro')),
+    saveCheckin: jest.fn(() => Promise.resolve()),
+    getCheckinState: jest.fn(() => Promise.reject(new Error('not needed'))),
   },
 }));
 jest.mock('expo-haptics', () => ({
@@ -802,6 +804,29 @@ describe('voice', () => {
       await settle();
       expect(api.addAmount).toHaveBeenCalledWith('h1', expect.anything(), 20, null, 'voice');
       expect(coachApi.parseVoice).not.toHaveBeenCalled();
+    });
+
+    it('saves a check-in said out loud, on the phone, with no AI', async () => {
+      await open();
+      await press('Log by voice');
+      await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'slept 6 hours, energy low');
+      await press('Log it');
+      await settle();
+      expect(api.saveCheckin).toHaveBeenCalledWith({ sleep: 6, energy: 2 }, 'voice');
+      expect(coachApi.parseVoice).not.toHaveBeenCalled();
+      expect(screen.getByText('Check-in saved: 6 hours of sleep, energy low.')).toBeTruthy();
+    });
+
+    it('lets a habit called Sleep keep "slept 8 hours", but not "energy low"', async () => {
+      api.listVoiceHabits.mockResolvedValue([
+        { id: 'h2', title: 'Sleep', voice_aliases: ['slept'], type: 'duration', unit: 'hours' },
+      ] as never);
+      await open();
+      await press('Log by voice');
+      await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'slept 8 hours');
+      await press('Log it');
+      await settle();
+      expect(api.saveCheckin).not.toHaveBeenCalled();
     });
 
     it('never sends a free-form phrase to the AI', async () => {

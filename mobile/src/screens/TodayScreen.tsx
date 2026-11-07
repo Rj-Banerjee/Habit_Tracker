@@ -56,6 +56,7 @@ import { useChains } from '../hooks/useChains';
 import { useCoach } from '../hooks/useCoach';
 import { useEntitlements } from '../hooks/useEntitlements';
 import { useCompletedHabits } from '../hooks/useCompletedHabits';
+import { useCheckin } from '../hooks/useCheckin';
 import { useHabitTip } from '../hooks/useHabitTip';
 import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
@@ -63,6 +64,7 @@ import { useRuleCard } from '../hooks/useRuleCard';
 import { useTimeSuggestion } from '../hooks/useTimeSuggestion';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
+import { CheckinCard, CheckinOffer } from '../today/CheckinCard';
 import { ShrinkSheet } from '../today/ShrinkSheet';
 import { DragSpacer, DragToMove } from '../today/DragToMove';
 import { useDragBoard } from '../today/useDragBoard';
@@ -99,6 +101,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   useNudges(rows, loading, refresh, can('ai.nudges'));
   const ruleCard = useRuleCard(rows, repairs, loading);
   const habitTip = useHabitTip(rows);
+  const checkin = useCheckin();
   const completed = useCompletedHabits();
   const timeMove = useTimeSuggestion(rows, ready && can('ai.nudges'));
   // Whenever Today changes, a done habit stops reminding and a new one starts.
@@ -165,6 +168,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     onClose: () => setPanel(null),
     onAskCoach: (question) => switchTo('coach', () => void coach.send(question)),
     canUseAi: can('ai.voice'),
+    onCheckin: () => void checkin.reload(),
   });
 
   const resumeFocusRef = useRef(resumeFocus);
@@ -373,6 +377,17 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             moments={moments.welcomeBack}
             habits={welcomeHabits}
             onDismiss={moments.dismissWelcomeBack}
+          />
+        ) : null}
+
+        {checkin.askToTurnOff ? (
+          <CheckinOffer onKeep={() => void checkin.answerOffer(true)} onTurnOff={() => void checkin.answerOffer(false)} />
+        ) : checkin.visible ? (
+          <CheckinCard
+            existing={checkin.state?.checkin ?? null}
+            problem={checkin.problem}
+            onSave={(answer) => void checkin.save(answer)}
+            onSkip={() => void checkin.skip()}
           />
         ) : null}
 
