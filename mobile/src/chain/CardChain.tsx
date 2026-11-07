@@ -7,6 +7,7 @@ import {
   PROTECTED_CAPTION,
   repairHint,
   TodayRow,
+  weekRepairHint,
   WELD_MS,
   weldCaption,
 } from '@habit-tracker/core';
@@ -25,12 +26,15 @@ export const repairHabitOf = (row: TodayRow) => ({
 
 export function captionsFor(playing: PlayingMoment, chain: Chain, row: TodayRow): MomentCaptions {
   const { moment } = playing;
-  if (moment.kind === 'weld') return { caption: weldCaption(row.current_streak) };
+  const unit = chain.unit ?? 'day';
+  if (moment.kind === 'weld') return { caption: weldCaption(row.current_streak, unit) };
   if (moment.kind === 'protected') return { caption: PROTECTED_CAPTION };
   const repairOn = chain.nodes.find((n) => n.date === moment.date)?.repairOn ?? null;
+  const hint =
+    unit === 'week' ? weekRepairHint(row.week_quota ?? 1) : repairOn ? repairHint(repairHabitOf(row), repairOn) : '';
   return {
-    caption: fractureCaption(moment.date, repairOn),
-    repairHint: repairOn ? repairHint(repairHabitOf(row), repairOn) : undefined,
+    caption: fractureCaption(moment.date, repairOn, unit),
+    repairHint: repairOn ? hint : undefined,
   };
 }
 

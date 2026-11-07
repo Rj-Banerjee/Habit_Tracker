@@ -615,6 +615,54 @@ def test_a_guess_at_a_misheard_word_needs_confirming(api):
     assert body["heard"] == "anduda latest update"
 
 
+def test_an_amount_keeps_the_unit_it_was_said_in(api):
+    call = ToolCall("log_amount", {"habit": "h1", "amount": 2, "unit": " lines ", "confidence": "high"})
+    intents = voice_response(api, [call], "read 2-3 lines")["intents"]
+    assert intents == [
+        {"intent": "log_amount", "habit_id": "uuid-read", "habit_title": "Read", "amount": 2, "unit": "lines"}
+    ]
+
+
+@pytest.mark.parametrize("unit", [None, "more", " More ", ""])
+def test_an_amount_without_a_unit_says_none(api, unit):
+    call = ToolCall("log_amount", {"habit": "h1", "amount": 8, "unit": unit, "confidence": "high"})
+    assert voice_response(api, [call], "read 8 more")["intents"][0]["unit"] is None
+
+
+def test_the_parser_is_told_amounts_add_up_and_ranges_use_the_lower_number(api):
+    provider = use(FakeProvider(calls=[]))
+    api.post("/voice/parse", json={"transcript": "read 8 more"})
+    assert "lower number" in provider.seen[0]["system"]
+    assert "add up" in provider.seen[0]["system"]
+
+
+def test_an_amount_on_a_yes_no_habit_is_a_plain_log(api):
+    call = ToolCall("log_amount", {"habit": "h2", "amount": 10, "confidence": "high"})
+    intents = voice_response(api, [call], "ran for 10 minutes")["intents"]
+    assert intents == [{"intent": "log_habit", "habit_id": "uuid-run", "habit_title": "Run"}]
+
+
+@pytest.mark.parametrize("heard", ["take off study", "I didn't read today", "scratch the run"])
+def test_an_undo_without_an_undo_word_asks_first(api, heard):
+    call = ToolCall("undo_habit", {"habit": "h1", "confidence": "high"})
+    assert voice_response(api, [call], heard)["level"] == "medium"
+
+
+@pytest.mark.parametrize(
+    "heard",
+    ["undo the read", "take that back", "cancel the read log", "read wapas kar do",
+     "गलती से हो गया, हटा दो", "remove my read log"],
+)  # fmt: skip
+def test_an_undo_said_plainly_goes_ahead(api, heard):
+    call = ToolCall("undo_habit", {"habit": "h1", "confidence": "high"})
+    assert voice_response(api, [call], heard)["level"] == "high"
+
+
+def test_a_low_undo_stays_low(api):
+    call = ToolCall("undo_last", {"confidence": "low"})
+    assert voice_response(api, [call], "take off")["level"] == "low"
+
+
 @pytest.mark.parametrize("sureness,level", [("high", "high"), ("medium", "medium"), ("low", "low")])
 def test_the_models_own_confidence_counts(api, sureness, level):
     call = ToolCall("log_habit", {"habit": "h1", "confidence": sureness})
@@ -696,3 +744,46 @@ def test_voice_busy(api):
 def test_voice_length_limit(api):
     use(FakeProvider())
     assert api.post("/voice/parse", json={"transcript": "x" * 501}).status_code == 422
+
+
+SAMPLE = {"phrase_id": "n001", "heard": "done with gym", "language": "en-IN"}
+
+
+@pytest.fixture
+def samples(tmp_path, monkeypatch):
+    path = tmp_path / "spoken.jsonl"
+    monkeypatch.setenv("VOICE_SAMPLES_PATH", str(path))
+    get_settings.cache_clear()
+    yield path
+    monkeypatch.delenv("VOICE_SAMPLES_PATH")
+    get_settings.cache_clear()
+
+
+def test_the_spoken_test_saves_what_was_heard_and_nothing_else(api, samples):
+    provider = use(FakeProvider(["ok"]))
+    assert api.post("/voice/samples", json=SAMPLE).status_code == 204
+    assert api.post("/voice/samples", json={**SAMPLE, "phrase_id": "h002", "heard": "जिम"}).status_code == 204
+    lines = [json.loads(line) for line in samples.read_text(encoding="utf-8").splitlines()]
+    assert lines == [SAMPLE, {**SAMPLE, "phrase_id": "h002", "heard": "जिम"}]
+    assert provider.opened == 0
+
+
+def test_the_spoken_test_is_for_test_accounts_only(api, samples):
+    app.dependency_overrides[current_user] = lambda: CurrentUser("real-person", "token")
+    assert api.post("/voice/samples", json=SAMPLE).status_code == 403
+    assert not samples.exists()
+
+
+def test_the_spoken_test_is_off_unless_a_path_is_set(api, monkeypatch):
+    monkeypatch.setenv("VOICE_SAMPLES_PATH", "")
+    get_settings.cache_clear()
+    try:
+        assert api.post("/voice/samples", json=SAMPLE).status_code == 404
+    finally:
+        get_settings.cache_clear()
+
+
+def test_the_spoken_test_takes_only_known_shapes(api, samples):
+    assert api.post("/voice/samples", json={**SAMPLE, "phrase_id": "../x"}).status_code == 422
+    assert api.post("/voice/samples", json={**SAMPLE, "language": "fr-FR"}).status_code == 422
+    assert not samples.exists()

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { restoreDailyReminder } from '../services/reminders';
+import { syncHabitReminders } from '../services/reminders';
 import { tracker } from '../services/tracker';
 
 // Undefined until it's known. Any failure means no: Today works without this, and
@@ -11,7 +11,8 @@ export function useNeedsOnboarding() {
     Promise.all([tracker.getProfile(), tracker.listProgressHabits()])
       .then(([profile, habits]) => {
         setNeeded(!profile.onboarded_at && habits.length === 0);
-        void restoreDailyReminder(profile.reminder_time?.slice(0, 5) ?? null);
+        // Each habit's reminders, a week ahead. Never asks: nobody is looking at a setting.
+        void syncHabitReminders();
       })
       .catch(() => setNeeded(false));
   }, []);

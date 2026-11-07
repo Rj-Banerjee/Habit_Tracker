@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ProgressDay, ProgressHabit, TodayRow } from './api';
 import { addDays } from './dates';
-import { habitPatterns, hourLabel, NudgeRecord, peakHour, planNudge, weakWeekday } from './patterns';
+import { habitPatterns, hourLabel, NudgeRecord, peakHour, planNudge, timeOfDayMove, weakWeekday } from './patterns';
 
 const TODAY = '2026-11-02'; // a Monday
 
@@ -43,7 +43,6 @@ const plan = (patch: Partial<Parameters<typeof planNudge>[0]> = {}) =>
     rows: [open()],
     today: TODAY,
     nowMinutes: 9 * 60,
-    reminder: null,
     history: [],
     ...patch,
   });
@@ -149,9 +148,15 @@ describe('planNudge', () => {
     expect(plan({ nowMinutes: 20 * 60, habits: [habit({ schedule_days: [1] })] })).toBeNull();
   });
 
-  it('keeps away from the daily reminder', () => {
-    expect(plan({ reminder: '19:00' })).toBeNull();
-    expect(plan({ reminder: '07:00' })).not.toBeNull();
+  it("keeps away from the habit's own reminder", () => {
+    expect(plan({ habits: [habit({ reminder_time: '19:00:00' })] })).toBeNull();
+    expect(plan({ habits: [habit({ reminder_time: '07:00' })] })).not.toBeNull();
+  });
+
+  it("still nudges another habit when one has a reminder at that time", () => {
+    const days = [...shaky('h1'), ...shaky('h2')];
+    const habits = [habit({ reminder_time: '19:00' }), habit({ id: 'h2', title: 'Walk' })];
+    expect(plan({ habits, days, rows: [open('h1'), open('h2')] })?.habitId).toBe('h2');
   });
 
   it('stops after 3 ignored nudges in a row', () => {
@@ -176,5 +181,28 @@ describe('planNudge', () => {
 
   it('needs a known usual time', () => {
     expect(plan({ days: [day(1, 'missed'), day(2, 'done')] })).toBeNull();
+  });
+});
+
+describe('timeOfDayMove', () => {
+  const morningRow = { ...open(), title: 'Read', time_of_day: 'morning' } as TodayRow;
+
+  it('offers to move a habit to when it is usually done', () => {
+    expect(timeOfDayMove([morningRow], shaky(), [])).toEqual({
+      habitId: 'h1',
+      title: 'Read',
+      to: 'evening',
+      tip: 'time-kept:h1:evening',
+      text: 'You usually do Read in the evening. Move it there?',
+    });
+  });
+
+  it('says nothing when it is already there, or after a Keep', () => {
+    expect(timeOfDayMove([{ ...morningRow, time_of_day: 'evening' }], shaky(), [])).toBeNull();
+    expect(timeOfDayMove([morningRow], shaky(), ['time-kept:h1:evening'])).toBeNull();
+  });
+
+  it('waits for 5 same-day logs', () => {
+    expect(timeOfDayMove([morningRow], shaky().slice(0, 4), [])).toBeNull();
   });
 });

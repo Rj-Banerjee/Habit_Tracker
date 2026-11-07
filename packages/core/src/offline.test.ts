@@ -18,6 +18,7 @@ const api = () => ({
   logHabit: vi.fn(async () => null),
   skipHabit: vi.fn(async () => null),
   repairHabit: vi.fn(async () => null),
+  addAmount: vi.fn(async () => null as never),
 });
 
 describe('the queue', () => {
@@ -69,6 +70,43 @@ describe('the queue', () => {
   it('leaves a different day alone', () => {
     const rows = [{ habit_id: 'a', day: '2026-11-02', status: 'pending' }] as TodayRow[];
     expect(withQueued(rows, [log('a')])[0].status).toBe('pending');
+  });
+});
+
+describe('amounts while offline', () => {
+  const amount = (n: number, patch: Partial<QueuedLog> = {}) => log('a', '2026-11-03', { kind: 'amount', amount: n, ...patch });
+  const row = {
+    habit_id: 'a',
+    day: '2026-11-03',
+    status: 'pending',
+    amount: null,
+    target: 10,
+    levels: [
+      { level: 'full', description: 'Ten', target: 10 },
+      { level: 'minimum', description: 'Two', target: 2 },
+    ],
+  } as unknown as TodayRow;
+
+  it('add up instead of replacing each other', () => {
+    const queue = addToQueue(addToQueue([], amount(3)), amount(8));
+    expect(queue.map((item) => item.amount)).toEqual([3, 8]);
+  });
+
+  it('show their total, counted against the levels', () => {
+    expect(withQueued([row], [amount(1)])[0]).toMatchObject({ status: 'pending', amount: 1 });
+    expect(withQueued([row], [amount(1), amount(2)])[0]).toMatchObject({ status: 'done', level_done: 'minimum', amount: 3 });
+    expect(withQueued([row], [amount(3), amount(8)])[0]).toMatchObject({ status: 'done', level_done: 'full', amount: 11 });
+  });
+
+  it('replace a queued skip, as they would online', () => {
+    const queue = addToQueue([log('a', '2026-11-03', { kind: 'skip', reason: 'sick' })], amount(2));
+    expect(queue.map((item) => item.kind)).toEqual(['amount']);
+  });
+
+  it('are sent with their unit', async () => {
+    const tracker = api();
+    await flushQueue(tracker, [amount(500, { unit: 'm' })], isOffline);
+    expect(tracker.addAmount).toHaveBeenCalledWith('a', '2026-11-03', 500, 'm', 'tap');
   });
 });
 

@@ -1,6 +1,7 @@
 """Turns what someone said into intents. It never writes anything: the app confirms
 and logs through the normal rule-checked functions, with its 10-second undo."""
 
+import re
 from typing import Any
 
 from .llm.base import LLMProvider, Message, Tier, ToolCall, ToolSpec
@@ -16,6 +17,12 @@ QUESTION_WORDS = {"why", "how", "should", "advice", "help", "suggest", "tips", "
                   "kyon", "kaise", "kya", "kab", "kaun", "kitna", "batao"}  # fmt: skip
 ACT_FROM = 0.8
 CONFIRM_FROM = 0.5
+# Undoing loses a log, so it only happens without asking when they used a word for it.
+# "Take off study" was heard for "tick off study", and the model read it as an undo.
+UNDO_WORDS = re.compile(
+    r"\b(undo|cancel|take (\w+ )?back|remove|delete|revert|untick|unmark|wapas|vapas|hata)"
+)
+UNDO_INTENTS = {"undo_habit", "undo_last"}
 
 SYSTEM = """You turn one message into calls to the tools given. It comes from speech \
 recognition or a phone keyboard, so words may be misheard or mistyped, and the person \
@@ -35,7 +42,9 @@ with those refs and the action they wanted.
 - "undo the read" means undo_habit for Read. undo_last is only for "undo that" or "undo \
 the last one", with no habit named.
 - "Just the small version", "only a little" or "thoda sa" is shrink_habit.
-- An amount such as "20 pages" or "teen glass" is log_amount.
+- An amount such as "20 pages" or "teen glass" is log_amount, with the unit they said, \
+or null if they said none. A range such as "2-3 pages" is the lower number. "Read 8 \
+more" is log_amount of 8: amounts add up through the day.
 - "ho gaya", "kar liya" and "kar li" mean they did it. "chhod do" means skip. "wapas" \
 means undo.
 - A clear statement about doing or skipping an activity that isn't in their list is \
@@ -59,6 +68,7 @@ change a log. Earlier messages are there for context: "undo that" refers to them
 HABIT = {"type": "string", "description": "A ref from the habit list, such as h1"}
 SURE = {"type": "string", "enum": sorted(CONFIDENCE)}
 ACTIONS = {"log_habit", "log_amount", "shrink_habit", "skip_habit", "undo_habit"}
+NOT_UNITS = {"", "more", "extra", "another", "aur", "again", "none", "null", "times"}
 
 TOOLS = [
     ToolSpec(
@@ -75,7 +85,12 @@ TOOLS = [
         "They did an amount of a count or duration habit.",
         {
             "type": "object",
-            "properties": {"habit": HABIT, "amount": {"type": "number"}, "confidence": SURE},
+            "properties": {
+                "habit": HABIT,
+                "amount": {"type": "number"},
+                "unit": {"type": ["string", "null"], "description": "The unit they said, or null"},
+                "confidence": SURE,
+            },
             "required": ["habit", "amount", "confidence"],
         },
     ),
@@ -205,11 +220,18 @@ def to_intent(call: ToolCall, refs: dict[str, dict[str, Any]]) -> dict[str, Any]
         if habit is None:
             return None
         intent |= {"habit_id": habit["id"], "habit_title": habit["title"]}
+        # "Ten minutes of meditation" on a yes/no habit just means they did it.
+        if call.name == "log_amount" and habit.get("type") == "boolean":
+            return intent | {"intent": "log_habit"}
     if call.name == "log_amount":
         amount = call.arguments.get("amount")
         if not isinstance(amount, int | float) or isinstance(amount, bool) or amount <= 0:
             return None
         intent["amount"] = amount
+        unit = call.arguments.get("unit")
+        unit = unit.strip().lower()[:30] if isinstance(unit, str) else ""
+        # "Read 8 more" has no unit: "more" only says it adds to the day.
+        intent["unit"] = None if unit in NOT_UNITS else unit
     if call.name == "skip_habit":
         intent["reason"] = str(call.arguments.get("reason") or "")[:200]
     if call.name == "ask_coach":
@@ -234,6 +256,10 @@ def looks_like_a_question(heard: str) -> bool:
     return words[0] in QUESTION_OPENERS or any(word in QUESTION_WORDS for word in words)
 
 
+def said_undo(text: str) -> bool:
+    return bool(UNDO_WORDS.search(romanise(text).lower()))
+
+
 def level_for(confidence: float) -> str:
     if confidence >= ACT_FROM:
         return "high"
@@ -254,6 +280,9 @@ def summary(heard: str, correction: Correction, calls: list[ToolCall], intents: 
     if intents:
         sureness = [CONFIDENCE.get(str(c.arguments.get("confidence")), 0.65) for c in calls]
         confidence = round(min(*sureness, correction.score), 2)
+        undoing = any(i["intent"] in UNDO_INTENTS for i in intents)
+        if undoing and not (said_undo(heard) or said_undo(corrected)):
+            confidence = min(confidence, CONFIDENCE["medium"])
         return {**base, "confidence": confidence, "level": level_for(confidence)}
     if "no_such_habit" in names:
         missing = next(c for c in calls if c.name == "no_such_habit")

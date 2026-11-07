@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { AmountResult } from './api';
 import { TodayRow } from './api';
 import { VoiceQuestion } from './ai';
 import {
@@ -33,11 +34,27 @@ const row = (patch: Partial<TodayRow> = {}) =>
     ...patch,
   }) as TodayRow;
 
-const api = (rows: TodayRow[]) => ({
+const result = (patch: Partial<AmountResult> = {}): AmountResult => ({
+  counted: true,
+  added: 20,
+  total: 20,
+  unit: 'pages',
+  said_unit: null,
+  minimum: 5,
+  target: 30,
+  status: 'done',
+  level: 'minimum',
+  repaired: false,
+  ...patch,
+});
+
+const api = (rows: TodayRow[], added: AmountResult = result()) => ({
   logHabit: vi.fn(async () => null),
   skipHabit: vi.fn(async () => null),
   undoLog: vi.fn(async () => null),
   getToday: vi.fn(async () => rows),
+  addAmount: vi.fn(async () => added),
+  removeAmount: vi.fn(async () => null),
 });
 
 const read = { habit_id: 'h1', habit_title: 'Read' };
@@ -68,17 +85,33 @@ describe('runVoiceAction', () => {
     expect(done.say).toContain('Logged the minimum for Read.');
   });
 
-  it('logs an amount, as the minimum when it falls short of the target', async () => {
+  it('adds an amount to the day, and says where it stands', async () => {
     const tracker = api([row()]);
     const done = await runVoiceAction(tracker, { intent: 'log_amount', ...read, amount: 20 }, [row()]);
-    expect(tracker.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'minimum', 20, 'voice');
-    expect(done.say).toContain('Logged 20 pages of Read.');
+    expect(tracker.addAmount).toHaveBeenCalledWith('h1', '2026-11-02', 20, null, 'voice');
+    expect(tracker.logHabit).not.toHaveBeenCalled();
+    expect(done.say).toBe('Read: 20 of 30 pages. The minimum counts. 10 more pages for the full version. 4-day streak.');
+    expect(done.undo).toEqual({ habitId: 'h1', date: '2026-11-02', amount: 20 });
   });
 
-  it('logs an amount that meets the target in full', async () => {
+  it('passes on the unit it was said in', async () => {
     const tracker = api([row()]);
-    await runVoiceAction(tracker, { intent: 'log_amount', ...read, amount: 30 }, [row()]);
-    expect(tracker.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', 30, 'voice');
+    await runVoiceAction(tracker, { intent: 'log_amount', ...read, amount: 2, unit: 'lines' }, [row()]);
+    expect(tracker.addAmount).toHaveBeenCalledWith('h1', '2026-11-02', 2, 'lines', 'voice');
+  });
+
+  it('says calmly when the unit cannot count, with nothing to undo', async () => {
+    const tracker = api([row()], result({ counted: false, added: 0, total: 0, said_unit: 'lines', status: 'none', level: null }));
+    const done = await runVoiceAction(tracker, { intent: 'log_amount', ...read, amount: 2, unit: 'lines' }, [row()]);
+    expect(done.say).toBe("That's below your minimum: lines can't count toward pages. Read is at 0 of 30 pages.");
+    expect(done.undo).toBeNull();
+  });
+
+  it('undoes just the amount it added', async () => {
+    const tracker = api([row()]);
+    await undoActions(tracker, [{ habitId: 'h1', date: '2026-11-02', amount: 8 }], 'voice');
+    expect(tracker.removeAmount).toHaveBeenCalledWith('h1', '2026-11-02', 8);
+    expect(tracker.undoLog).not.toHaveBeenCalled();
   });
 
   it('skips, filling in a reason because the server needs one', async () => {

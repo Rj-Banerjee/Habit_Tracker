@@ -1,7 +1,7 @@
-import { ProgressDay, ProgressHabit, TodayRow } from './api';
+import { ProgressDay, ProgressHabit, TimeOfDay, TodayRow } from './api';
 import { addDays } from './dates';
 import { parseReminderTime } from './onboarding';
-import { isLogged } from './todayModel';
+import { dayPart, isLogged, timeOfDayName } from './todayModel';
 
 const MIN_LOGS_FOR_A_PATTERN = 5;
 const MIN_DAYS_FOR_A_WEEKDAY = 3;
@@ -89,7 +89,6 @@ interface NudgeInput {
   today: string;
   // Minutes since midnight, in the person's day.
   nowMinutes: number;
-  reminder: string | null;
   // Newest first.
   history: NudgeRecord[];
 }
@@ -116,12 +115,15 @@ function ignoredInARow(history: NudgeRecord[], habitId: string) {
   return count;
 }
 
-// At most one nudge, so with the daily reminder nobody gets more than two a day. It goes
-// to the habit most at risk, before the time they usually do it.
+const minutesOf = (time: string | null | undefined) => {
+  const parsed = time ? parseReminderTime(time.slice(0, 5)) : null;
+  return parsed ? parsed.hour * 60 + parsed.minute : null;
+};
+
+// At most one nudge a day, on top of each habit's own reminder. It goes to the habit most
+// at risk, before the time they usually do it, and never close to that habit's reminder.
 export function planNudge(input: NudgeInput): NudgePlan | null {
-  const { habits, days, rows, today, nowMinutes, reminder, history } = input;
-  const reminderTime = reminder ? parseReminderTime(reminder) : null;
-  const reminderMinutes = reminderTime ? reminderTime.hour * 60 + reminderTime.minute : null;
+  const { habits, days, rows, today, nowMinutes, history } = input;
 
   const candidatesOn = (date: string) => {
     const due =
@@ -140,6 +142,7 @@ export function planNudge(input: NudgeInput): NudgePlan | null {
       const fire = peak * 60 - NUDGE_LEAD_MINUTES;
       if (fire < 0) return [];
       if (date === today && fire < nowMinutes + MIN_LEAD_MINUTES) return [];
+      const reminderMinutes = minutesOf(habit.reminder_time);
       if (reminderMinutes !== null && Math.abs(fire - reminderMinutes) < REMINDER_GAP_MINUTES) {
         return [];
       }
@@ -159,6 +162,40 @@ export function planNudge(input: NudgeInput): NudgePlan | null {
         body: `${best.habit.title} usually happens around ${hourLabel(best.peak)}. The small version counts.`,
       };
     }
+  }
+  return null;
+}
+
+export interface TimeMove {
+  habitId: string;
+  title: string;
+  to: TimeOfDay;
+  // Remembers a "Keep", so the same move is never offered twice.
+  tip: string;
+  text: string;
+}
+
+export const timeKeptTip = (habitId: string, to: TimeOfDay) => `time-kept:${habitId}:${to}`;
+
+// Pro: when a habit is usually done in another part of the day than its section, offer
+// to move it. From peak hours (5 or more same-day logs). It moves only if they accept.
+export function timeOfDayMove(rows: TodayRow[], days: ProgressDay[], kept: readonly string[]): TimeMove | null {
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (!row.is_today || seen.has(row.habit_id)) continue;
+    seen.add(row.habit_id);
+    const peak = peakHour(days, row.habit_id);
+    if (peak === null) continue;
+    const to = dayPart(peak);
+    const tip = timeKeptTip(row.habit_id, to);
+    if (to === (row.time_of_day ?? 'anytime') || kept.includes(tip)) continue;
+    return {
+      habitId: row.habit_id,
+      title: row.title,
+      to,
+      tip,
+      text: `You usually do ${row.title} in the ${timeOfDayName(to).toLowerCase()}. Move it there?`,
+    };
   }
   return null;
 }

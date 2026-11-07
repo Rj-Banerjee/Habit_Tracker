@@ -1323,4 +1323,232 @@ A terminal screenshot from the phone test settled it. On Android in Expo Go, `se
 
 **Checked:** core 1001, web 28 and mobile 846 tests pass, and lint has no errors. In Chrome, a saved Sage + Lora choice gave the login page Sage's canvas, Lora and Sage's rounder corners, and Ink in dark mode switched to Atkinson Hyperlegible.
 
+**Checked on the Samsung, in the real app (local build):** the expanded notification's content now spans 204 to 876 px on a 1080 px screen, so it's centred. On You, all 11 theme tiles, the typeface chips and Change identity colours show; picking Blush recoloured the app and switched to Nunito at once. The phone was set back to System and Warm neutral afterwards, and the test sessions were stopped without logging.
+
 **Not covered:** the Android home-screen widget keeps the default colours, since it's drawn outside the app. Colours other than the identity accents (the neutrals) change by picking a theme, not one by one.
+
+### Voice: the spoken test and the phone matcher (6 Nov 2026)
+
+The 200-phrase set already existed (217 typed phrases, 98% on 3 Nov). What PLAN.md's gate still needed is real speech, and the Free matcher had never been scored.
+
+- **Phone matcher scored:** on all 220 typed phrases it acts on 14, all correctly, and never on half of a two-habit sentence. A test keeps it that way.
+- **Typed re-run on today's model:** 150 of 153 held out (98%), the same three misses as on 3 Nov, so nothing has slipped.
+- **Spoken test:** test builds have **Voice test (test builds only)** on You. It shows 206 phrases one at a time (138 held out, 68 new and never tuned against), records with the same recogniser, languages and word hints as the voice sheet, and sends what was heard to the AI service's new `/voice/samples`. That endpoint is off unless `VOICE_SAMPLES_PATH` is set, takes test accounts only, never calls a model, and keeps only phrase id, transcript and language, in a gitignored file. `voice_accuracy.py --spoken` scores the transcripts with the real parser. Steps are in `docs/voice-accuracy.md`.
+- Preview builds turn the screen on with `EXPO_PUBLIC_VOICE_TEST=1`; other builds never show it.
+
+**Checked:** core 1009, web 28, mobile 856 and backend 184 tests pass, and lint has no errors. On the Samsung, the new build's Voice test opened on "Read 15 pages", showing 0 of 206. The service on this Mac answers at the phone's address.
+
+**Not done:** the recordings themselves, which need the user's voice. Until they're scored, the Phase 3 gate is passed on typed phrases only.
+
+**Theme changes while testing:** I saw the theme change between my checks and suspected scrolling. Retested one swipe at a time: scrolling changes nothing. The user had been trying themes, as asked, and I had set their pick back to Warm neutral. It's now left as they chose it.
+
+### Hindi voice stopped at once, and the first spoken scores (6 Nov 2026)
+
+**Found by the user, from phrase 114 of the spoken test:** Hindi phrases stopped listening while the button was still held. The phone's log showed the cause: on-device recognition was asked for, and the Hindi pack isn't downloaded ("Failed to get language pack of required locale", `language-not-supported`). The app didn't listen for that error, so it looked like the button letting go. Real voice logging had the same problem with Hindi.
+
+**Fix:** that error now switches to the phone's online recogniser while they're still holding, and the language skips on-device from then on (`mobile/src/voice/speech.ts`, with tests). Checked on the Samsung: the online recogniser started 0.2 seconds after the error, in Hindi, and listened for the whole hold.
+
+**Spoken score so far (English and Hinglish, phrases 1 to 113):** 111 of 114 recordings right (97%), with 3 model outages rerun. The phone heard 85 of 114 word for word. The misses:
+
+| Said | Heard | Result |
+| --- | --- | --- |
+| "I got through some of my novel" | the same | Shrink Read, as when typed |
+| "aaj sirf thoda sa padha" | the same | Study instead of Read, without asking, as when typed |
+| "tick off study" | "take off study" | **Undid Study, without asking.** New, and caused by the mishearing |
+
+The new one matters most: a mishearing that reverses a log without asking. It's in the held-out set, so it isn't tuned against; it's the first thing to fix once the spoken run is complete.
+
+### The full spoken test, and two voice rules (6 Nov 2026)
+
+**All 206 phrases recorded** by the user on the Samsung. The phone heard 148 word for word. The parser got 200 of 206 (97%), including all 16 Hindi phrases. Four misses acted without asking.
+
+**Fixes, both in `backend/app/voice.py` with tests:**
+
+- An undo goes ahead without asking only when an undo word was said (undo, cancel, take back, remove, delete, wapas, hata and similar). Otherwise it asks first. This covers the miss where "tick off study" was heard as "take off study" and Study was undone.
+- `log_amount` on a yes/no habit becomes a plain log. "ten minutes of meditation done" and "studied for two hours" now pass.
+
+**Rescored with the live model** (the misses plus every undo phrase in all three sets, 69 phrases): both fixes work, and no plainly worded undo was held back. With the fixes the spoken score is **202 of 206 (98%)**. Two phrases still act wrongly without asking, and they do the same when typed:
+
+- "I got through some of my novel" logs the small version of Read.
+- "aaj sirf thoda sa padha" logs Study instead of Read.
+
+Details are in `docs/voice-accuracy.md`.
+
+### No habit limit, and the new habit settings (7 Nov 2026)
+
+Part 1 of the habit form work. PLAN.md and `docs/handoff/habit-creation.md` were updated first.
+
+- **Limit removed:** the 3-habit cap and the "2 consistent weeks" unlock are gone from the server (`habit_allowance`, `active_habits` and `get_habit_allowance` dropped), from core, from the form's At the limit state and from onboarding. After the 6th active habit, Today shows "Starting with a few makes them stick." once. It's remembered in the new `users.seen_tips`, so it shows once on every device, and it never blocks anything.
+- **New settings, stored and dated:** `time_of_day`, `reminder_time`, `frequency` (specific days or times per week, 1 to 6), `per_week`, `ends_on` and `previous_run_id` on habits. Time of day, frequency, times per week and the end date are in `habit_versions`, so edits apply from today. `create_habit` and `update_habit` take them, and the API sends them. Nothing uses them yet: times per week and ending get their rules in a later part, and Today's sections come last.
+- **Migration:** `20261107000000_open_habits_and_new_settings.sql`.
+  - Locally, 358 SQL tests pass. The new ones cover no limit (12 habits), every new setting, the rule against 7 a week, an end before the start, switching frequency (dated), and tips.
+  - The dry run against live listed only this migration, and the push applied it.
+  - Live, with two temporary users who were then deleted, 13 checks passed: create with the new settings, read, edit, 8 habits saved, the allowance function gone, tip remembered, logging and Today working. Another user can't read or edit the habit; a user sees only their own profile; the publishable key alone reads no habits and can't mark tips.
+  - `rls_auto_enable()` and the `ensure_rls` trigger are still on live, and RLS is on for every public table.
+- **Tests:** core 1011, mobile 864 (including the Today tip and an onboarding test with no limit), web 28, backend 195. Lint is unchanged: 11 old warnings.
+- **Existing data (part 6):** existing habits got "anytime" and "specific days". Assigning each one a real time of day, and parsing its minimum text, needs the habit library. That runs as a backfill once the library exists (part 4).
+
+### The built-in habit library (7 Nov 2026)
+
+Part 4 of the habit form work.
+
+- **`packages/core/src/habitLibrary.json`** has 156 common habits, built from one table by `packages/core/scripts/build-habit-library.py`. Each has:
+  - a name and English and Hinglish synonyms;
+  - type, target and unit;
+  - minimum (description and amount) and setup;
+  - specific days or times per week, with a one-line reason;
+  - time of day, identity and voice aliases.
+  - The 30-day challenge also offers an end after 30 days, which is never switched on by itself.
+- **`habitLibrary.ts`:**
+  - `matchLibrary(name)` drops amounts, units and how-often words ("Run 20 km daily" is Run), then tries exact names and synonyms, then the longest synonym inside the name.
+  - `suggestNames(text)` gives the live suggestions while typing.
+- **`units.ts`:** units with what people type and say (Hindi too), conversions within distance, time and volume, and daily caps for suggestions. Sleep and fasting have their own caps: 10 and 16 hours.
+- **Tests (202 new):**
+  - Every entry is checked against the server's rules.
+  - No target is above its cap, and intense exercise (run, workout, strength, HIIT, cycling, swimming, pull-ups, marathon) is 4 times a week or fewer.
+  - No name belongs to two habits. Writing this check found 18 clashes, which were fixed.
+  - 15 English and 10 Hinglish names match (`paani peena`, `kasrat`, `padhai`, `dhyan`, `kitab padhna`), and unknown names match nothing.
+  - Unit conversion, and units that don't mix ("lines" for pages).
+- **Moved:** the backfill of existing habits runs at the end of part 3, not here. It needs part 3's minimum decoding and its AI suggestions for Pro test users.
+- **Tests:** core 1213, web 28. Core and mobile typecheck.
+
+### The new habit form, per-habit reminders, and existing habits filled in (7 Nov 2026)
+
+Part 3 of the habit form work, with part 6's backfill.
+
+**Creating a habit** (`mobile/src/screens/HabitFormScreen.tsx`, `mobile/src/hooks/useHabitForm.ts`, `mobile/src/habits/`):
+- **The form:**
+  - Name, with live suggestion chips. "Run 20 km" saves as Run with a 20 km target, and the form says so.
+  - Target, hidden for yes/no.
+  - Days: Specific days, or Times per week from 1 to 6 (pressing past 6 switches to every day). Shown with the suggestion's reason.
+  - Time of day, as four chips.
+  - Minimum version, with its decoded amount as a chip to confirm or turn down.
+  - End this habit: off by default; after N days or on a date. A "30-day challenge" offers 30 days but never turns it on.
+- **"We set these up for you":** type and unit, identity, reminder, setup level and voice names. "Accept all", or tap a line to change it in a sheet. The identity is never asked for.
+- **Suggestions follow the name** into every field the person hasn't changed. A time named in the habit wins ("Evening run" is in the evening).
+- **Edit** keeps the same fields, with identity, full version, minimum target, setup, reminder, voice names and milestone under "More".
+- **Core, `habitSetup.ts`:** `parseHabitName`, `parseAmount` (ranges use the lower number; "10,000" and "10k steps" work), `decodeMinimum` (converts units, and keeps other units as a description), `suggestSetup` (the library, then parsing) and `safetyCheck` (a gentler start with a calm note above the caps; intense exercise always keeps rest days). Also `fromAiSuggestion`, which checks every field the AI sends; `endsAfterDays`; and `reviewLines`.
+- **Pro:**
+  - The new `POST /habits/suggest` (`backend/app/habit_setup.py`) needs the new `ai.setup` entitlement and is rate-limited. The app asks it only for names the library doesn't know, after 3 letters and a 600 ms pause, with answers cached in the app and on the service.
+  - The service checks and caps every field again. If there's no answer it says it's unavailable, and the app keeps its own values.
+  - Free never sends a request: nothing is sent until the plan is known.
+  - Saving never waits for the AI. Tests cover the AI being slow, down and refused.
+- **Live model (Gemini free tier, made-up names):**
+  - Answers took 1.6 to 8 seconds, and two of the first five timed out at 25 seconds.
+  - So the under-1.5-second target holds for the library and parsing, which answer at once, but not for AI suggestions on the free tier. The form never waits for them.
+  - "Run 60 km every day" came back as 3 km, 3 times a week, with a calm note.
+  - Units are now normalised ("minutes" becomes "min"), and the prompt asks for no note unless the goal is risky.
+  - Calligraphy was still put under an existing "The Reader" identity, so identity picking from existing identities is loose.
+
+**Onboarding:** the identity step is gone. Steps are now habits, reminders, then the rules. Each first habit is set up from the library like the form, with its own identity, made once per name; the minimum is suggested when left blank. There's no limit on how many habits.
+
+**Reminders:**
+- Each habit reminds at its own time, planned a week ahead and capped at 56 (iPhone keeps 64).
+- They're refreshed on opening the app and whenever Today changes, so a done habit stops reminding. They carry the habit's Done button.
+- Times-per-week habits remind any day, and an ended habit stops.
+- The old single daily reminder is cancelled when found. The You screen now explains the per-habit reminders and has "Turn on reminders"; onboarding has the same choice.
+- A nudge never goes to a habit whose own reminder is within an hour, and still goes to another habit.
+
+**Existing habits on live (part 6):**
+- All 11 test habits matched the library, so none needed the AI.
+- `backfillHabit` in core (tested) gave each a time of day, on the habit and all its versions. The one count habit's "2 pages" became a structured 2-page minimum, dated from today.
+- No log was changed: 183 before and after.
+
+**Tests:** core 1286, mobile 864 (form 81 per platform, onboarding 40, reminders 30, shared form 18), backend 210, web 28. Lint is unchanged: 11 old warnings.
+
+### Smart partial logging (7 Nov 2026)
+
+Part 5 of the habit form work.
+
+- **Server** (migrations `20261107000100_partial_status.sql` and `20261107000200_partial_logging.sql`):
+  - `add_amount` adds to the day's total. The status comes from that total against the day's dated minimum and target: `partial` below the minimum (noted, not counted), done at the minimum, done in full at the target.
+  - Units convert through `tracker.units`, the same table as `units.ts`; a core test checks every word matches. A unit that can't convert logs nothing, and the reply says so.
+  - When the total reaches 1.5x the missed day's target, the miss is repaired.
+  - `remove_amount` undoes one added amount, and takes a repair back if the total drops below it.
+  - A tap raises the total to its level's target and never lowers it; a tap on minimum stays full if the total already is.
+  - Streaks, Grace Days and the identity score see a partial day as not done. The Forecaster counts its amount.
+- **App:**
+  - The long-press sheet has "Add an amount" ("3", "2-3 pages", "500 m").
+  - The card shows "1 of 10 pages so far".
+  - Every reply says where the day stands and what's left, e.g. "Read: 1 of 10 pages, 1 more for your minimum." or "That's below your minimum: lines can't count toward pages."
+  - Voice and the coach go through `addAmount`, and undo takes back just that amount. Offline, amounts queue and add up.
+  - The phone matcher handles ranges, "read 8 more" and convertible units. It leaves a unit of another kind ("read 20 minutes" for pages) to the parser.
+- **Voice:** `log_amount` carries the unit as said. A new held-out set of 20 partial-logging phrases scored 19 of 20 with the live model. The miss was "more" given as a unit, which is now fixed and rescored (see `docs/voice-accuracy.md`).
+- **Live:**
+  - The dry run listed only the two migrations, and the push applied both.
+  - 12 checks passed with temporary users, who were then deleted: 1 page partial, 3 the minimum, 2 lines not counted, 11 full, undo back to 3, a tap raising it to 10. Another user can't add to it or read its logs, the publishable key alone can't add amounts, and the units table isn't reachable.
+- **Tests:** SQL 387 (32 new: accumulation, below the minimum, a miss, units, no-minimum habits, repair by total and its undo, dated targets). Core 1304, mobile 876, backend 216, web 28. Lint is unchanged.
+
+### Times-per-week habits and ending a habit (7 Nov 2026)
+
+Part W of the habit form work: migration `20261107000300_weekly_habits_and_ending.sql`.
+
+- **Times per week:**
+  - **Days:** a times-per-week habit is never due on a single day, so no day of it is ever a miss, and the day-based streak and Grace code never see it.
+  - **Weeks:** Monday to Sunday on the person's own dates, closing with Sunday's 24-hour back-log. A week is met, pending, protected (by a Grace Day), repaired (one extra session the next week, unless the week before was missed too) or missed.
+  - **Sessions:** a day done at any level, once a day at most; a day below the minimum isn't one.
+  - **Part-weeks:** a week the habit starts or ends in part-way asks only as many as it has days.
+  - **Streak:** counted in weeks.
+  - **Grace Days:** a missed week takes one on its last day. A met week counts as 7 consistent days, so someone with only times-per-week habits still earns them. A repaired week keeps the run going; a missed one breaks it, and a covered one resets the count, as a protected day does. PLAN.md says so now.
+  - **Progress:** sessions show as done. In a week that ended short, the days from when the quota went out of reach show its outcome; other days are left out, so nothing counts them. The Forecaster uses sessions a week, and the Sunday summary says "3 of 4 times".
+  - **Switching:** moving between specific days and times per week is dated.
+- **Today:** "This week: 2 of 4", or a calm "2 more this week, 3 days left" when it's tight, then "Done for this week" until Monday, when another session can still be logged.
+  - The streak shows in weeks.
+  - There's no day chain and nothing to skip.
+  - Reminders go quiet for the rest of the week once the quota is met.
+- **Ending:**
+  - After its end a habit isn't due, is never missed, can't be logged and leaves Today; its reminders stop.
+  - It's listed under Completed habits on the You screen with days done, best streak and total amount.
+  - Today celebrates it once, remembered per habit on the server.
+  - Restart makes a new run from today with the same settings and length, linked to the old one, whose history is kept. A running habit can't be restarted.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 10 checks passed with temporary users, who were then deleted. A 4-times-a-week Workout started on a Saturday showed "1 of 2", the part-week quota. Progress saw the session and streaks still worked. A habit ending today wasn't yet completed and couldn't be restarted. Another user couldn't restart it or see anything of it, and the publishable key alone got nothing.
+- **Tests:**
+  - SQL 431 (44 new: quota met early, met with minimum sessions, extra sessions, two sessions on one day, a Grace-covered week, a repaired week, two misses in a row, part-weeks, timezone week boundaries, switching frequency, ending, no misses after the end, restart keeping history).
+  - Core 1313, mobile 888, backend 216, web 28. Lint is unchanged.
+- **Known:** the SQL suite now takes 14 seconds, up from 7, because every day check also reads the habit's dated settings. Worth watching as data grows.
+
+### Time of day on Today: started (7 Nov 2026)
+
+Part 2 of the habit form work, partly done.
+
+- **Done:**
+  - Today is grouped into Morning, Afternoon, Evening and Anytime (`groupByTimeOfDay`), in reminder order, with empty sections hidden.
+  - `useToday().moveTo` changes a habit's time of day, from today on. A reminder still at the old default moves with it.
+  - The Pro suggestion logic, `timeOfDayMove`, works from peak hours, and a "Keep" is remembered.
+  - The drag gesture component, `mobile/src/today/DragToMove.tsx`, is written but not yet wired into Today.
+- **Not done yet:**
+  - Wiring the drag into Today, with all four sections as drop targets while dragging.
+  - "Move to…" in the long-press sheet.
+  - The suggestion card on Today.
+  - A preview build and the phone checklist.
+- **Tests:** core 1317, mobile screens 492.
+
+### Time of day on Today: finished (7 Nov 2026)
+
+The rest of part 2.
+
+- **Drag:**
+  - Long-press a card and move it up or down to another part of the day (`mobile/src/today/DragToMove.tsx`).
+  - While dragging, all four sections show, an empty one as "Move here", and the page doesn't scroll. Letting go drops the card into the section under the finger, or the nearest one.
+  - A long press without moving still opens the sheet, and it closes when a drag starts.
+- **"Move to…":** the long-press sheet has "Move to Morning" and the others, for anyone who can't drag.
+- **Moves:** they're dated, from today. A reminder still at the old part's default moves to the new part's; one set by hand stays.
+- **Pro suggestion:** "You usually do Run in the evening. Move it there?", with Move and Keep, from peak hours (5 or more same-day logs). It moves only on Move, and a Keep is remembered on the server. It isn't shown until the plan has loaded, so Free never sees it.
+- **Lint fix:** the React Compiler gave up on Today when a drop callback read a ref, so the section views are kept in a stable Map instead.
+- **Tests:** core 1318, mobile 896 (new: Move to, a reminder moving with it or staying, Move and Keep). The drag gesture itself needs real touches, so it's on the phone checklist.
+
+### Streak animations for the new habits (8 Nov 2026)
+
+The existing fracture, weld and Grace Day shimmer, extended to times-per-week habits, days below the minimum and habits that end. Chosen by the user from three options.
+
+- **Times-per-week habits:** their chain is of weeks, each node a Monday (`buildWeekChain`, from the new `get_week_statuses`; migration `20261108000000_week_chain.sql`). A met week is done, a missed week cracks, a covered week shimmers, and a week repaired by an extra session the next week welds.
+  - The same moments play, once each, through the same planner.
+  - The words are in weeks: "Missed the week of 2 Nov · Repair next week", "How to repair: 5 sessions next week, one more than it asks", "Welded. 3-week streak.", "Repaired the next week with 5 sessions".
+  - The chain is back on their Today card, on the habit detail (last 12 weeks, with streak and longest in weeks) and in Progress.
+- **A day below the minimum:** its node carries a small accent dot, larger the further it got (10% to 90% of the target). Screen readers hear "partly done".
+- **A habit that ends:** a new, calm "finish" moment: one soft light along the whole chain, then an end cap after the last node, 700 ms, with no haptic and a crossfade under reduced motion. The one-time celebration on Today now plays it on the habit's own chain, with "Finished. 24 days done." Ended chains keep the cap wherever they're drawn.
+- **Animation Playground:** a Finish button, a partial day with a finished chain, and a chain of weeks in the gallery.
+- **Live:** the dry run listed only this migration. 4 checks passed with temporary users, who were then deleted: this week with its session, nothing for another user, nothing with the publishable key alone, and the range capped.
+- **Tests:** SQL 436, core 1328, mobile 906. Lint is unchanged.

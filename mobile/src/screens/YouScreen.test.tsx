@@ -2,12 +2,15 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@habit-tracker/ui';
-import { openPhoneSettings, sendTestReminder, setDailyReminder } from '../services/reminders';
+import { openPhoneSettings, sendTestReminder, syncHabitReminders } from '../services/reminders';
 import { setNudgesEnabled } from '../services/nudges';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
 import { YouScreen } from './YouScreen';
 
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
 jest.mock('../services/supabase', () => ({
   supabase: { auth: { signOut: jest.fn() } },
 }));
@@ -17,6 +20,9 @@ jest.mock('../services/nudges', () => ({
 }));
 jest.mock('../services/tracker', () => ({
   tracker: {
+    listCompletedHabits: jest.fn(() => Promise.resolve([])),
+    restartHabit: jest.fn(() => Promise.resolve('h10')),
+    markTipSeen: jest.fn(() => Promise.resolve()),
     getProfile: jest.fn(() => Promise.resolve({ reminder_time: '20:00:00' })),
     setReminderTime: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(() =>
@@ -28,7 +34,7 @@ jest.mock('../services/tracker', () => ({
 }));
 jest.mock('../services/reminders', () => ({
   ...jest.requireActual('../services/reminders'),
-  setDailyReminder: jest.fn(() => Promise.resolve({ status: 'set' })),
+  syncHabitReminders: jest.fn(() => Promise.resolve({ status: 'set' })),
   sendTestReminder: jest.fn(() => Promise.resolve({ status: 'set' })),
   openPhoneSettings: jest.fn(),
 }));
@@ -68,6 +74,11 @@ describe('YouScreen', () => {
     expect(screen.getByText('me+test@example.test')).toBeTruthy();
   });
 
+  it('keeps the voice test out of normal builds', async () => {
+    await open();
+    expect(screen.queryByText('Voice test (test builds only)')).toBeNull();
+  });
+
   it('offers System, Light and Dark, applied at once', async () => {
     await open();
     expect(screen.getByRole('button', { name: 'System', selected: true })).toBeTruthy();
@@ -75,35 +86,40 @@ describe('YouScreen', () => {
     expect(screen.getByRole('button', { name: 'Dark', selected: true })).toBeTruthy();
   });
 
-  it('shows the saved reminder and changes it', async () => {
+  it('lists completed habits, and restarts one as a new run', async () => {
+    (tracker.listCompletedHabits as jest.Mock).mockResolvedValue([
+      {
+        habit_id: 'h9', title: 'Read', identity_name: 'The Reader', colour_token: 'identity-1',
+        starts_on: '2026-10-01', ends_on: '2026-10-30', frequency: 'days', days_done: 24,
+        best_streak: 12, total_amount: 260, unit: 'pages', restarted: false,
+      },
+    ]); // prettier-ignore
     await open();
-    expect(screen.getByRole('button', { name: '20:00', selected: true })).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
     await act(async () => {});
-    expect(tracker.setReminderTime).toHaveBeenCalledWith('u1', '07:00');
-    expect(setDailyReminder).toHaveBeenCalledWith('07:00');
+    expect(screen.getByText('Completed habits')).toBeTruthy();
+    expect(screen.getByText('24 days done, best streak 12 days, 260 pages in all.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Restart Read' }));
+    await act(async () => {});
+    expect(tracker.restartHabit).toHaveBeenCalledWith('h9');
+    expect(screen.getByText('Read starts again today. Its earlier run is kept.')).toBeTruthy();
   });
 
-  it('turns the reminder off', async () => {
+  it('explains that each habit reminds at its own time, and turns them on', async () => {
     await open();
-    await fireEvent.press(screen.getByRole('button', { name: 'No reminder' }));
+    expect(screen.getByText(/Each habit reminds you at its own time/)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Turn on reminders' }));
     await act(async () => {});
-    expect(setDailyReminder).toHaveBeenCalledWith(null);
+    expect(syncHabitReminders).toHaveBeenCalledWith({ ask: true });
+    expect(screen.getByText('Reminders are on. Each habit reminds you at its own time.')).toBeTruthy();
   });
 
   it('says so when notifications are off', async () => {
-    (setDailyReminder as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
+    (syncHabitReminders as jest.Mock).mockResolvedValueOnce({ status: 'denied' });
     await open();
-    await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Turn on reminders' }));
     await act(async () => {});
     expect(screen.getByText(/aren't allowed/)).toBeTruthy();
-  });
-
-  it('confirms the time once the phone has it', async () => {
-    await open();
-    await fireEvent.press(screen.getByRole('button', { name: '07:00' }));
-    await act(async () => {});
-    expect(screen.getByText('Reminder set for 07:00.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open phone settings' })).toBeTruthy();
   });
 
   it('shows the real reason when reminders fail', async () => {

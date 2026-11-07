@@ -1,6 +1,16 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { cardDetail, cardStatus, Chain, layout, MotionSettings, radius, space, TodayRow } from '@habit-tracker/core';
+import {
+  cardDetail,
+  cardStatus,
+  Chain,
+  layout,
+  MotionSettings,
+  radius,
+  space,
+  streakUnit,
+  TodayRow,
+} from '@habit-tracker/core';
 import { HabitCard, PressableState, Text, useTheme } from '@habit-tracker/ui';
 import { CardChain, streakBeforeWeld, useCountUp } from '../chain/CardChain';
 import { PlayingMoment } from '../hooks/useMoments';
@@ -13,7 +23,7 @@ interface TodayCardProps {
   settings: MotionSettings;
   onPress: () => void;
   onLongPress: () => void;
-  onSkip: () => void;
+  onSkip?: () => void;
   onMomentFinish: () => void;
   onOpenDetail: () => void;
   // Tunnel Vision, for today's habits.
@@ -52,6 +62,7 @@ export function TodayCard({
 }: TodayCardProps) {
   const count = useCountUp(row.current_streak);
   const weld = playing?.moment.kind === 'weld' ? playing.moment : null;
+  // A times-per-week habit's chain is of weeks; anyone else's, of days.
   const hasChain = chain !== undefined && chain.nodes.length > 1;
 
   return (
@@ -60,6 +71,7 @@ export function TodayCard({
       status={cardStatus(row)}
       identity={row.colour_token}
       streak={count.shown ?? row.current_streak}
+      streakUnit={streakUnit(row)}
       detail={cardDetail(row)}
       onPress={onPress}
       onLongPress={onLongPress}

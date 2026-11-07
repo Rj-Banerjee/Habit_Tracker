@@ -350,3 +350,23 @@ describe('forecast', () => {
     expect(forecast(pages, history(repeat('missed', 30)), TODAY, 80)?.amount).toBe(5840);
   });
 });
+
+describe('times-per-week habits in Progress', () => {
+  const workout = habit({ id: 'h1', title: 'Workout', frequency: 'per_week', per_week: 4 });
+  // 3 sessions a week for the last 4 weeks.
+  const sessions = Array.from({ length: 4 }, (_, week) =>
+    [1, 3, 5].map((offset) => day(addDays(TODAY, -7 * (week + 1) + offset), 'done'))
+  ).flat();
+
+  it('forecasts sessions a week, out of what it asks', () => {
+    const result = forecast(workout, sessions, TODAY);
+    expect(result?.actualRate).toBe(75);
+    expect(result?.scheduledAhead).toBe(209);
+    expect(result?.completions).toBe(157);
+  });
+
+  it('sums up a week in sessions', () => {
+    const week = weekSummary([workout], sessions, addDays(TODAY, -7));
+    expect(week[0].label).toBe('3 of 4 times');
+  });
+});

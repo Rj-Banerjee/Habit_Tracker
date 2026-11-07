@@ -19,6 +19,8 @@ interface HabitCardProps {
   status: HabitCardStatus;
   identity: IdentityToken;
   streak?: number;
+  // A times-per-week habit counts its streak in weeks.
+  streakUnit?: 'day' | 'week';
   detail?: string;
   statusLabel?: string;
   onPress?: () => void;
@@ -39,6 +41,7 @@ export function HabitCard({
   status,
   identity,
   streak,
+  streakUnit = 'day',
   detail,
   statusLabel,
   onPress,
@@ -75,10 +78,10 @@ export function HabitCard({
   const hasStreak = streak !== undefined && streak > 0;
   const accessibilityLabel = useMemo(
     () =>
-      [title, label, detail, hasStreak ? `${streak} day streak` : null]
+      [title, label, detail, hasStreak ? `${streak} ${streakUnit} streak` : null]
         .filter(Boolean)
         .join(', '),
-    [title, label, detail, streak, hasStreak]
+    [title, label, detail, streak, hasStreak, streakUnit]
   );
 
   return (
@@ -125,7 +128,7 @@ export function HabitCard({
               {streak}
             </Text>
             <Text variant="small" muted>
-              days
+              {streakUnit === 'week' ? 'weeks' : 'days'}
             </Text>
           </View>
         )}

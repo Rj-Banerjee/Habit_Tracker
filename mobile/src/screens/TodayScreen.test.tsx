@@ -5,6 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { watchMyActivity } from '../services/live';
+import { syncHabitReminders } from '../services/reminders';
+import type { AmountResult } from '@habit-tracker/core';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
@@ -33,6 +35,7 @@ jest.mock('../services/reminders', () => ({
   showHeldNotifications: jest.fn(() => Promise.resolve()),
   notificationsAllowed: jest.fn(() => Promise.resolve(true)),
   askForNotifications: jest.fn(() => Promise.resolve()),
+  syncHabitReminders: jest.fn(() => Promise.resolve({ status: 'set' })),
 }));
 jest.mock('../services/live', () => ({ watchMyActivity: jest.fn(() => () => {}) }));
 jest.mock('../services/speak', () => ({ speak: jest.fn() }));
@@ -50,6 +53,13 @@ jest.mock('../services/tracker', () => ({
     getHabitDays: jest.fn(() => Promise.resolve([])),
     getDayStatuses: jest.fn(() => Promise.resolve([])),
     recordFocus: jest.fn(() => Promise.resolve()),
+    addAmount: jest.fn(),
+    getProfile: jest.fn(() => Promise.resolve({ seen_tips: [] })),
+    countActiveHabits: jest.fn(() => Promise.resolve(2)),
+    markTipSeen: jest.fn(() => Promise.resolve()),
+    listCompletedHabits: jest.fn(() => Promise.resolve([])),
+    updateHabit: jest.fn(() => Promise.resolve()),
+    getWeekStatuses: jest.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -136,6 +146,150 @@ describe('TodayScreen', () => {
   });
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('refreshes each habit\'s reminders when Today changes', async () => {
+    await open([row()]);
+    expect(syncHabitReminders).toHaveBeenCalled();
+  });
+
+  describe('times per week', () => {
+    const workout = (patch: Partial<TodayRow> = {}) =>
+      row({ title: 'Workout', frequency: 'per_week', week_done: 2, week_quota: 4, week_days_left: 5, current_streak: 6, ...patch });
+
+    it('shows how the week is going, and a streak in weeks', async () => {
+      await open([workout()]);
+      expect(screen.getByText(/This week: 2 of 4/)).toBeTruthy();
+      expect(screen.getByText('weeks')).toBeTruthy();
+    });
+
+    it('shows as done for the week once met, and still logs another session', async () => {
+      await open([workout({ week_done: 4 })]);
+      expect(screen.getByText(/Done for this week/)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: /^Workout/ }));
+      expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'full', null, 'tap');
+    });
+
+    it('draws its chain in weeks', async () => {
+      api.getWeekStatuses.mockResolvedValueOnce([
+        { habit_id: 'h1', week_start: '2026-10-26', status: 'met', quota: 4, sessions: 4, repair_by: null },
+        { habit_id: 'h1', week_start: '2026-11-02', status: 'pending', quota: 4, sessions: 2, repair_by: null },
+      ]);
+      await open([workout()]);
+      expect(screen.getByLabelText(/^Last 2 weeks: week of 26 Oct done/)).toBeTruthy();
+    });
+
+    it('has nothing to skip', async () => {
+      await open([workout()]);
+      await fireEvent(screen.getByRole('button', { name: /^Workout/ }), 'longPress');
+      expect(screen.queryByRole('button', { name: 'Skip today' })).toBeNull();
+    });
+  });
+
+  describe('time of day', () => {
+    it('moves a habit to another part of the day from the long-press sheet', async () => {
+      await open([row({ time_of_day: 'morning', reminder_time: '08:00:00' })]);
+      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
+      expect(screen.queryByRole('button', { name: 'Move to Morning' })).toBeNull();
+      await fireEvent.press(screen.getByRole('button', { name: 'Move to Evening' }));
+      await act(async () => {});
+      // Its reminder was the morning default, so it moves to the evening's.
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'evening', reminderTime: '19:00' });
+    });
+
+    it("keeps a reminder they set themselves", async () => {
+      await open([row({ time_of_day: 'morning', reminder_time: '06:45:00' })]);
+      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
+      await fireEvent.press(screen.getByRole('button', { name: 'Move to Anytime' }));
+      await act(async () => {});
+      expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'anytime' });
+    });
+
+    describe('on Pro', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const entitlements = require('../hooks/useEntitlements');
+      const evenings = Array.from({ length: 6 }, (_, i) => ({
+        habit_id: 'h1', date: `2026-10-2${i}`, status: 'done', level_done: 'full', amount: null, target: null, logged_hour: 20,
+      })); // prettier-ignore
+
+      beforeEach(() => {
+        jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'pro', ready: true, can: () => true });
+      });
+      afterEach(() => jest.restoreAllMocks());
+
+      it('offers to move a habit to when it is usually done, and moves it only on Move', async () => {
+        api.getHabitDays.mockResolvedValue(evenings as never);
+        await open([row({ time_of_day: 'morning' })]);
+        expect(screen.getByText('You usually do Run in the evening. Move it there?')).toBeTruthy();
+        expect(api.updateHabit).not.toHaveBeenCalled();
+        await fireEvent.press(screen.getByRole('button', { name: 'Move' }));
+        await act(async () => {});
+        expect(api.updateHabit).toHaveBeenCalledWith('h1', { timeOfDay: 'evening' });
+        api.getHabitDays.mockResolvedValue([]);
+      });
+
+      it('remembers a Keep', async () => {
+        api.getHabitDays.mockResolvedValue(evenings as never);
+        await open([row({ time_of_day: 'morning' })]);
+        await fireEvent.press(screen.getByRole('button', { name: 'Keep' }));
+        expect(screen.queryByText(/Move it there/)).toBeNull();
+        expect(api.markTipSeen).toHaveBeenCalledWith('time-kept:h1:evening');
+        expect(api.updateHabit).not.toHaveBeenCalled();
+        api.getHabitDays.mockResolvedValue([]);
+      });
+    });
+  });
+
+  describe('a habit that ended', () => {
+    const ended = {
+      habit_id: 'h9', title: 'Read', identity_name: 'The Reader', colour_token: 'identity-1',
+      starts_on: '2026-10-01', ends_on: '2026-10-30', frequency: 'days', days_done: 24,
+      best_streak: 12, total_amount: null, unit: null, restarted: false,
+    } as const; // prettier-ignore
+    const text = "You finished Read. 24 days done, best streak 12 days. That's worth a moment.";
+
+    it('is celebrated once, calmly', async () => {
+      api.listCompletedHabits.mockResolvedValueOnce([ended]);
+      await open([row()]);
+      expect(screen.getByText(text)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Got it' }));
+      expect(screen.queryByText(text)).toBeNull();
+      expect(api.markTipSeen).toHaveBeenCalledWith('ended:h9');
+    });
+
+    it('is not celebrated again', async () => {
+      api.listCompletedHabits.mockResolvedValueOnce([ended]);
+      api.getProfile.mockResolvedValue({ seen_tips: ['ended:h9'] } as never);
+      await open([row()]);
+      expect(screen.queryByText(text)).toBeNull();
+      api.getProfile.mockResolvedValue({ seen_tips: [] } as never);
+    });
+  });
+
+  describe('the habit tip', () => {
+    const tip = 'Starting with a few makes them stick.';
+
+    it('says nothing up to 6 habits', async () => {
+      api.countActiveHabits.mockResolvedValue(6);
+      await open([row()]);
+      expect(screen.queryByText(tip)).toBeNull();
+    });
+
+    it('shows once past 6 habits, and is remembered when dismissed', async () => {
+      api.countActiveHabits.mockResolvedValue(7);
+      await open([row()]);
+      expect(screen.getByText(tip)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Got it' }));
+      expect(screen.queryByText(tip)).toBeNull();
+      expect(api.markTipSeen).toHaveBeenCalledWith('habit-tip');
+    });
+
+    it('stays away once seen, on any device', async () => {
+      api.countActiveHabits.mockResolvedValue(12);
+      api.getProfile.mockResolvedValue({ seen_tips: ['habit-tip'] } as never);
+      await open([row()]);
+      expect(screen.queryByText(tip)).toBeNull();
+    });
+  });
 
   describe('streak chain', () => {
     const week = Array.from({ length: 7 }, (_, i) => `2026-10-${String(28 + i).padStart(2, '0')}`)
@@ -254,13 +408,13 @@ describe('TodayScreen', () => {
     });
   });
 
-  it('groups habits by identity', async () => {
+  it('groups habits by time of day', async () => {
     await open([
-      row(),
-      row({ habit_id: 'h2', title: 'Read', identity_id: 'i2', identity_name: 'The Reader' }),
+      row({ time_of_day: 'evening' }),
+      row({ habit_id: 'h2', title: 'Read', identity_id: 'i2', identity_name: 'The Reader', time_of_day: 'morning' }),
     ]);
-    expect(screen.getByText('The Athlete')).toBeTruthy();
-    expect(screen.getByText('The Reader')).toBeTruthy();
+    const headers = screen.getAllByRole('header').map((h) => h.props.children);
+    expect(headers.filter((h) => ['Morning', 'Evening'].includes(h))).toEqual(['Morning', 'Evening']);
   });
 
   it('logs the full version with one tap', async () => {
@@ -280,6 +434,71 @@ describe('TodayScreen', () => {
     await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
     await fireEvent.press(screen.getByRole('button', { name: 'Minimum version, Run 1 km' }));
     expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-03', 'minimum', null, 'tap');
+  });
+
+  describe('adding an amount', () => {
+    const read = () =>
+      row({
+        title: 'Read',
+        habit_type: 'count',
+        target: 10,
+        unit: 'pages',
+        levels: [
+          { level: 'full', description: 'Ten pages', target: 10 },
+          { level: 'minimum', description: 'Two pages', target: 2 },
+        ],
+      });
+    const answer = (patch: Partial<AmountResult> = {}): AmountResult => ({
+      counted: true, added: 1, total: 1, unit: 'pages', said_unit: null, minimum: 2, target: 10,
+      status: 'partial' as const, level: null, repaired: false, ...patch,
+    }); // prettier-ignore
+
+    const add = async (text: string) => {
+      await fireEvent(screen.getByRole('button', { name: /^Read/ }), 'longPress');
+      await fireEvent.changeText(screen.getByLabelText('Add an amount'), text);
+      await fireEvent.press(screen.getByRole('button', { name: 'Add' }));
+      await act(async () => {});
+    };
+
+    it('adds 1 page and says what is left for the minimum', async () => {
+      api.addAmount.mockResolvedValue(answer());
+      await open([read()]);
+      await add('1');
+      expect(api.addAmount).toHaveBeenCalledWith('h1', '2026-11-03', 1, null, 'tap');
+      expect(screen.getByText('Read: 1 of 10 pages, 1 more for your minimum.')).toBeTruthy();
+    });
+
+    it('uses the lower number of a range, with its unit', async () => {
+      api.addAmount.mockResolvedValue(answer({ added: 2, total: 2, status: 'done', level: 'minimum' }));
+      await open([read()]);
+      await add('2-3 pages');
+      expect(api.addAmount).toHaveBeenCalledWith('h1', '2026-11-03', 2, 'pages', 'tap');
+    });
+
+    it('says calmly when the unit cannot count', async () => {
+      api.addAmount.mockResolvedValue(answer({ counted: false, added: 0, total: 0, said_unit: 'lines', status: 'none' }));
+      await open([read()]);
+      await add('2-3 lines');
+      expect(screen.getByText("That's below your minimum: lines can't count toward pages. Read is at 0 of 10 pages.")).toBeTruthy();
+    });
+
+    it('asks for an amount it can read', async () => {
+      await open([read()]);
+      await add('lots');
+      expect(api.addAmount).not.toHaveBeenCalled();
+      expect(screen.getByText('Enter an amount, like 3 or 2-3 pages.')).toBeTruthy();
+    });
+
+    it("isn't offered for a yes/no habit", async () => {
+      await open([row()]);
+      await fireEvent(screen.getByRole('button', { name: /^Run/ }), 'longPress');
+      expect(screen.queryByLabelText('Add an amount')).toBeNull();
+    });
+
+    it('shows progress below the minimum on the card', async () => {
+      await open([{ ...read(), amount: 1 }]);
+      expect(screen.getByText(/1 of 10 pages so far/)).toBeTruthy();
+    });
   });
 
   it('offers a repair only when the server says it can happen', async () => {
@@ -350,8 +569,8 @@ describe('TodayScreen', () => {
   });
 
   describe.each([
-    [9, ['Still open from yesterday', 'The Athlete']],
-    [20, ['The Athlete', 'Still open from yesterday']],
+    [9, ['Still open from yesterday', 'Anytime']],
+    [20, ['Anytime', 'Still open from yesterday']],
   ])('at %i:00', (hour, order) => {
     it('orders the sections for that time of day', async () => {
       jest.useFakeTimers({ now: new Date(2026, 10, 3, hour), doNotFake: ['nextTick', 'setImmediate'] });

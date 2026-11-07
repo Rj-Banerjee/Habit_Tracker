@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import type { DayStatus } from './api';
+import type { DayStatus, WeekStatusRow } from './api';
+import { addDays } from './dates';
 import {
   buildChain,
+  buildWeekChain,
+  finishCaption,
   Chain,
   chainBefore,
   chainRows,
   habitChain,
   fractureCaption,
   isLowEnd,
+  longestWeekRun,
   momentKey,
   motionPlan,
   planMoments,
   repairHint,
   seamLabel,
   seamLabels,
+  weekRepairHint,
   weldCaption,
 } from './chain';
 
@@ -322,5 +327,100 @@ describe('seamLabels', () => {
       TODAY
     );
     expect([...labels]).toEqual([['2026-11-04', 'Repaired on Thu with 45 pages']]);
+  });
+});
+
+describe('a chain of weeks', () => {
+  const week = (week_start: string, status: WeekStatusRow['status'], patch: Partial<WeekStatusRow> = {}): WeekStatusRow => ({
+    habit_id: 'h1', week_start, status, quota: 4, sessions: status === 'met' ? 4 : 2, repair_by: null, ...patch,
+  }); // prettier-ignore
+
+  it('has a node a week: met, missed and repairable, covered, repaired, and this one', () => {
+    const chain = buildWeekChain('h1', [
+      week('2026-10-12', 'met'),
+      week('2026-10-19', 'protected'),
+      week('2026-10-26', 'repaired'),
+      week('2026-11-02', 'met', { sessions: 5 }),
+      week('2026-11-09', 'missed', { repair_by: '2026-11-16' }),
+      week('2026-11-16', 'pending'),
+    ]);
+    expect(chain.unit).toBe('week');
+    expect(chain.nodes.map((n) => n.status)).toEqual(['done', 'protected', 'repaired', 'done', 'missed', 'due']);
+    expect(chain.links).toEqual(['chain', 'seam', 'chain', 'crack', 'pending']);
+    expect(chain.nodes[4].repairOn).toBe('2026-11-16');
+    expect(chain.nodes[2].repairedWith).toEqual({ on: '2026-11-02', amount: 5 });
+  });
+
+  it('keeps the last 6 weeks, and only its own', () => {
+    const weeks = Array.from({ length: 9 }, (_, i) => week(addDays('2026-09-07', i * 7), 'met'));
+    expect(buildWeekChain('h1', [...weeks, { ...week('2026-11-09', 'met'), habit_id: 'h2' }]).nodes).toHaveLength(6);
+  });
+
+  it('plays the same moments for weeks', () => {
+    const chain = buildWeekChain('h1', [week('2026-11-02', 'met'), week('2026-11-09', 'missed', { repair_by: '2026-11-16' })]);
+    expect(planMoments([{ habitId: 'h1', chain }], new Set()).play).toEqual([
+      { kind: 'fracture', habitId: 'h1', date: '2026-11-09' },
+    ]);
+  });
+
+  it('talks in weeks', () => {
+    expect(fractureCaption('2026-11-09', '2026-11-16', 'week')).toBe('Missed the week of 9 Nov · Repair next week');
+    expect(fractureCaption('2026-11-09', null, 'week')).toBe('Missed the week of 9 Nov');
+    expect(weekRepairHint(4)).toBe('5 sessions next week, one more than it asks');
+    expect(weldCaption(6, 'week')).toBe('Welded. 6-week streak.');
+    const repaired = { date: '2026-10-26', status: 'repaired' as const, repairOn: null, repairedWith: { on: '2026-11-02', amount: 5 } };
+    expect(seamLabel(repaired, { title: 'Workout', type: 'boolean', target: null, unit: null }, 'week')).toBe(
+      'Repaired the next week with 5 sessions'
+    );
+  });
+});
+
+describe('a day below the minimum', () => {
+  it('shows how far it got on its node', () => {
+    const chain = buildChain(
+      [day('2026-11-10', 'done'), day('2026-11-11', 'missed', '2026-11-12')],
+      [
+        { date: '2026-11-10', level_done: 'full' },
+        { date: '2026-11-11', level_done: null, amount: 3, target: 10 },
+      ],
+      TODAY
+    );
+    expect(chain.nodes[1]).toMatchObject({ status: 'missed', partial: 0.3 });
+    expect(chain.nodes[0].partial).toBeUndefined();
+  });
+
+  it('never shows nothing, or looks finished', () => {
+    const tiny = buildChain([day('2026-11-11', 'missed')], [{ date: '2026-11-11', level_done: null, amount: 0.1, target: 10 }], TODAY);
+    const most = buildChain([day('2026-11-11', 'missed')], [{ date: '2026-11-11', level_done: null, amount: 9.9, target: 10 }], TODAY);
+    expect(tiny.nodes[0].partial).toBe(0.1);
+    expect(most.nodes[0].partial).toBe(0.9);
+  });
+});
+
+describe('finishing', () => {
+  it('has its own calm moment, never planned from a chain', () => {
+    expect(motionPlan('finish', { reducedMotion: false, lowEnd: false })).toEqual({ mode: 'full', sparks: false, durationMs: 700 });
+    expect(motionPlan('finish', { reducedMotion: true, lowEnd: false }).mode).toBe('crossfade');
+    expect(finishCaption(24)).toBe('Finished. 24 days done.');
+  });
+
+  it('starts from the chain without its cap', () => {
+    const chain = { ...buildChain([day('2026-11-11', 'done')], [], TODAY), ended: true };
+    expect(chainBefore(chain, { kind: 'finish', habitId: 'h1', date: '2026-11-11' }).ended).toBe(false);
+  });
+});
+
+describe('longestWeekRun', () => {
+  it('counts met and repaired weeks, through a covered one, until a miss', () => {
+    const w = (week_start: string, status: WeekStatusRow['status']): WeekStatusRow => ({ habit_id: 'h1', week_start, status, quota: 3, sessions: 0, repair_by: null });
+    expect(longestWeekRun('h1', [w('2026-10-05', 'met'), w('2026-10-12', 'protected'), w('2026-10-19', 'repaired'), w('2026-10-26', 'missed'), w('2026-11-02', 'met')])).toBe(2);
+  });
+});
+
+describe('chainRows', () => {
+  it('keeps the unit, and the cap on the last row only', () => {
+    const chain = { ...buildChain([day('2026-11-10', 'done'), day('2026-11-11', 'done'), day('2026-11-12', 'done')], [], TODAY), ended: true, unit: 'week' as const };
+    const rows = chainRows(chain, 2);
+    expect(rows.map((r) => [r.unit, r.ended])).toEqual([['week', undefined], ['week', true]]);
   });
 });

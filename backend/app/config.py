@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # What one person can use.
     ai_user_chats_per_hour: int = 20
     ai_user_voice_per_hour: int = 60
+    ai_user_setup_per_hour: int = 60
     # An estimate of tokens across everything one person uses in a day. 0 turns it off.
     ai_user_daily_tokens: int = 100000
 
@@ -46,6 +47,10 @@ class Settings(BaseSettings):
     ai_retry_budget_seconds: float = 8.0
 
     ai_allowed_origins: CommaList = []
+
+    # Where the spoken voice test saves what the phone heard, one JSON line per phrase.
+    # Empty turns it off. Only test accounts can send to it, and nothing goes to a model.
+    voice_samples_path: str = ""
 
     # Scheduled jobs. Supabase's pg_cron sends this secret with each call. Empty turns the
     # /jobs endpoints off.

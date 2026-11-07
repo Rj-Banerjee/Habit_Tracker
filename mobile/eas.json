@@ -16,7 +16,10 @@
       "android": {
         "buildType": "apk"
       },
-      "environment": "preview"
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_VOICE_TEST": "1"
+      }
     },
     "review": {
       "extends": "preview",

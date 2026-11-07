@@ -95,7 +95,6 @@ export async function syncNudge(rows: TodayRow[]) {
       rows,
       today,
       nowMinutes: now.getHours() * 60 + now.getMinutes(),
-      reminder: profile.reminder_time?.slice(0, 5) ?? null,
       history,
     });
     if (!plan) return;

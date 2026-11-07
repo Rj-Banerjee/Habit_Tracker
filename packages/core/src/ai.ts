@@ -13,7 +13,8 @@ export interface VoiceOption {
 
 export type VoiceAction =
   | (VoiceOption & { intent: 'log_habit' | 'shrink_habit' | 'undo_habit' })
-  | (VoiceOption & { intent: 'log_amount'; amount: number })
+  // unit is what they said it in, if anything; the server converts it or says it can't.
+  | (VoiceOption & { intent: 'log_amount'; amount: number; unit?: string | null })
   | (VoiceOption & { intent: 'skip_habit'; reason: string });
 
 // Two habits could be what they meant, so the app asks once.
@@ -97,6 +98,15 @@ export function createAiClient({ baseUrl, getToken, fetch: send = fetch }: AiCli
   return {
     parseVoice: async (transcript: string): Promise<VoiceParse> =>
       (await post('/voice/parse', { transcript })).json(),
+
+    // Settings for a habit the library doesn't know. Checked again by fromAiSuggestion.
+    suggestSetup: async (name: string): Promise<Record<string, unknown>> =>
+      (await post('/habits/suggest', { name })).json(),
+
+    // The spoken voice test: what the phone heard for one phrase, kept on the AI service.
+    voiceSample: async (phraseId: string, heard: string, language: string) => {
+      await post('/voice/samples', { phrase_id: phraseId, heard, language });
+    },
 
     // Yields the reply as it arrives, or what the coach decided to do.
     nudgeOutcome: async (habitId: string, date: string, outcome: 'logged' | 'ignored') => {

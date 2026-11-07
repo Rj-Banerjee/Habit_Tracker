@@ -25,6 +25,12 @@ jest.mock('../services/tracker', () => ({
     getToday: jest.fn(),
     getRepairs: jest.fn(() => Promise.resolve([])),
     logHabit: jest.fn(() => Promise.resolve()),
+    addAmount: jest.fn(() =>
+      Promise.resolve({
+        counted: true, added: 20, total: 20, unit: 'pages', said_unit: null, minimum: 5,
+        target: 30, status: 'done', level: 'minimum', repaired: false,
+      })
+    ), // prettier-ignore
     skipHabit: jest.fn(() => Promise.resolve()),
     undoLog: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(() => Promise.resolve([])),
@@ -794,7 +800,7 @@ describe('voice', () => {
       await fireEvent.changeText(screen.getByLabelText('What did you do?'), 'read 20 pages');
       await press('Log it');
       await settle();
-      expect(api.logHabit).toHaveBeenCalledWith('h1', expect.anything(), 'full', 20, 'voice');
+      expect(api.addAmount).toHaveBeenCalledWith('h1', expect.anything(), 20, null, 'voice');
       expect(coachApi.parseVoice).not.toHaveBeenCalled();
     });
 

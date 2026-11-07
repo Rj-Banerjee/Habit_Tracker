@@ -1,13 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { asPlan } from './entitlements';
 import type { FocusEventKind } from './focus';
+import type { ReminderHabit } from './habitReminders';
 import { IdentityToken } from './tokens';
 
 export type HabitLevel = 'full' | 'minimum' | 'setup';
 export type HabitType = 'boolean' | 'count' | 'duration' | 'quit';
-export type LogStatus = 'done' | 'skipped' | 'repaired';
+export type LogStatus = 'partial' | 'done' | 'skipped' | 'repaired';
 export type LogSource = 'tap' | 'voice' | 'coach' | 'widget' | 'notification';
 export type StreakMode = 'strict' | 'grace';
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'anytime';
+export type HabitFrequency = 'days' | 'per_week';
 
 export interface LevelOption {
   level: HabitLevel;
@@ -34,6 +37,57 @@ export interface TodayRow {
   levels: LevelOption[];
   can_repair: boolean;
   repair_amount: number | null;
+  time_of_day?: TimeOfDay;
+  reminder_time?: string | null;
+  frequency?: HabitFrequency;
+  // For a times-per-week habit: sessions this week, how many it asks, and the days left
+  // that a session can still happen on, today included unless it's done.
+  week_done?: number | null;
+  week_quota?: number | null;
+  week_days_left?: number | null;
+  ends_on?: string | null;
+}
+
+// One week of a times-per-week habit, for its chain.
+export interface WeekStatusRow {
+  habit_id: string;
+  week_start: string;
+  status: 'met' | 'pending' | 'missed' | 'protected' | 'repaired' | 'none';
+  quota: number;
+  sessions: number;
+  // A missed week that can still be repaired: the week to do it in.
+  repair_by: string | null;
+}
+
+// An ended habit, for Completed habits.
+export interface CompletedHabit {
+  habit_id: string;
+  title: string;
+  identity_name: string;
+  colour_token: IdentityToken;
+  starts_on: string;
+  ends_on: string;
+  frequency: HabitFrequency;
+  days_done: number;
+  best_streak: number;
+  total_amount: number | null;
+  unit: string | null;
+  restarted: boolean;
+}
+
+// Where a day stands after an amount is added. counted is false when the amount was in a
+// unit that can't count toward the habit's, and nothing was logged.
+export interface AmountResult {
+  counted: boolean;
+  added: number;
+  total: number;
+  unit: string | null;
+  said_unit: string | null;
+  minimum: number | null;
+  target: number | null;
+  status: LogStatus | 'none';
+  level: HabitLevel | null;
+  repaired: boolean;
 }
 
 export interface RepairRow {
@@ -59,12 +113,6 @@ export interface DayStatus {
   date: string;
   status: string;
   repair_on: string | null;
-}
-
-export interface HabitAllowance {
-  allowed: number;
-  active: number;
-  can_add: boolean;
 }
 
 export interface Identity {
@@ -105,6 +153,9 @@ export interface ProgressHabit {
   schedule_days: number[];
   milestone_amount: number | null;
   milestone_label: string | null;
+  reminder_time?: string | null;
+  frequency?: HabitFrequency;
+  per_week?: number | null;
   identities: { name: string; colour_token: IdentityToken };
 }
 
@@ -139,6 +190,7 @@ export interface Profile {
   mode: StreakMode;
   onboarded_at: string | null;
   reminder_time: string | null;
+  seen_tips?: string[];
 }
 
 export interface Reflection {
@@ -159,6 +211,12 @@ export interface HabitDetail {
   voice_aliases: string[];
   milestone_amount: number | null;
   milestone_label: string | null;
+  time_of_day: TimeOfDay;
+  reminder_time: string | null;
+  frequency: HabitFrequency;
+  per_week: number | null;
+  ends_on: string | null;
+  starts_on?: string;
   habit_levels: LevelOption[];
 }
 
@@ -175,6 +233,11 @@ export interface HabitInput {
   voiceAliases?: string[];
   milestoneAmount?: number | null;
   milestoneLabel?: string | null;
+  timeOfDay?: TimeOfDay;
+  reminderTime?: string | null;
+  frequency?: HabitFrequency;
+  perWeek?: number | null;
+  endsOn?: string | null;
 }
 
 export interface NewIdentityInput {
@@ -239,6 +302,27 @@ export function createTrackerApi(client: SupabaseClient) {
         p_source: source,
       }),
 
+    // Adds to the day's total, which decides its status. A range should already be its
+    // lower number, and a unit the server can't convert logs nothing.
+    addAmount: (
+      habitId: string,
+      date: string | null,
+      amount: number,
+      unit: string | null = null,
+      source: LogSource = 'tap'
+    ) =>
+      call<AmountResult>('add_amount', {
+        p_habit_id: habitId,
+        p_date: date,
+        p_amount: amount,
+        p_unit: unit,
+        p_source: source,
+      }),
+
+    // Undo of one added amount.
+    removeAmount: (habitId: string, date: string | null, amount: number) =>
+      call('remove_amount', { p_habit_id: habitId, p_date: date, p_amount: amount }),
+
     undoLog: (habitId: string, date: string | null, source: LogSource = 'tap') =>
       call('undo_log', { p_habit_id: habitId, p_date: date, p_source: source }),
 
@@ -267,8 +351,6 @@ export function createTrackerApi(client: SupabaseClient) {
         p_elapsed_seconds: elapsedSeconds,
       }),
 
-    getHabitAllowance: async () => (await call<HabitAllowance[]>('get_habit_allowance'))[0],
-
     // A new identity saves with the habit, so a refused habit leaves nothing behind.
     createHabit: (input: HabitInput, newIdentity?: NewIdentityInput) =>
       call<string>('create_habit', {
@@ -285,6 +367,11 @@ export function createTrackerApi(client: SupabaseClient) {
         p_voice_aliases: input.voiceAliases ?? [],
         p_milestone_amount: input.milestoneAmount ?? null,
         p_milestone_label: input.milestoneLabel ?? null,
+        p_time_of_day: input.timeOfDay ?? 'anytime',
+        p_reminder_time: input.reminderTime ?? null,
+        p_frequency: input.frequency ?? 'days',
+        p_per_week: input.frequency === 'per_week' ? (input.perWeek ?? null) : null,
+        p_ends_on: input.endsOn ?? null,
       }),
 
     // Changes apply from today, never to past days. A moved habit keeps its logs.
@@ -303,6 +390,11 @@ export function createTrackerApi(client: SupabaseClient) {
           milestone_label: changes.milestoneLabel,
           levels: changes.levels,
           identity_id: changes.identityId,
+          time_of_day: changes.timeOfDay,
+          reminder_time: changes.reminderTime,
+          frequency: changes.frequency,
+          per_week: changes.perWeek,
+          ends_on: changes.endsOn,
           new_identity: changes.newIdentity && toNewIdentity(changes.newIdentity),
         },
       }),
@@ -314,7 +406,7 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, habit_levels(level, description, target)'
+            'id, identity_id, title, type, target, unit, schedule_days, voice_aliases, milestone_amount, milestone_label, time_of_day, reminder_time, frequency, per_week, ends_on, starts_on, habit_levels(level, description, target)'
           )
           .eq('id', habitId)
           .single()
@@ -377,10 +469,19 @@ export function createTrackerApi(client: SupabaseClient) {
         client
           .from('habits')
           .select(
-            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, identities(name, colour_token)'
+            'id, identity_id, title, type, target, unit, schedule_days, milestone_amount, milestone_label, reminder_time, frequency, per_week, identities(name, colour_token)'
           )
           .is('archived_at', null)
           .order('created_at')
+      ),
+
+    // What each habit's own reminder needs.
+    listReminderHabits: () =>
+      select<ReminderHabit[]>(
+        client
+          .from('habits')
+          .select('id, title, reminder_time, schedule_days, frequency, starts_on, ends_on')
+          .is('archived_at', null)
       ),
 
     getHabitDays: (from: string, to: string) =>
@@ -392,8 +493,28 @@ export function createTrackerApi(client: SupabaseClient) {
 
     getProfile: () =>
       select<Profile>(
-        client.from('users').select('timezone, mode, onboarded_at, reminder_time').single()
+        client.from('users').select('timezone, mode, onboarded_at, reminder_time, seen_tips').single()
       ),
+
+    listCompletedHabits: () => call<CompletedHabit[]>('get_completed_habits'),
+
+    getWeekStatuses: (from: string, to: string) =>
+      call<WeekStatusRow[]>('get_week_statuses', { p_from: from, p_to: to }),
+
+    // A new run of an ended habit, from today. The old run keeps its history.
+    restartHabit: (habitId: string) => call<string>('restart_habit', { p_habit_id: habitId }),
+
+    countActiveHabits: async () => {
+      const { count, error } = await client
+        .from('habits')
+        .select('id', { count: 'exact', head: true })
+        .is('archived_at', null);
+      if (error) throw new Error(friendly(error.message));
+      return count ?? 0;
+    },
+
+    // One-time tips and celebrations, kept on the server so each shows once everywhere.
+    markTipSeen: (tip: string) => call('mark_tip_seen', { p_tip: tip }),
 
     setReminderTime: (userId: string, time: string | null) =>
       select(client.from('users').update({ reminder_time: time }).eq('id', userId)),

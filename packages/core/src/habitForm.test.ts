@@ -3,7 +3,9 @@ import {
   emptyHabitForm,
   FIELD_LIMITS,
   habitFormFromDetail,
-  habitLimitMessage,
+  HABIT_TIP,
+  HABIT_TIP_TEXT,
+  shouldShowHabitTip,
   hasErrors,
   toggleDay,
   toHabitInput,
@@ -87,6 +89,50 @@ describe('toHabitInput', () => {
   });
 });
 
+describe('days, time of day and ending', () => {
+  it('needs 1 to 6 times a week for a times-per-week habit, and no days', () => {
+    expect(validateHabitForm(valid({ frequency: 'per_week', perWeek: 4, scheduleDays: [] }))).toEqual({});
+    expect(validateHabitForm(valid({ frequency: 'per_week', perWeek: 7 })).scheduleDays).toBe('Choose 1 to 6 times a week');
+    expect(validateHabitForm(valid({ frequency: 'days', scheduleDays: [] })).scheduleDays).toBe('Choose at least one day');
+  });
+
+  it('saves a times-per-week habit as due any day, with its count', () => {
+    expect(toHabitInput(valid({ frequency: 'per_week', perWeek: 4, scheduleDays: [1] }))).toMatchObject({
+      frequency: 'per_week',
+      perWeek: 4,
+      scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+    });
+  });
+
+  it('drops the count when switching back to specific days', () => {
+    expect(toHabitInput(valid({ frequency: 'days', perWeek: 4, scheduleDays: [3, 1] }))).toMatchObject({
+      frequency: 'days',
+      perWeek: null,
+      scheduleDays: [1, 3],
+    });
+  });
+
+  it('saves the time of day and reminder', () => {
+    expect(toHabitInput(valid({ timeOfDay: 'morning', reminderTime: '07:30' }))).toMatchObject({
+      timeOfDay: 'morning',
+      reminderTime: '07:30',
+    });
+  });
+
+  it('ends after N days from the start, or on a date, or never', () => {
+    expect(toHabitInput(valid({ endMode: 'after', endAfterDays: '3' }), '2026-11-07').endsOn).toBe('2026-11-09');
+    expect(toHabitInput(valid({ endMode: 'on', endsOn: '2026-12-01' }), '2026-11-07').endsOn).toBe('2026-12-01');
+    expect(toHabitInput(valid({ endMode: 'never', endsOn: '2026-12-01' }), '2026-11-07').endsOn).toBeNull();
+  });
+
+  it('checks the end', () => {
+    expect(validateHabitForm(valid({ endMode: 'after', endAfterDays: '0' })).endsOn).toBe('Enter a number of days');
+    expect(validateHabitForm(valid({ endMode: 'after', endAfterDays: 'soon' })).endsOn).toBe('Enter a number of days');
+    expect(validateHabitForm(valid({ endMode: 'on', endsOn: '' })).endsOn).toBe('Choose an end date');
+    expect(validateHabitForm(valid({ endMode: 'never' })).endsOn).toBeUndefined();
+  });
+});
+
 describe('habitFormFromDetail', () => {
   it('round-trips a saved habit through the form', () => {
     const values = habitFormFromDetail({
@@ -100,6 +146,11 @@ describe('habitFormFromDetail', () => {
       voice_aliases: ['book', 'reading'],
       milestone_amount: 300,
       milestone_label: 'book',
+      time_of_day: 'evening',
+      reminder_time: null,
+      frequency: 'days',
+      per_week: null,
+      ends_on: null,
       habit_levels: [
         { level: 'minimum', description: 'One page', target: 1 },
         { level: 'full', description: 'Twenty pages', target: 20 },
@@ -133,7 +184,10 @@ describe('helpers', () => {
     expect(toggleDay([1], 3)).toEqual([1, 3]);
   });
 
-  it('explains the habit limit', () => {
-    expect(habitLimitMessage(3, 3)).toBe("You're using 3 of 3 habits. 2 consistent weeks unlock 2 more.");
+  it('shows the habit tip after the 6th active habit, once', () => {
+    expect(shouldShowHabitTip(6)).toBe(false);
+    expect(shouldShowHabitTip(7)).toBe(true);
+    expect(shouldShowHabitTip(20, [HABIT_TIP])).toBe(false);
+    expect(HABIT_TIP_TEXT).toBe('Starting with a few makes them stick.');
   });
 });

@@ -1,4 +1,5 @@
-import { HabitDetail, HabitInput, HabitType, LevelOption } from './api';
+import { HabitDetail, HabitFrequency, HabitInput, HabitType, LevelOption, TimeOfDay } from './api';
+import { endsAfterDays } from './habitSetup';
 import { IdentityToken } from './tokens';
 
 export const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
@@ -46,7 +47,18 @@ export interface HabitFormValues {
   voiceAliases: string;
   milestoneAmount: string;
   milestoneLabel: string;
+  frequency: HabitFrequency;
+  perWeek: number;
+  timeOfDay: TimeOfDay;
+  reminderTime: string | null;
+  // "End this habit": off, after a number of days from the start, or on a date.
+  endMode: EndMode;
+  endAfterDays: string;
+  endsOn: string;
 }
+
+export type EndMode = 'never' | 'after' | 'on';
+export const MAX_PER_WEEK = 6;
 
 export type HabitFormField = keyof HabitFormValues;
 export type HabitFormErrors = Partial<Record<HabitFormField, string>>;
@@ -65,6 +77,13 @@ export const emptyHabitForm = (identityId: string | null = null): HabitFormValue
   voiceAliases: '',
   milestoneAmount: '',
   milestoneLabel: '',
+  frequency: 'days',
+  perWeek: 3,
+  timeOfDay: 'anytime',
+  reminderTime: null,
+  endMode: 'never',
+  endAfterDays: '',
+  endsOn: '',
 });
 
 export const usesTarget = (type: HabitType) => type === 'count' || type === 'duration';
@@ -89,7 +108,18 @@ export function validateHabitForm(
     errors.identityId = 'Choose an identity';
   }
   if (!values.title.trim()) errors.title = 'Give the habit a name';
-  if (values.scheduleDays.length === 0) errors.scheduleDays = 'Choose at least one day';
+  if (values.frequency === 'days' && values.scheduleDays.length === 0) {
+    errors.scheduleDays = 'Choose at least one day';
+  }
+  if (values.frequency === 'per_week' && !(values.perWeek >= 1 && values.perWeek <= MAX_PER_WEEK)) {
+    errors.scheduleDays = 'Choose 1 to 6 times a week';
+  }
+  if (values.endMode === 'after' && !(Number(values.endAfterDays.trim()) >= 1)) {
+    errors.endsOn = 'Enter a number of days';
+  }
+  if (values.endMode === 'on' && !/^\d{4}-\d{2}-\d{2}$/.test(values.endsOn)) {
+    errors.endsOn = 'Choose an end date';
+  }
   if (usesTarget(values.type) && toNumber(values.target) === null) {
     errors.target = 'Enter a number above 0';
   }
@@ -137,14 +167,25 @@ function formLevels(values: HabitFormValues): LevelOption[] {
   return levels;
 }
 
-export function toHabitInput(values: HabitFormValues): HabitInput {
+// The last day the habit is due, or null. "After N days" counts from its start.
+export function formEndDate(values: HabitFormValues, startDate: string): string | null {
+  if (values.endMode === 'after' && /^\d+$/.test(values.endAfterDays.trim())) {
+    return endsAfterDays(startDate, Number(values.endAfterDays));
+  }
+  if (values.endMode === 'on' && values.endsOn) return values.endsOn;
+  return null;
+}
+
+export function toHabitInput(values: HabitFormValues, startDate = ''): HabitInput {
+  const weekly = values.frequency === 'per_week';
   return {
     identityId: values.identityId ?? '',
     title: values.title.trim(),
     type: values.type,
     target: toNumber(values.target),
     unit: values.unit.trim() || null,
-    scheduleDays: [...values.scheduleDays].sort((a, b) => a - b),
+    // A times-per-week habit can fall on any day.
+    scheduleDays: weekly ? ALL_DAYS : [...values.scheduleDays].sort((a, b) => a - b),
     levels: formLevels(values),
     voiceAliases: values.voiceAliases
       .split(',')
@@ -152,6 +193,11 @@ export function toHabitInput(values: HabitFormValues): HabitInput {
       .filter(Boolean),
     milestoneAmount: toNumber(values.milestoneAmount),
     milestoneLabel: values.milestoneLabel.trim() || null,
+    frequency: values.frequency,
+    perWeek: weekly ? values.perWeek : null,
+    timeOfDay: values.timeOfDay,
+    reminderTime: values.reminderTime,
+    endsOn: formEndDate(values, startDate),
   };
 }
 
@@ -172,6 +218,13 @@ export function habitFormFromDetail(habit: HabitDetail): HabitFormValues {
     voiceAliases: habit.voice_aliases.join(', '),
     milestoneAmount: habit.milestone_amount?.toString() ?? '',
     milestoneLabel: habit.milestone_label ?? '',
+    frequency: habit.frequency ?? 'days',
+    perWeek: habit.per_week ?? 3,
+    timeOfDay: habit.time_of_day ?? 'anytime',
+    reminderTime: habit.reminder_time?.slice(0, 5) ?? null,
+    endMode: habit.ends_on ? 'on' : 'never',
+    endAfterDays: '',
+    endsOn: habit.ends_on ?? '',
   };
 }
 
@@ -179,6 +232,10 @@ export function toggleDay(days: number[], day: number): number[] {
   return days.includes(day) ? days.filter((d) => d !== day) : [...days, day];
 }
 
-export function habitLimitMessage(allowed: number, active: number): string {
-  return `You're using ${active} of ${allowed} habits. 2 consistent weeks unlock 2 more.`;
-}
+// There's no limit on habits. Past this many, one gentle tip, shown once.
+export const HABIT_TIP_AFTER = 6;
+export const HABIT_TIP = 'habit-tip';
+export const HABIT_TIP_TEXT = 'Starting with a few makes them stick.';
+
+export const shouldShowHabitTip = (activeHabits: number, seenTips: readonly string[] = []) =>
+  activeHabits > HABIT_TIP_AFTER && !seenTips.includes(HABIT_TIP);

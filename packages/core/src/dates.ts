@@ -7,6 +7,9 @@ import { IdentityToken } from './tokens';
 const toUtc = (date: string) => new Date(`${date}T00:00:00Z`);
 const toKey = (date: Date) => date.toISOString().slice(0, 10);
 
+// Monday is 1 and Sunday 7, as schedules store them.
+export const isoWeekday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
+
 export function addDays(date: string, days: number): string {
   const result = toUtc(date);
   result.setUTCDate(result.getUTCDate() + days);

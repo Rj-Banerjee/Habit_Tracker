@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   buildChain,
+  buildWeekChain,
   Chain,
   DayStatus,
   isLowEnd,
@@ -34,7 +35,10 @@ const SAMPLES: Record<MomentKind, Chain> = {
   fracture: buildChain(sampleDays('missed', '2026-11-11'), [], TODAY),
   weld: buildChain(sampleDays('repaired'), [{ date: '2026-11-11', level_done: 'full', amount: 45 }], TODAY),
   protected: buildChain(sampleDays('protected'), [], TODAY),
+  finish: { ...buildChain(sampleDays('done'), [], '2026-11-11'), ended: true },
 };
+
+const momentDate = (kind: MomentKind) => (kind === 'finish' ? '2026-11-11' : MISSED);
 
 const row = {
   habit_id: 'sample',
@@ -68,6 +72,32 @@ const GALLERY: { label: string; chain: Chain }[] = [
     ),
   },
   { label: 'A crack that can still be repaired', chain: SAMPLES.fracture },
+  {
+    label: 'A day below the minimum, 3 of 10 pages, and a finished habit',
+    chain: {
+      ...buildChain(
+        [
+          { habit_id: 's', date: '2026-11-09', status: 'done', repair_on: null },
+          { habit_id: 's', date: '2026-11-10', status: 'missed', repair_on: null },
+          { habit_id: 's', date: '2026-11-11', status: 'done', repair_on: null },
+        ],
+        [{ date: '2026-11-10', level_done: null, amount: 3, target: 10 }],
+        TODAY
+      ),
+      ended: true,
+    },
+  },
+  {
+    label: 'Weeks: met, covered, repaired, met, missed, this week',
+    chain: buildWeekChain('w', [
+      { habit_id: 'w', week_start: '2026-10-05', status: 'met', quota: 4, sessions: 4, repair_by: null },
+      { habit_id: 'w', week_start: '2026-10-12', status: 'protected', quota: 4, sessions: 2, repair_by: null },
+      { habit_id: 'w', week_start: '2026-10-19', status: 'repaired', quota: 4, sessions: 1, repair_by: null },
+      { habit_id: 'w', week_start: '2026-10-26', status: 'met', quota: 4, sessions: 5, repair_by: null },
+      { habit_id: 'w', week_start: '2026-11-02', status: 'missed', quota: 4, sessions: 2, repair_by: '2026-11-09' },
+      { habit_id: 'w', week_start: '2026-11-09', status: 'pending', quota: 4, sessions: 1, repair_by: null },
+    ]),
+  },
 ];
 
 interface Run {
@@ -85,7 +115,7 @@ function Stage({ settings, run, onFrames }: {
   const count = useCountUp(row.current_streak);
   const kind = run?.kind ?? 'fracture';
   const chain = SAMPLES[kind];
-  const moment: Moment = { kind, habitId: 'sample', date: MISSED };
+  const moment: Moment = { kind, habitId: 'sample', date: momentDate(kind) };
   const playing = { moment, finished: false, interrupted };
 
   return (
@@ -155,6 +185,7 @@ export function AnimationPlayground() {
           <Button label="Fracture" onPress={() => play('fracture')} />
           <Button label="Weld" onPress={() => play('weld')} />
           <Button label="Protected" onPress={() => play('protected')} />
+          <Button label="Finish" onPress={() => play('finish')} />
           <Button label="Welcome back" quiet onPress={() => setWelcome(true)} />
           <Button label="Tunnel Vision" quiet onPress={() => setFocusing(true)} />
         </View>

@@ -8,6 +8,8 @@ const FORECAST_AHEAD = 365;
 const HEATMAP_WEEKS = 53;
 // Below this, a forecast would be a guess.
 const FORECAST_MIN_DAYS = 7;
+// A times-per-week habit is read over its last 4 weeks.
+const FORECAST_WEEKS = 4;
 
 export const FORECAST_RATE_MIN = 50;
 export const FORECAST_RATE_MAX = 100;
@@ -260,13 +262,21 @@ export function forecast(
   today: string,
   rate?: number
 ): Forecast | null {
-  const recent = daysOf(days, habit.id).filter(isSettled).slice(-FORECAST_DAYS);
-  if (recent.length < FORECAST_MIN_DAYS) return null;
-
+  const weekly = habit.frequency === 'per_week' && (habit.per_week ?? 0) > 0;
+  const recent = weekly
+    ? daysOf(days, habit.id).filter((day) => day.date > addDays(today, -FORECAST_WEEKS * 7))
+    : daysOf(days, habit.id).filter(isSettled).slice(-FORECAST_DAYS);
   const done = recent.filter(isDone);
-  const actual = (done.length / recent.length) * 100;
+  if (weekly ? done.length === 0 : recent.length < FORECAST_MIN_DAYS) return null;
+
+  // A times-per-week habit goes by sessions a week, out of what it asks.
+  const actual = weekly
+    ? Math.min(100, (done.length / FORECAST_WEEKS / (habit.per_week ?? 1)) * 100)
+    : (done.length / recent.length) * 100;
   const chosen = rate ?? actual;
-  const scheduledAhead = scheduledDaysAhead(habit.schedule_days, today);
+  const scheduledAhead = weekly
+    ? Math.round(((habit.per_week ?? 0) * FORECAST_AHEAD) / 7)
+    : scheduledDaysAhead(habit.schedule_days, today);
   const completions = Math.round((scheduledAhead * chosen) / 100);
 
   // Per completed day, so moving the slider changes how often, not how much.
@@ -324,6 +334,8 @@ export function weekSummary(
       const minimum = count('minimum');
       const repaired = count('repaired');
       const finished = done + minimum + repaired;
+      // A times-per-week habit is counted in sessions, out of what it asks.
+      const asked = habit.frequency === 'per_week' ? (habit.per_week ?? 0) : 0;
       return {
         habitId: habit.id,
         title: habit.title,
@@ -331,8 +343,10 @@ export function weekSummary(
         minimum,
         repaired,
         protectedDays: count('protected'),
-        due: inWeek.length,
-        label: `${finished} of ${inWeek.length} ${inWeek.length === 1 ? 'day' : 'days'}`,
+        due: asked || inWeek.length,
+        label: asked
+          ? `${done + minimum} of ${asked} ${asked === 1 ? 'time' : 'times'}`
+          : `${finished} of ${inWeek.length} ${inWeek.length === 1 ? 'day' : 'days'}`,
       };
     })
     .filter((habit) => habit.due > 0);

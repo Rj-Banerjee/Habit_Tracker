@@ -11,18 +11,27 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   HabitDetail,
-  habitLimitMessage,
-  HabitType,
   Identity,
+  localDate,
   space,
   TodayRow,
 } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
+import { ai } from '../services/ai';
 import { tracker } from '../services/tracker';
+import { forgetSuggestions } from '../hooks/useHabitSetup';
 import { HabitFormScreen } from './HabitFormScreen';
 import { TodayScreen } from './TodayScreen';
 
-jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn() } }));
+jest.mock('../services/ai', () => ({ ai: { chat: jest.fn(), parseVoice: jest.fn(), suggestSetup: jest.fn() } }));
+jest.mock('../hooks/useEntitlements', () => {
+  const entitlements = { plan: 'free', ready: false, can: () => true };
+  return {
+    useEntitlements: () => entitlements,
+    EntitlementsProvider: ({ children }: { children: unknown }) => children,
+    __setPro: (on: boolean) => Object.assign(entitlements, on ? { plan: 'pro', ready: true } : { plan: 'free', ready: false }),
+  };
+});
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
@@ -35,7 +44,9 @@ jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 jest.mock('../services/tracker', () => ({
   tracker: {
     listVoiceHabits: jest.fn(() => Promise.resolve([])),
-    getHabitAllowance: jest.fn(),
+    getProfile: jest.fn(() => Promise.resolve({ seen_tips: [] })),
+    countActiveHabits: jest.fn(() => Promise.resolve(1)),
+    markTipSeen: jest.fn(() => Promise.resolve()),
     listIdentities: jest.fn(),
     createHabit: jest.fn(),
     getHabit: jest.fn(),
@@ -77,6 +88,11 @@ const readHabit: HabitDetail = {
   voice_aliases: ['book'],
   milestone_amount: 300,
   milestone_label: 'book',
+  time_of_day: 'evening',
+  reminder_time: null,
+  frequency: 'days',
+  per_week: null,
+  ends_on: null,
   habit_levels: [
     { level: 'full', description: 'Read', target: 30 },
     { level: 'minimum', description: 'One page', target: 1 },
@@ -108,6 +124,17 @@ const button = (name: string) => screen.getByRole('button', { name });
 const press = (name: string) => fireEvent.press(button(name));
 const type = (label: string, text: string) => fireEvent.changeText(screen.getByLabelText(label), text);
 
+const chosen = (name: string) => screen.getByRole('button', { name, selected: true });
+const wait = (ms: number) => act(() => new Promise((resolve) => setTimeout(resolve, ms)));
+const today = () => localDate(Intl.DateTimeFormat().resolvedOptions().timeZone);
+const addDays = (date: string, days: number) => {
+  const next = new Date(`${date}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next.toISOString().slice(0, 10);
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pro = () => require('../hooks/useEntitlements').__setPro(true);
+
 const fillRequired = async () => {
   await type('Name', 'Run');
   await type('Minimum version', 'Run 1 km');
@@ -116,7 +143,9 @@ const fillRequired = async () => {
 describe('HabitFormScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 1, can_add: true });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('../hooks/useEntitlements').__setPro(false);
+    forgetSuggestions();
     api.listIdentities.mockResolvedValue([athlete]);
     api.createHabit.mockResolvedValue('new-habit');
     api.getHabit.mockResolvedValue(readHabit);
@@ -133,19 +162,15 @@ describe('HabitFormScreen', () => {
       expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     });
 
-    it('asks for the allowance on create but not on edit', async () => {
+    it('loads the habit when editing', async () => {
       await openForm('h1');
-      expect(api.getHabitAllowance).not.toHaveBeenCalled();
       expect(api.getHabit).toHaveBeenCalledWith('h1');
     });
   });
 
   describe('load failed', () => {
-    it.each([
-      ['identities', () => api.listIdentities.mockRejectedValueOnce(new Error('offline'))],
-      ['the allowance', () => api.getHabitAllowance.mockRejectedValueOnce(new Error('offline'))],
-    ])('offers a retry when %s fail, never an empty form', async (_name, fail) => {
-      fail();
+    it('offers a retry when identities fail, never an empty form', async () => {
+      api.listIdentities.mockRejectedValueOnce(new Error('offline'));
       await openForm();
       expect(screen.getByText("This couldn't load.")).toBeTruthy();
       expect(screen.queryByLabelText('Name')).toBeNull();
@@ -163,254 +188,346 @@ describe('HabitFormScreen', () => {
     });
   });
 
-  describe('the habit cap', () => {
-    it('explains the limit in place of the form, with a way back', async () => {
-      api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 3, can_add: false });
+  describe('no habit limit', () => {
+    it('opens the form however many habits there are', async () => {
+      api.countActiveHabits.mockResolvedValue(40);
       await openForm();
-      expect(screen.getByText(habitLimitMessage(3, 3))).toBeTruthy();
-      expect(screen.queryByLabelText('Name')).toBeNull();
-      await press('Back');
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it("doesn't apply to editing a habit", async () => {
-      api.getHabitAllowance.mockResolvedValue({ allowed: 3, active: 3, can_add: false });
-      await openForm('h1');
       expect(screen.getByLabelText('Name')).toBeTruthy();
     });
 
-    it('shows the server message and keeps the form when another device took the slot', async () => {
-      const message = 'You have reached your habit limit. 2 consistent weeks unlock 2 more.';
-      api.createHabit.mockRejectedValueOnce(new Error(message));
+    it('shows a server refusal and keeps the form', async () => {
+      api.createHabit.mockRejectedValueOnce(new Error('Choose at least one day'));
       await openForm();
       await fillRequired();
       await press('Save');
       await settle();
-      expect(screen.getByText(message)).toBeTruthy();
+      expect(screen.getByText('Choose at least one day')).toBeTruthy();
       expect(screen.getByLabelText('Name').props.value).toBe('Run');
       expect(onClose).not.toHaveBeenCalled();
     });
   });
 
   describe('empty create', () => {
-    it('opens blank, titled New habit, with its only identity chosen', async () => {
+    it('opens blank, titled New habit, every day, anytime, with nothing to archive', async () => {
       await openForm();
       expect(screen.getByRole('header', { name: 'New habit' })).toBeTruthy();
       expect(screen.getByLabelText('Name').props.value).toBe('');
-      expect(screen.getByRole('button', { name: 'The Athlete', selected: true })).toBeTruthy();
-    });
-
-    it('leaves the choice open with several identities', async () => {
-      api.listIdentities.mockResolvedValue([athlete, reader]);
-      await openForm();
-      expect(screen.getByRole('button', { name: 'The Athlete', selected: false })).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'The Reader', selected: false })).toBeTruthy();
-    });
-
-    it('keeps More options collapsed until asked', async () => {
-      await openForm();
-      expect(screen.queryByLabelText('Voice names')).toBeNull();
-      expect(screen.queryByLabelText('Milestone amount')).toBeNull();
-      await press('More options');
-      expect(screen.getByLabelText('Voice names')).toBeTruthy();
-      expect(screen.getByLabelText('Milestone amount')).toBeTruthy();
-    });
-
-    it('has no edit note or archive option', async () => {
-      await openForm();
+      expect(chosen('Specific days')).toBeTruthy();
+      for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) expect(chosen(day)).toBeTruthy();
+      expect(chosen('Anytime')).toBeTruthy();
+      expect(screen.getByRole('switch', { name: 'End this habit' }).props.accessibilityState).toMatchObject({ checked: false });
       expect(screen.queryByText(/Changes apply from today/)).toBeNull();
       expect(screen.queryByRole('button', { name: 'Archive habit' })).toBeNull();
     });
+
+    it('never asks for the identity or the type', async () => {
+      await openForm();
+      expect(screen.queryByLabelText('Identity name')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Yes or no' })).toBeNull();
+      expect(screen.getByText('We set these up for you')).toBeTruthy();
+    });
   });
 
-  describe('creating', () => {
-    it.each<[HabitType, string]>([
-      ['boolean', 'Yes or no'],
-      ['quit', 'Quit'],
-    ])('saves a %s habit without a target', async (habitType, label) => {
+  describe('creating from the library', () => {
+    it('sets up "Run 20 km" as Run with a 20 km target, 3 times a week, in the morning', async () => {
       await openForm();
-      await press(label);
-      expect(screen.queryByLabelText('Target')).toBeNull();
-      await fillRequired();
+      await type('Name', 'Run 20 km');
+      expect(screen.getByText('Saved as Run, with a target of 20 km.')).toBeTruthy();
+      expect(screen.getByLabelText('Target').props.value).toBe('20');
+      expect(screen.getByLabelText('Unit').props.value).toBe('km');
+      expect(chosen('Times per week')).toBeTruthy();
+      expect(screen.getByText('3 times a week')).toBeTruthy();
+      expect(screen.getByText(/rest days/i)).toBeTruthy();
+      expect(chosen('Morning')).toBeTruthy();
+      expect(screen.getByLabelText('Minimum version').props.value).toBe('Run at least 1 km');
+      expect(screen.getByRole('button', { name: 'Count 1 km as the minimum', selected: true })).toBeTruthy();
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          identityId: 'i1',
-          title: 'Run',
-          type: habitType,
-          target: null,
-          unit: null,
-        })
-      );
+      const [input, newIdentity] = api.createHabit.mock.calls[0];
+      expect(input).toMatchObject({
+        identityId: 'i1',
+        title: 'Run',
+        type: 'count',
+        target: 20,
+        unit: 'km',
+        frequency: 'per_week',
+        perWeek: 3,
+        scheduleDays: [1, 2, 3, 4, 5, 6, 7],
+        timeOfDay: 'morning',
+        reminderTime: '08:00',
+        endsOn: null,
+      });
+      expect(input.levels).toEqual([
+        { level: 'full', description: 'Run', target: 20 },
+        { level: 'minimum', description: 'Run at least 1 km', target: 1 },
+        { level: 'setup', description: 'Put on running shoes', target: null },
+      ]);
+      expect(newIdentity).toBeUndefined();
       expect(onClose).toHaveBeenCalled();
     });
 
-    it.each<[HabitType, string]>([
-      ['count', 'Count'],
-      ['duration', 'Duration'],
-    ])('saves a %s habit with its target and unit', async (habitType, label) => {
+    it('sets up Read with 10 pages, every day, and a new identity for it', async () => {
       await openForm();
-      await press(label);
-      await fillRequired();
-      await type('Target', '30');
-      await type('Unit', 'pages');
-      await press('Save');
-      await settle();
-      expect(api.createHabit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({ type: habitType, target: 30, unit: 'pages' })
-      );
-    });
-
-    it('drops a target typed before switching to a type without one', async () => {
-      await openForm();
-      await press('Count');
-      await type('Target', '30');
-      await type('Minimum target', '50');
-      await press('Yes or no');
-      await fillRequired();
-      await press('Save');
-      await settle();
-      expect(api.createHabit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({ type: 'boolean', target: null })
-      );
-      const { levels } = api.createHabit.mock.calls[0][0];
-      expect(levels.every((level) => level.target === null)).toBe(true);
-    });
-
-    it('sets all three Shrink levels', async () => {
-      await openForm();
-      await press('Count');
       await type('Name', 'Read');
-      await type('Target', '30');
-      await type('Full version', 'Read 30 pages');
-      await type('Minimum version', 'Read one page');
-      await type('Minimum target', '1');
-      await type('Just set up', 'Open the book');
+      expect(screen.getByLabelText('Target').props.value).toBe('10');
+      expect(chosen('Specific days')).toBeTruthy();
+      expect(chosen('Evening')).toBeTruthy();
+      expect(screen.getByLabelText('Minimum version').props.value).toBe('Read at least 2 pages');
+      expect(screen.getByLabelText('Identity: The Reader. Change')).toBeTruthy();
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[0][0].levels).toEqual([
-        { level: 'full', description: 'Read 30 pages', target: 30 },
-        { level: 'minimum', description: 'Read one page', target: 1 },
-        { level: 'setup', description: 'Open the book', target: null },
-      ]);
+      const [input, newIdentity] = api.createHabit.mock.calls[0];
+      expect(input).toMatchObject({ title: 'Read', target: 10, unit: 'pages', frequency: 'days', perWeek: null });
+      expect(input.levels[1]).toEqual({ level: 'minimum', description: 'Read at least 2 pages', target: 2 });
+      expect(newIdentity).toEqual({ name: 'The Reader', colourToken: 'identity-2', whyText: undefined });
     });
 
-    it('defaults the full version to the name and leaves setup out when blank', async () => {
+    it('suggests names while typing', async () => {
       await openForm();
-      await fillRequired();
+      await type('Name', 'medit');
+      await press('Use Meditate');
+      expect(screen.getByLabelText('Name').props.value).toBe('Meditate');
+      expect(screen.getByLabelText('Target').props.value).toBe('10');
+    });
+
+    it('starts a risky goal gentler, and says so calmly', async () => {
+      await openForm();
+      await type('Name', 'Run 50 km');
+      expect(screen.getByText('Starting at 5 km a day is easier on your body. You can raise it any time.')).toBeTruthy();
+      expect(screen.getByLabelText('Target').props.value).toBe('5');
+    });
+
+    it('keeps what they changed when the name changes', async () => {
+      await openForm();
+      await type('Name', 'Read');
+      await press('Morning');
+      await type('Name', 'Read 20 pages');
+      expect(chosen('Morning')).toBeTruthy();
+      expect(screen.getByLabelText('Target').props.value).toBe('20');
+    });
+
+    it('lets them turn down the minimum amount', async () => {
+      await openForm();
+      await type('Name', 'Read');
+      await press('Count 2 pages as the minimum');
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[0][0].levels).toEqual([
-        { level: 'full', description: 'Run', target: null },
-        { level: 'minimum', description: 'Run 1 km', target: null },
-      ]);
+      expect(api.createHabit.mock.calls[0][0].levels[1]).toEqual({
+        level: 'minimum',
+        description: 'Read at least 2 pages',
+        target: null,
+      });
+    });
+
+    it("says when a minimum's unit can't count toward the target", async () => {
+      await openForm();
+      await type('Name', 'Read');
+      await type('Minimum version', 'Read 2 lines');
+      expect(screen.getByText("lines can't count toward pages, so this stays a description.")).toBeTruthy();
+    });
+  });
+
+  describe('a habit the library does not know', () => {
+    it('saves on Free from the name alone, without asking the AI', async () => {
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      expect(chosen('Anytime')).toBeTruthy();
+      expect(screen.queryByLabelText('Target')).toBeNull();
+      expect(screen.getByLabelText('Identity: Everyday. Change')).toBeTruthy();
+      await press('Save');
+      await settle();
+      expect(ai.suggestSetup).not.toHaveBeenCalled();
+      expect(api.createHabit.mock.calls[0][0]).toMatchObject({ title: 'Polish telescopes', type: 'boolean' });
+      expect(api.createHabit.mock.calls[0][1]).toMatchObject({ name: 'Everyday' });
+    });
+
+    it('asks the AI once on Pro, after a pause, and uses its answer', async () => {
+      pro();
+      (ai.suggestSetup as jest.Mock).mockResolvedValue({
+        type: 'count',
+        target: 2,
+        unit: 'items',
+        frequency: 'per_week',
+        per_week: 1,
+        reason: 'Once a week keeps the lenses clear.',
+        time_of_day: 'evening',
+        minimum_text: 'Polish one lens',
+        minimum_target: 1,
+        setup: 'Get the cloth out',
+        identity: 'The Stargazer',
+        voice_aliases: ['telescope'],
+      });
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      expect(screen.getByText('Finding suggestions…')).toBeTruthy();
+      await wait(700);
+      expect(ai.suggestSetup).toHaveBeenCalledTimes(1);
+      expect(ai.suggestSetup).toHaveBeenCalledWith('Polish telescopes');
+      expect(chosen('Evening')).toBeTruthy();
+      expect(screen.getByText('Once a week keeps the lenses clear.')).toBeTruthy();
+      expect(screen.getByLabelText('Identity: The Stargazer. Change')).toBeTruthy();
+      expect(screen.queryByText('Finding suggestions…')).toBeNull();
+    });
+
+    it("doesn't ask the AI about habits the library knows", async () => {
+      pro();
+      await openForm();
+      await type('Name', 'Read');
+      await wait(700);
+      expect(ai.suggestSetup).not.toHaveBeenCalled();
+    });
+
+    it('still saves when the AI is down, with the target theirs to fill in', async () => {
+      pro();
+      (ai.suggestSetup as jest.Mock).mockRejectedValue(new Error('down'));
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      await wait(700);
+      expect(screen.queryByText('Finding suggestions…')).toBeNull();
+      await press('Save');
+      await settle();
+      expect(api.createHabit).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves without waiting for a slow AI', async () => {
+      pro();
+      (ai.suggestSetup as jest.Mock).mockReturnValue(new Promise(() => {}));
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      await press('Save');
+      await settle();
+      expect(api.createHabit).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('days', () => {
+    it('switches to times per week, and back to specific days', async () => {
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      await press('Times per week');
+      expect(screen.getByText('3 times a week')).toBeTruthy();
+      await press('Fewer, Times per week');
+      await press('Fewer, Times per week');
+      expect(screen.getByText('1 time a week')).toBeTruthy();
+      await press('Save');
+      await settle();
+      expect(api.createHabit.mock.calls[0][0]).toMatchObject({ frequency: 'per_week', perWeek: 1 });
+    });
+
+    it('treats 7 a week as every day', async () => {
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      await press('Times per week');
+      for (let i = 0; i < 4; i++) await press('More, Times per week');
+      expect(chosen('Specific days')).toBeTruthy();
+      expect(chosen('Sun')).toBeTruthy();
     });
 
     it('sends the chosen days', async () => {
       await openForm();
-      await fillRequired();
+      await type('Name', 'Polish telescopes');
       await press('Sat');
       await press('Sun');
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[0][0].scheduleDays).toEqual([1, 2, 3, 4, 5]);
-    });
-
-    it('saves voice names and a milestone', async () => {
-      await openForm();
-      await fillRequired();
-      await press('More options');
-      await type('Voice names', 'jog, morning run');
-      await type('Milestone amount', '300');
-      await type('Milestone label', 'book');
-      await press('Save');
-      await settle();
-      expect(api.createHabit.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          voiceAliases: ['jog', 'morning run'],
-          milestoneAmount: 300,
-          milestoneLabel: 'book',
-        })
-      );
+      expect(api.createHabit.mock.calls[0][0]).toMatchObject({ frequency: 'days', scheduleDays: [1, 2, 3, 4, 5] });
     });
   });
 
-  describe('identities', () => {
-    it('shows the add-identity fields in place of choices when there are none', async () => {
-      api.listIdentities.mockResolvedValue([]);
+  describe('ending a habit', () => {
+    it('ends after a number of days, counted from today', async () => {
       await openForm();
-      expect(screen.getByLabelText('Identity name')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'New identity' })).toBeNull();
-    });
-
-    it('saves the new identity and the habit in one call', async () => {
-      api.listIdentities.mockResolvedValue([]);
-      await openForm();
-      await type('Identity name', ' The Reader ');
-      await type('Why this matters', 'Calm evenings');
-      await fillRequired();
+      await type('Name', 'Polish telescopes');
+      await fireEvent.press(screen.getByRole('switch', { name: 'End this habit' }));
+      await type('Days', '3');
       await press('Save');
       await settle();
-      expect(api.createHabit).toHaveBeenCalledTimes(1);
-      expect(api.createHabit.mock.calls[0][1]).toEqual({
-        name: 'The Reader',
-        colourToken: 'identity-1',
-        whyText: 'Calm evenings',
-      });
+      expect(api.createHabit.mock.calls[0][0].endsOn).toBe(addDays(today(), 2));
     });
 
-    it('defaults the colour to the first one not in use', async () => {
-      api.listIdentities.mockResolvedValue([athlete, reader]);
+    it('ends on a date, moved a day or a week at a time', async () => {
       await openForm();
-      await press('New identity');
-      await type('Identity name', 'The Maker');
-      await fillRequired();
+      await type('Name', 'Polish telescopes');
+      await fireEvent.press(screen.getByRole('switch', { name: 'End this habit' }));
+      await press('On a date');
+      await press('A week later');
+      await press('A day earlier');
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[0][1]).toMatchObject({ colourToken: 'identity-3' });
+      expect(api.createHabit.mock.calls[0][0].endsOn).toBe(addDays(today(), 35));
     });
 
-    it('uses the colour picked', async () => {
+    it('offers the length of a challenge, without turning the end on', async () => {
       await openForm();
-      await press('New identity');
-      await type('Identity name', 'The Maker');
-      await press('Plum');
-      await fillRequired();
+      await type('Name', '30-day challenge');
+      expect(screen.getByText('This sounds like 30 days.')).toBeTruthy();
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[0][1]).toMatchObject({ colourToken: 'identity-5' });
+      expect(api.createHabit.mock.calls[0][0].endsOn).toBeNull();
     });
 
-    it('requires a name for a new identity and sends nothing', async () => {
+    it('needs a number of days', async () => {
       await openForm();
-      await press('New identity');
-      await fillRequired();
+      await type('Name', 'Polish telescopes');
+      await fireEvent.press(screen.getByRole('switch', { name: 'End this habit' }));
+      await type('Days', '0');
       await press('Save');
       await settle();
-      expect(screen.getByText('Give the identity a name')).toBeTruthy();
+      expect(screen.getByText('Enter a number of days')).toBeTruthy();
       expect(api.createHabit).not.toHaveBeenCalled();
     });
+  });
 
-    it('limits an identity name to 80 characters', async () => {
+  describe('we set these up for you', () => {
+    it('accepts everything at once', async () => {
       await openForm();
-      await press('New identity');
-      expect(screen.getByLabelText('Identity name').props.maxLength).toBe(80);
+      await type('Name', 'Read');
+      await press('Accept all');
+      expect(screen.getByText('All set. You can change any of these later.')).toBeTruthy();
     });
 
-    it('keeps everything typed when the save fails, and sends the identity again on retry', async () => {
-      api.createHabit.mockRejectedValueOnce(new Error('Network request failed'));
+    it('changes the identity to an existing one', async () => {
+      api.listIdentities.mockResolvedValue([athlete, reader]);
       await openForm();
-      await press('New identity');
-      await type('Identity name', 'The Maker');
-      await fillRequired();
+      await type('Name', 'Polish telescopes');
+      await press('Identity: Everyday. Change');
+      await press('The Reader');
+      await press('Done');
       await press('Save');
       await settle();
-      expect(screen.getByText('Network request failed')).toBeTruthy();
-      expect(screen.getByLabelText('Identity name').props.value).toBe('The Maker');
+      expect(api.createHabit.mock.calls[0]).toEqual([expect.objectContaining({ identityId: 'i2' }), undefined]);
+    });
+
+    it('turns the reminder off', async () => {
+      await openForm();
+      await type('Name', 'Read');
+      await press('Reminder: 7:00 pm. Change');
+      await fireEvent.press(screen.getByRole('switch', { name: 'Remind me' }));
+      await press('Done');
       await press('Save');
       await settle();
-      expect(api.createHabit.mock.calls[1][1]).toMatchObject({ name: 'The Maker' });
+      expect(api.createHabit.mock.calls[0][0].reminderTime).toBeNull();
+    });
+
+    it('changes the type, and the voice names', async () => {
+      await openForm();
+      await type('Name', 'Polish telescopes');
+      await press('Type: Yes or no. Change');
+      await press('Count');
+      await press('Done');
+      await type('Unit', 'lenses');
+      await press('Voice names: None. Change');
+      await type('Voice names', 'telescope, scope');
+      await press('Done');
+      await type('Target', '3');
+      await press('Save');
+      await settle();
+      expect(api.createHabit.mock.calls[0][0]).toMatchObject({
+        type: 'count',
+        target: 3,
+        unit: 'lenses',
+        voiceAliases: ['telescope', 'scope'],
+      });
     });
   });
 
@@ -421,6 +538,7 @@ describe('HabitFormScreen', () => {
 
     it('opens filled in, titled Edit habit, with the type hidden', async () => {
       await openForm('h1');
+      await press('More');
       expect(screen.getByRole('header', { name: 'Edit habit' })).toBeTruthy();
       expect(screen.getByLabelText('Name').props.value).toBe('Read');
       expect(screen.getByLabelText('Target').props.value).toBe('30');
@@ -438,6 +556,7 @@ describe('HabitFormScreen', () => {
 
     it('shows the current identity selected, with the others to move to', async () => {
       await openForm('h1');
+      await press('More');
       expect(screen.getByRole('button', { name: 'The Reader', selected: true })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'The Athlete', selected: false })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'New identity' })).toBeTruthy();
@@ -445,6 +564,7 @@ describe('HabitFormScreen', () => {
 
     it('moves the habit to another identity', async () => {
       await openForm('h1');
+      await press('More');
       await press('The Athlete');
       await press('Save');
       await settle();
@@ -453,6 +573,7 @@ describe('HabitFormScreen', () => {
 
     it('moves the habit to a new identity', async () => {
       await openForm('h1');
+      await press('More');
       await press('New identity');
       await type('Identity name', 'The Maker');
       await press('Save');
@@ -464,6 +585,7 @@ describe('HabitFormScreen', () => {
 
     it('needs a name before moving to a new identity', async () => {
       await openForm('h1');
+      await press('More');
       await press('New identity');
       await press('Save');
       await settle();
@@ -473,6 +595,7 @@ describe('HabitFormScreen', () => {
 
     it('counts a move as an unsaved change', async () => {
       await openForm('h1');
+      await press('More');
       await press('The Athlete');
       await press('Back');
       expect(screen.getByText('Discard your changes?')).toBeTruthy();
@@ -499,6 +622,7 @@ describe('HabitFormScreen', () => {
 
     it('changes the Shrink levels', async () => {
       await openForm('h1');
+      await press('More');
       await type('Minimum version', 'Two pages');
       await type('Minimum target', '2');
       await type('Just set up', '');
@@ -555,7 +679,7 @@ describe('HabitFormScreen', () => {
 
     it('sends null to clear a saved milestone', async () => {
       await openForm('h1');
-      await press('More options');
+      await press('More');
       await type('Milestone amount', '');
       await type('Milestone label', '');
       await press('Save');
@@ -568,7 +692,7 @@ describe('HabitFormScreen', () => {
 
     it('keeps the unit and milestone hints free of old warnings', async () => {
       await openForm('h1');
-      await press('More options');
+      await press('More');
       await type('Unit', '');
       await type('Milestone amount', '');
       await type('Milestone label', '');
@@ -578,7 +702,7 @@ describe('HabitFormScreen', () => {
 
     it('still asks for both halves of a milestone', async () => {
       await openForm('h1');
-      await press('More options');
+      await press('More');
       await type('Milestone label', '');
       await press('Save');
       await settle();
@@ -588,13 +712,14 @@ describe('HabitFormScreen', () => {
 
   describe('field errors', () => {
     it('shows each problem and sends nothing', async () => {
-      api.listIdentities.mockResolvedValue([athlete, reader]);
       await openForm();
-      await press('Count');
+      await type('Name', 'Read');
+      await type('Target', '');
+      await type('Minimum version', '');
       for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) await press(day);
+      await type('Name', '');
       await press('Save');
       await settle();
-      expect(screen.getByText('Choose an identity')).toBeTruthy();
       expect(screen.getByText('Give the habit a name')).toBeTruthy();
       expect(screen.getByText('Enter a number above 0')).toBeTruthy();
       expect(screen.getByText('Choose at least one day')).toBeTruthy();
@@ -623,16 +748,15 @@ describe('HabitFormScreen', () => {
       scrollTo.mockRestore();
     });
 
-    it('opens More options when the problem is inside it', async () => {
-      await openForm();
-      await fillRequired();
-      await press('More options');
-      await type('Milestone amount', '300');
-      await press('Fewer options');
+    it('opens More when the problem is inside it', async () => {
+      await openForm('h1');
+      await press('More');
+      await type('Milestone label', '');
+      await press('Less');
       await press('Save');
       await settle();
       expect(screen.getByText('Name the milestone, such as "book"')).toBeTruthy();
-      expect(api.createHabit).not.toHaveBeenCalled();
+      expect(api.updateHabit).not.toHaveBeenCalled();
     });
   });
 
@@ -657,15 +781,14 @@ describe('HabitFormScreen', () => {
     it('shows the error and keeps everything typed', async () => {
       api.createHabit.mockRejectedValueOnce(new Error('Network request failed'));
       await openForm();
-      await press('Count');
-      await fillRequired();
+      await type('Name', 'Read');
       await type('Target', '30');
-      await type('Just set up', 'Lay out shoes');
+      await type('Minimum version', 'Read one page');
       await press('Save');
       await settle();
       expect(screen.getByText('Network request failed')).toBeTruthy();
       expect(screen.getByLabelText('Target').props.value).toBe('30');
-      expect(screen.getByLabelText('Just set up').props.value).toBe('Lay out shoes');
+      expect(screen.getByLabelText('Minimum version').props.value).toBe('Read one page');
       expect(button('Save').props.accessibilityState.disabled).toBe(false);
       expect(onClose).not.toHaveBeenCalled();
     });
@@ -707,10 +830,11 @@ describe('HabitFormScreen', () => {
       expect(onClose).toHaveBeenCalled();
     });
 
-    it('counts a new identity as typing', async () => {
+    it('counts a changed identity as typing', async () => {
       await openForm();
-      await press('New identity');
-      await type('Identity name', 'The Maker');
+      await press('Identity: The Athlete. Change');
+      await type('Or a new identity', 'The Maker');
+      await press('Done');
       await press('Back');
       expect(screen.getByText('Discard your changes?')).toBeTruthy();
     });
@@ -827,20 +951,32 @@ describe('HabitFormScreen', () => {
       widen();
       await openForm();
       await fillRequired();
-      await fireEvent(screen.getByLabelText('Just set up'), 'submitEditing');
+      await fireEvent(screen.getByLabelText('Minimum version'), 'submitEditing');
       await settle();
       expect(api.createHabit).toHaveBeenCalledTimes(1);
     });
 
-    it('moves Enter to the last field once More options is open', async () => {
+    it('moves Enter to the number of days when the end is open', async () => {
       widen();
       await openForm();
       await fillRequired();
-      await press('More options');
-      expect(screen.getByLabelText('Just set up').props.onSubmitEditing).toBeUndefined();
-      await fireEvent(screen.getByLabelText('Milestone label'), 'submitEditing');
+      await fireEvent.press(screen.getByRole('switch', { name: 'End this habit' }));
+      await type('Days', '10');
+      expect(screen.getByLabelText('Minimum version').props.onSubmitEditing).toBeUndefined();
+      await fireEvent(screen.getByLabelText('Days'), 'submitEditing');
       await settle();
       expect(api.createHabit).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves Enter to the last field once More is open on edit', async () => {
+      widen();
+      await openForm('h1');
+      await press('More');
+      expect(screen.getByLabelText('Minimum version').props.onSubmitEditing).toBeUndefined();
+      await type('Name', 'Read more');
+      await fireEvent(screen.getByLabelText('Milestone label'), 'submitEditing');
+      await settle();
+      expect(api.updateHabit).toHaveBeenCalledTimes(1);
     });
 
     it('ignores Enter while a save is running', async () => {
@@ -848,15 +984,15 @@ describe('HabitFormScreen', () => {
       api.createHabit.mockReturnValue(new Promise(() => {}));
       await openForm();
       await fillRequired();
-      await fireEvent(screen.getByLabelText('Just set up'), 'submitEditing');
-      await fireEvent(screen.getByLabelText('Just set up'), 'submitEditing');
+      await fireEvent(screen.getByLabelText('Minimum version'), 'submitEditing');
+      await fireEvent(screen.getByLabelText('Minimum version'), 'submitEditing');
       await settle();
       expect(api.createHabit).toHaveBeenCalledTimes(1);
     });
 
     it("leaves Enter alone on a phone, where Done only closes the keyboard", async () => {
       await openForm();
-      expect(screen.getByLabelText('Just set up').props.onSubmitEditing).toBeUndefined();
+      expect(screen.getByLabelText('Minimum version').props.onSubmitEditing).toBeUndefined();
     });
 
     describe('Escape', () => {
@@ -906,15 +1042,21 @@ describe('HabitFormScreen', () => {
   describe('accessibility and limits', () => {
     it('names every button', async () => {
       await openForm();
-      await press('More options');
+      await type('Name', 'Read');
+      const buttons = screen.getAllByRole('button');
+      expect(screen.getAllByRole('button', { name: /\S/ })).toHaveLength(buttons.length);
+    });
+
+    it('names every button on edit', async () => {
+      await openForm('h1');
+      await press('More');
       const buttons = screen.getAllByRole('button');
       expect(screen.getAllByRole('button', { name: /\S/ })).toHaveLength(buttons.length);
     });
 
     it('holds text fields to what the database accepts', async () => {
-      await openForm();
-      await press('Count');
-      await press('More options');
+      await openForm('h1');
+      await press('More');
       expect(screen.getByLabelText('Name').props.maxLength).toBe(100);
       expect(screen.getByLabelText('Unit').props.maxLength).toBe(30);
       expect(screen.getByLabelText('Milestone label').props.maxLength).toBe(40);
@@ -963,7 +1105,7 @@ describe('Today entry points', () => {
     expect(onAddHabit).toHaveBeenCalled();
   });
 
-  it('offers Add habit under a full list, so the limit can explain itself', async () => {
+  it('offers Add habit under the list, with no limit', async () => {
     await openToday([row]);
     await press('Add habit');
     expect(onAddHabit).toHaveBeenCalled();

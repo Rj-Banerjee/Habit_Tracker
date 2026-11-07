@@ -16,6 +16,7 @@ jest.mock('../services/reminders', () => ({
   showHeldNotifications: jest.fn(() => Promise.resolve()),
   notificationsAllowed: jest.fn(() => Promise.resolve(true)),
   askForNotifications: jest.fn(() => Promise.resolve()),
+  syncHabitReminders: jest.fn(() => Promise.resolve({ status: 'set' })),
 }));
 jest.mock('../services/haptics', () => ({ checkOffTick: jest.fn() }));
 jest.mock('../services/tracker', () => ({ tracker: { recordFocus: jest.fn(() => Promise.resolve()) } }));

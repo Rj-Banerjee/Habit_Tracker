@@ -10,7 +10,7 @@ Plan = Literal["free", "pro", "ultra", "enterprise"]
 PLANS: tuple[Plan, ...] = ("free", "pro", "ultra", "enterprise")
 
 FREE = ("tracker", "voice.simple", "themes.standard")
-PRO = (*FREE, "ai.coach", "ai.nudges", "ai.voice", "themes.game", "social")
+PRO = (*FREE, "ai.coach", "ai.nudges", "ai.voice", "ai.setup", "themes.game", "social")
 ULTRA = (*PRO, "workspace")
 ENTERPRISE = (*ULTRA, "team")
 

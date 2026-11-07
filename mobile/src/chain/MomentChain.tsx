@@ -15,6 +15,7 @@ import {
   Chain,
   chainBefore,
   CROSSFADE_MS,
+  FINISH_MS,
   FRACTURE_MS,
   IdentityToken,
   Moment,
@@ -29,13 +30,15 @@ import {
   CHAIN_HEIGHT,
   CHAIN_MID,
   CHAIN_NODE,
+  chainCentres,
   chainSummary,
   CRACK_APART,
   CRACK_LENGTH,
   crackPath,
+  EndCap,
   LinkMark,
   linkSpan,
-  nodeCentres,
+  PartialMark,
   SHIELD_PATH,
   StatusShapes,
   stitchesPath,
@@ -108,7 +111,9 @@ export function MomentChain({
         ? FRACTURE_MS.total
         : moment.kind === 'weld'
           ? WELD_MS.total
-          : PROTECTED_MS.total;
+          : moment.kind === 'finish'
+            ? FINISH_MS.total
+            : PROTECTED_MS.total;
 
   const [width, setWidth] = useState(0);
   const [showHint, setShowHint] = useState(false);
@@ -123,7 +128,7 @@ export function MomentChain({
   const before = chainBefore(chain, moment);
   const index = chain.nodes.findIndex((node) => node.date === moment.date);
   const linkIndex = index - 1;
-  const centres = nodeCentres(chain.nodes.length, width);
+  const centres = chainCentres(chain.nodes.length, width, chain.ended);
   const span = linkIndex >= 0 && width > 0 ? linkSpan(centres[linkIndex], centres[index]) : null;
 
   const fireHaptic = () => {
@@ -280,6 +285,18 @@ export function MomentChain({
     return { x: -8 + 36 * p, opacity: crossfade || p >= 1 ? 0 : 0.85 };
   });
 
+  // A habit that has run its course: one soft light along the whole chain, then its cap.
+  const first = centres[0] ?? 0;
+  const last = centres[centres.length - 1] ?? 0;
+  const sweep = useAnimatedProps(() => {
+    const p = phase(t.value, FINISH_MS.sweep);
+    const head = first + (last - first) * easeOut(p);
+    return { d: `M${Math.max(first, head - 14)} ${CHAIN_MID}H${head}`, opacity: crossfade || p <= 0 || p >= 1 ? 0 : 0.9 };
+  });
+  const cap = useAnimatedProps(() => ({
+    opacity: phase(t.value, crossfade ? [0, CROSSFADE_MS] : FINISH_MS.cap),
+  }));
+
   const captionStyle = useAnimatedStyle(() => ({ opacity: captionOpacity.value }));
 
   const node = index >= 0 ? chain.nodes[index] : null;
@@ -342,6 +359,7 @@ export function MomentChain({
               i === index ? null : (
                 <G key={n.date} transform={nodeTransform(centres[i])}>
                   <StatusShapes status={n.status} {...colours} />
+                  {n.partial !== undefined ? <PartialMark share={n.partial} colour={colours.accent} /> : null}
                 </G>
               )
             )}
@@ -358,12 +376,23 @@ export function MomentChain({
               ) : (
                 <StatusShapes status={node.status} {...colours} />
               )}
+              {node.partial !== undefined ? <PartialMark share={node.partial} colour={colours.accent} /> : null}
               {moment.kind === 'protected' ? (
                 <G clipPath={`url(#shield-${moment.habitId})`}>
                   <AnimatedRect animatedProps={shimmer} y={0} width={6} height={28} fill={glow} />
                 </G>
               ) : null}
             </G>
+            {moment.kind === 'finish' ? (
+              <>
+                <AnimatedPath animatedProps={sweep} stroke={glow} strokeWidth={3.5} strokeLinecap="round" fill="none" />
+                <AnimatedG animatedProps={cap}>
+                  <EndCap lastCentre={last} colour={colours.accent} />
+                </AnimatedG>
+              </>
+            ) : chain.ended ? (
+              <EndCap lastCentre={last} colour={colours.accent} />
+            ) : null}
           </Svg>
         ) : null}
       </View>

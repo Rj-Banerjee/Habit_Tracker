@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { HabitLevel, levelTarget, OFFLINE_NOTE, RepairRow, TodayRow } from '@habit-tracker/core';
+import {
+  amountFromText,
+  DEFAULT_REMINDERS,
+  HabitLevel,
+  levelTarget,
+  OFFLINE_NOTE,
+  progressLine,
+  RepairRow,
+  TimeOfDay,
+  TodayRow,
+} from '@habit-tracker/core';
 import { watchMyActivity } from '../services/live';
 import { loadToday, offlineTracker } from '../services/logQueue';
 import { tracker } from '../services/tracker';
 import { refreshWidget } from '../services/widget';
 
-type Patch = Partial<Pick<TodayRow, 'status' | 'level_done' | 'amount' | 'current_streak'>>;
+type Patch = Partial<
+  Pick<TodayRow, 'status' | 'level_done' | 'amount' | 'current_streak' | 'time_of_day' | 'reminder_time'>
+>;
 
 export function useToday() {
   const [rows, setRows] = useState<TodayRow[]>([]);
@@ -78,6 +90,34 @@ export function useToday() {
     );
   };
 
+  // "3", "2-3 pages" or "500 m", added to the day. The reply says where it stands.
+  const addAmount = async (row: TodayRow, text: string): Promise<boolean> => {
+    const parsed = amountFromText(text);
+    if (!parsed) {
+      setMessage('Enter an amount, like 3 or 2-3 pages.');
+      return false;
+    }
+    let said: string | null = null;
+    await change(row, { amount: (row.amount ?? 0) + parsed.amount }, async () => {
+      const result = await offlineTracker.addAmount(row.habit_id, row.day, parsed.amount, parsed.unit);
+      said = progressLine(result, row.title);
+    });
+    if (said) setMessage(said);
+    return said !== null;
+  };
+
+  // To another part of the day, from today on. A reminder still at the old part's
+  // default moves with it; one they set themselves stays.
+  const moveTo = (row: TodayRow, time: TimeOfDay) => {
+    const from = row.time_of_day ?? 'anytime';
+    if (time === from) return Promise.resolve();
+    const followed = (row.reminder_time?.slice(0, 5) ?? null) === DEFAULT_REMINDERS[from];
+    const reminder = followed ? DEFAULT_REMINDERS[time] : (row.reminder_time ?? null);
+    return change(row, { time_of_day: time, reminder_time: reminder }, () =>
+      tracker.updateHabit(row.habit_id, followed ? { timeOfDay: time, reminderTime: reminder } : { timeOfDay: time })
+    );
+  };
+
   const undo = (row: TodayRow) =>
     change(
       row,
@@ -105,6 +145,8 @@ export function useToday() {
     message: message ?? (offline ? OFFLINE_NOTE : null),
     refresh,
     log,
+    addAmount,
+    moveTo,
     undo,
     skip,
     repair,

@@ -4,7 +4,7 @@ import { BackHandler, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { useNeedsOnboarding } from '../hooks/useNeedsOnboarding';
-import { setDailyReminder } from '../services/reminders';
+import { syncHabitReminders } from '../services/reminders';
 import { tracker } from '../services/tracker';
 import { OnboardingScreen } from './OnboardingScreen';
 
@@ -12,7 +12,7 @@ jest.mock('../services/tracker', () => ({
   tracker: {
     createHabit: jest.fn(),
     getHabit: jest.fn(),
-    setReminderTime: jest.fn(),
+    listIdentities: jest.fn(),
     finishOnboarding: jest.fn(),
     getProfile: jest.fn(),
     listProgressHabits: jest.fn(),
@@ -20,12 +20,11 @@ jest.mock('../services/tracker', () => ({
 }));
 jest.mock('../services/reminders', () => ({
   ...jest.requireActual('../services/reminders'),
-  setDailyReminder: jest.fn(),
-  restoreDailyReminder: jest.fn(),
+  syncHabitReminders: jest.fn(),
 }));
 
 const api = tracker as jest.Mocked<typeof tracker>;
-const reminder = setDailyReminder as jest.Mock;
+const reminder = syncHabitReminders as jest.Mock;
 const onDone = jest.fn();
 
 const settle = () => act(async () => {});
@@ -51,11 +50,7 @@ const open = async () => {
   );
 };
 
-const toHabits = async () => {
-  await open();
-  await press('The Reader');
-  await press('Next');
-};
+const toHabits = open;
 
 const fillFirst = async () => {
   await type('Habit 1', 'Read');
@@ -73,46 +68,31 @@ describe('OnboardingScreen', () => {
     jest.clearAllMocks();
     api.createHabit.mockResolvedValue('h1');
     api.getHabit.mockResolvedValue({ identity_id: 'i1' } as never);
-    api.setReminderTime.mockResolvedValue(undefined as never);
+    api.listIdentities.mockResolvedValue([]);
     api.finishOnboarding.mockResolvedValue(undefined as never);
     reminder.mockResolvedValue({ status: 'set' });
   });
 
-  describe('identity', () => {
-    it('needs one before moving on', async () => {
-      await open();
-      await press('Next');
-      expect(screen.getByText('Choose one, or write your own')).toBeTruthy();
-      expect(screen.getByText('Step 1 of 4')).toBeTruthy();
-    });
-
-    it('takes their own words', async () => {
-      await open();
-      await type('Or write your own', 'The Gardener');
-      await press('Next');
-      expect(screen.getByText('Step 2 of 4')).toBeTruthy();
-    });
-
-    it('suggests a habit that fits', async () => {
-      await toHabits();
-      expect(screen.getByLabelText('Habit 1').props.placeholder).toBe('Read');
-    });
+  it('starts with habits: it never asks for an identity', async () => {
+    await open();
+    expect(screen.getByText('Step 1 of 3')).toBeTruthy();
+    expect(screen.getByRole('header', { name: 'Your first habits' })).toBeTruthy();
+    expect(screen.queryByText('Who do you want to become?')).toBeNull();
   });
 
   describe('habits', () => {
-    it('needs a name and a minimum version', async () => {
+    it('needs a name', async () => {
       await toHabits();
       await press('Next');
       expect(screen.getByText('Give the habit a name')).toBeTruthy();
       expect(api.createHabit).not.toHaveBeenCalled();
     });
 
-    it('stops at three', async () => {
+    it('has no limit on habits', async () => {
       await toHabits();
-      await press('Add another habit');
-      await press('Add another habit');
-      expect(screen.getByLabelText('Habit 3')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Add another habit' })).toBeNull();
+      for (let i = 0; i < 4; i++) await press('Add another habit');
+      expect(screen.getByLabelText('Habit 5')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Add another habit' })).toBeTruthy();
     });
 
     it('can take one away', async () => {
@@ -128,28 +108,49 @@ describe('OnboardingScreen', () => {
       await press('Add another habit');
       await press('Next');
       expect(api.createHabit).toHaveBeenCalledTimes(1);
-      expect(screen.getByText('Step 3 of 4')).toBeTruthy();
+      expect(screen.getByText('Step 2 of 3')).toBeTruthy();
     });
 
-    it('asks for the rest of a half-filled one', async () => {
+    it('suggests a minimum for each habit, and uses it when left blank', async () => {
+      await toHabits();
+      await type('Habit 1', 'Read');
+      expect(screen.getByLabelText('Minimum version of habit 1').props.placeholder).toBe('Read at least 2 pages');
+      await press('Next');
+      expect(api.createHabit.mock.calls[0][0].levels[1]).toEqual({
+        level: 'minimum',
+        description: 'Read at least 2 pages',
+        target: 2,
+      });
+    });
+
+    it('sets each habit up from the library, with its own identity', async () => {
+      api.getHabit.mockResolvedValueOnce({ identity_id: 'i-reader' } as never);
+      api.getHabit.mockResolvedValueOnce({ identity_id: 'i-athlete' } as never);
       await toHabits();
       await fillFirst();
       await press('Add another habit');
-      await type('Habit 2', 'Run');
+      await type('Habit 2', 'Run 5 km');
+      await press('Add another habit');
+      await type('Habit 3', 'Walk');
       await press('Next');
-      expect(api.createHabit).not.toHaveBeenCalled();
+      expect(api.createHabit.mock.calls[0]).toEqual([
+        expect.objectContaining({ title: 'Read', type: 'count', timeOfDay: 'evening' }),
+        { name: 'The Reader', colourToken: 'identity-1' },
+      ]);
+      expect(api.createHabit.mock.calls[1]).toEqual([
+        expect.objectContaining({ title: 'Run', target: 5, unit: 'km', frequency: 'per_week', perWeek: 3 }),
+        { name: 'The Athlete', colourToken: 'identity-2' },
+      ]);
+      // A second Athlete habit joins the identity made for the first.
+      expect(api.createHabit.mock.calls[2]).toEqual([expect.objectContaining({ identityId: 'i-athlete' })]);
     });
 
-    it('saves the identity with the first habit, and uses it for the rest', async () => {
+    it('uses an identity they already have', async () => {
+      api.listIdentities.mockResolvedValue([{ id: 'i9', name: 'The Reader', colour_token: 'identity-4', why_text: null }]);
       await toHabits();
       await fillFirst();
-      await press('Add another habit');
-      await type('Habit 2', 'Run');
-      await type('Minimum version of habit 2', 'Shoes on');
       await press('Next');
-      expect(api.createHabit.mock.calls[0][1]).toMatchObject({ name: 'The Reader' });
-      expect(api.createHabit.mock.calls[1][0]).toMatchObject({ identityId: 'i1', title: 'Run' });
-      expect(api.createHabit.mock.calls[1][1]).toBeUndefined();
+      expect(api.createHabit.mock.calls[0]).toEqual([expect.objectContaining({ identityId: 'i9' })]);
     });
 
     it("doesn't repeat anything when retrying after a failure", async () => {
@@ -167,60 +168,47 @@ describe('OnboardingScreen', () => {
       await press('Next');
       expect(api.createHabit).toHaveBeenCalledTimes(1);
       expect(api.createHabit.mock.calls[0][0]).toMatchObject({ title: 'Run' });
-      expect(screen.getByText('Step 3 of 4')).toBeTruthy();
+      expect(screen.getByText('Step 2 of 3')).toBeTruthy();
     });
 
-    it('goes back with their words kept', async () => {
-      await toHabits();
-      await fillFirst();
+    it('goes back with their words kept, without saving twice', async () => {
+      await toReminder();
       await press('Back');
-      await press('Next');
       expect(screen.getByLabelText('Habit 1').props.value).toBe('Read');
+      await press('Next');
+      expect(api.createHabit).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('reminder', () => {
-    it('sets the chosen time', async () => {
+    it('turns on each habit\'s own reminders', async () => {
       await toReminder();
-      await press('08:00');
-      await press('Next');
-      expect(api.setReminderTime).toHaveBeenCalledWith('u1', '08:00');
-      expect(reminder).toHaveBeenCalledWith('08:00');
+      expect(screen.getByText(/Each habit reminds you/)).toBeTruthy();
+      await press('Turn on reminders');
+      expect(reminder).toHaveBeenCalledWith({ ask: true });
+      expect(screen.getByText('Step 3 of 3')).toBeTruthy();
     });
 
-    it('takes a time of their own', async () => {
+    it('can go without', async () => {
       await toReminder();
-      await type('Or choose your own time', '6:45');
-      await press('Next');
-      expect(api.setReminderTime).toHaveBeenCalledWith('u1', '06:45');
-    });
-
-    it('points out a time it cannot read', async () => {
-      await toReminder();
-      await type('Or choose your own time', 'soon');
-      expect(screen.getByText('Use a time like 7:30 or 19:00')).toBeTruthy();
-    });
-
-    it('can go without one', async () => {
-      await toReminder();
-      await press('No reminder');
-      await press('Next');
-      expect(api.setReminderTime).toHaveBeenCalledWith('u1', null);
+      await press('Not now');
+      expect(reminder).not.toHaveBeenCalled();
+      expect(screen.getByText('Step 3 of 3')).toBeTruthy();
     });
 
     it('carries on, and says so, if notifications are refused', async () => {
       reminder.mockResolvedValue({ status: 'denied' });
       await toReminder();
-      await press('Next');
-      expect(screen.getByText(/aren't allowed/)).toBeTruthy();
-      expect(screen.getByText('Step 4 of 4')).toBeTruthy();
+      await press('Turn on reminders');
+      expect(screen.getByText('Step 3 of 3')).toBeTruthy();
+      expect(screen.getByText(/Notifications aren't allowed/)).toBeTruthy();
     });
   });
 
   describe('rules', () => {
     const toRules = async () => {
       await toReminder();
-      await press('Next');
+      await press('Not now');
     };
 
     it('explains the rules, then finishes', async () => {
@@ -247,7 +235,7 @@ describe('OnboardingScreen', () => {
     await act(async () => {
       (BackHandler as unknown as { mockPressBack: () => void }).mockPressBack?.();
     });
-    expect(screen.queryByText('Step 3 of 4')).toBeNull();
+    expect(screen.getByText('Step 1 of 3')).toBeTruthy();
   });
 });
 

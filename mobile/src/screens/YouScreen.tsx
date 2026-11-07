@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isLogged, layout, space } from '@habit-tracker/core';
+import { completedSummary, isLogged, layout, space } from '@habit-tracker/core';
 import {
   BottomSheet,
   Button,
@@ -15,16 +15,17 @@ import {
 } from '@habit-tracker/ui';
 import { WhySection } from '../coach/WhySection';
 import { NudgeSetting } from '../components/NudgeSetting';
-import { ReminderPicker } from '../components/ReminderPicker';
+import { useCompletedHabits } from '../hooks/useCompletedHabits';
 import {
   openPhoneSettings,
   reminderMessage,
   ReminderResult,
   sendTestReminder,
-  setDailyReminder,
+  syncHabitReminders,
 } from '../services/reminders';
 import { supabase } from '../services/supabase';
 import { tracker } from '../services/tracker';
+import { VoiceTest, voiceTestEnabled } from '../voice/VoiceTest';
 
 const COMING_SOON = ['Coach tone'];
 
@@ -37,18 +38,12 @@ interface YouScreenProps {
 export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
   const { colors, preference, setPreference } = useTheme();
   const [confirming, setConfirming] = useState(false);
+  const [testingVoice, setTestingVoice] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  // Undefined until loaded, so the picker doesn't flash a choice they didn't make.
-  const [reminder, setReminder] = useState<string | null | undefined>(undefined);
+  const completed = useCompletedHabits();
+  const [restarted, setRestarted] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
-
-  useEffect(() => {
-    tracker
-      .getProfile()
-      .then((profile) => setReminder(profile.reminder_time?.slice(0, 5) ?? null))
-      .catch(() => setReminder(null));
-  }, []);
 
   const show = (result: ReminderResult, success: string | null) => {
     setProblem(reminderMessage(result));
@@ -56,15 +51,10 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
     setBlocked(result.status === 'blocked' || result.status === 'denied');
   };
 
-  const changeReminder = async (time: string | null) => {
-    setReminder(time);
+  // Each habit has its own reminder time, set in the habit. This only lets them through.
+  const turnOn = async () => {
     setProblem(null);
-    try {
-      await tracker.setReminderTime(userId, time);
-      show(await setDailyReminder(time), time ? `Reminder set for ${time}.` : null);
-    } catch (err) {
-      setProblem((err as Error).message);
-    }
+    show(await syncHabitReminders({ ask: true }), 'Reminders are on. Each habit reminds you at its own time.');
   };
 
   const test = async () => {
@@ -115,21 +105,56 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
           />
           <ThemePicker />
         </View>
-        {reminder !== undefined ? (
-          <View style={styles.group}>
-            <Text variant="small" muted>
-              Daily reminder
+        <View style={styles.group}>
+          <Text variant="small" muted>
+            Reminders
+          </Text>
+          <Text variant="small">
+            Each habit reminds you at its own time. Change it, or turn it off, when you edit the habit.
+          </Text>
+          <Button label="Turn on reminders" quiet onPress={() => void turnOn()} />
+          <Button label="Send a test reminder" quiet onPress={() => void test()} />
+          {note ? (
+            <Text variant="small" muted accessibilityLiveRegion="polite">
+              {note}
             </Text>
-            <ReminderPicker value={reminder} onChange={(time) => void changeReminder(time)} />
-            <Button label="Send a test reminder" quiet onPress={() => void test()} />
-            {note ? (
+          ) : null}
+          {blocked ? (
+            <Button label="Open phone settings" quiet onPress={() => void openPhoneSettings()} />
+          ) : null}
+        </View>
+        {completed.habits.length > 0 ? (
+          <View style={styles.group}>
+            <Text variant="small" muted accessibilityRole="header">
+              Completed habits
+            </Text>
+            {completed.habits.map((habit) => (
+              <View key={habit.habit_id} style={styles.completed}>
+                <Text>{habit.title}</Text>
+                <Text variant="small" muted>
+                  {completedSummary(habit)}
+                </Text>
+                {habit.restarted ? (
+                  <Text variant="small" muted>
+                    Restarted
+                  </Text>
+                ) : (
+                  <Button
+                    label={`Restart ${habit.title}`}
+                    quiet
+                    onPress={() =>
+                      void completed.restart(habit).then((ok) => ok && setRestarted(habit.title))
+                    }
+                  />
+                )}
+              </View>
+            ))}
+            {restarted ? (
               <Text variant="small" muted accessibilityLiveRegion="polite">
-                {note}
+                {`${restarted} starts again today. Its earlier run is kept.`}
               </Text>
             ) : null}
-            {blocked ? (
-              <Button label="Open phone settings" quiet onPress={() => void openPhoneSettings()} />
-            ) : null}
+            <FormMessage message={completed.problem ?? undefined} />
           </View>
         ) : null}
         <NudgeSetting />
@@ -142,9 +167,16 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
             </Text>
           </View>
         ))}
+        {voiceTestEnabled ? (
+          <Button label="Voice test (test builds only)" quiet onPress={() => setTestingVoice(true)} />
+        ) : null}
+        {voiceTestEnabled ? (
+          <Button label="Voice test (test builds only)" quiet onPress={() => setTestingVoice(true)} />
+        ) : null}
         <FormMessage message={problem ?? undefined} />
         <Button label="Sign out" quiet onPress={() => setConfirming(true)} />
       </ScrollView>
+      {voiceTestEnabled ? <VoiceTest visible={testingVoice} onClose={() => setTestingVoice(false)} /> : null}
       <BottomSheet visible={confirming} title="Sign out?" onClose={() => setConfirming(false)}>
         <SheetOption label="Sign out" onPress={() => void signOut()} />
         <SheetOption label="Stay signed in" onPress={() => setConfirming(false)} />
@@ -163,5 +195,6 @@ const styles = StyleSheet.create({
     padding: space.lg,
     paddingTop: space.xxl,
   },
+  completed: { gap: space.xs },
   group: { gap: space.xs },
 });
