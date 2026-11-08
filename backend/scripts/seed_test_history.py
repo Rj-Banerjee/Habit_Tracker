@@ -5,7 +5,10 @@ nothing else.
 It replays each day through the real logging rules with a backdated clock, so repairs
 and protected days are genuine. The history has patterns for analytics to find: good
 and bad weeks, Wednesdays that slip, and one amount habit whose target is too high (it
-mostly reaches its minimum, and sometimes falls short). Run from backend/:
+mostly reaches its minimum, and sometimes falls short), and for Habit connections, daily
+check-ins with a hidden pattern: the day after a long run (16 km or more), energy is low
+and Study mostly doesn't happen. It adds "Long run" and "Study" if they're missing.
+Run from backend/:
 
     .venv/bin/python scripts/seed_test_history.py
 """
@@ -113,6 +116,67 @@ def clear(conn, user_id, start) -> None:
     )
 
 
+PATTERN_HABITS = [
+    # title, type, unit, target, minimum, time of day
+    ("Long run", "count", "km", 10, 3, "morning"),
+    ("Study", "duration", "minutes", 45, 15, "evening"),
+]
+
+
+def add_pattern_habits(conn, user_id, start) -> None:
+    """The two habits the hidden pattern needs, under the first identity, if missing."""
+    identity = conn.execute(
+        "select id from public.identities where user_id = %s order by created_at limit 1", (user_id,)
+    ).fetchone()
+    if identity is None:
+        return
+    for title, kind, unit, target, minimum, part in PATTERN_HABITS:
+        exists = conn.execute(
+            """
+            select 1 from public.habits h join public.identities i on i.id = h.identity_id
+            where i.user_id = %s and h.title = %s and h.archived_at is null
+            """,
+            (user_id, title),
+        ).fetchone()
+        if exists:
+            continue
+        habit = conn.execute(
+            """
+            insert into public.habits (identity_id, title, type, target, unit, starts_on, time_of_day)
+            values (%s, %s, %s, %s, %s, %s, %s) returning id
+            """,
+            (identity["id"], title, kind, target, unit, start, part),
+        ).fetchone()["id"]
+        conn.execute(
+            """
+            insert into public.habit_levels (habit_id, level, description, target)
+            values (%s, 'full', %s, %s), (%s, 'minimum', %s, %s)
+            """,
+            (habit, f"{target} {unit}", target, habit, f"{minimum} {unit}", minimum),
+        )
+        conn.execute("select tracker.record_habit_version(%s, '2000-01-01 12:00+00')", (habit,))
+
+
+def clear_checkins(conn, user_id) -> None:
+    conn.execute("delete from public.checkins where user_id = %s", (user_id,))
+    # Their events go too, the one way the activity log allows.
+    conn.execute("select set_config('tracker.deleting_checkins', %s, true)", (str(user_id),))
+    conn.execute("delete from public.activity_events where user_id = %s and kind = 'checkin.daily'", (user_id,))
+
+
+def checkin(conn, user_id, date, tired: bool) -> None:
+    """Most days have a check-in. After a long run, energy is low."""
+    rng = random.Random(f"{SEED}checkin{date}")
+    if rng.random() > 0.85:
+        return
+    energy = rng.choice([1, 2, 2]) if tired else rng.choice([3, 4, 4, 5])
+    conn.execute(
+        "select tracker.save_checkin(%s, null, %s::smallint, %s::numeric, %s::smallint, 'tap', %s)",
+        (user_id, energy, rng.choice([6.5, 7, 7.5, 8]), rng.choice([3, 4, 4]),
+         usual_time(conn, user_id, date, {"title": "checkin"})),
+    )  # fmt: skip
+
+
 def load_habits(conn, user_id) -> list[dict]:
     return conn.execute(
         """
@@ -186,13 +250,44 @@ def log_weekly(conn, user_id, habit, date, now, tally) -> None:
 
 
 def replay(conn, user_id, habits, dates) -> dict[str, int]:
-    tally = {"done": 0, "minimum": 0, "partial": 0, "skipped": 0, "missed": 0, "repaired": 0}
+    tally = {"done": 0, "minimum": 0, "partial": 0, "skipped": 0, "missed": 0, "repaired": 0, "long_runs": 0}
     missed_last = {habit["id"]: False for habit in habits}
     stretched = stretched_habit(habits)
+    long_before = False
 
     for date in dates:
+        long_today = False
         for habit in habits:
             now = usual_time(conn, user_id, date, habit)
+            # The hidden pattern: long runs some days, and Study slipping the day after.
+            if habit["title"] == "Long run":
+                rng = random.Random(f"{SEED}run{date}")
+                if rng.random() < 0.55:
+                    km = rng.choice([16, 18, 21]) if rng.random() < 0.45 else rng.choice([5, 6, 8])
+                    conn.execute(
+                        "select tracker.add_amount(%s, %s, %s, %s, 'km', 'tap', %s)", (user_id, habit["id"], date, km, now)
+                    )
+                    long_today = km >= 16
+                    tally["long_runs"] += long_today
+                    tally["done"] += 1
+                else:
+                    tally["missed"] += 1
+                continue
+            if habit["title"] == "Study":
+                rng = random.Random(f"{SEED}study{date}")
+                if rng.random() < (0.3 if long_before else 0.85):
+                    conn.execute(
+                        "select tracker.add_amount(%s, %s, %s, %s, 'minutes', 'tap', %s)",
+                        (user_id, habit["id"], date, rng.choice([30, 45, 50]), now),
+                    )
+                    tally["done"] += 1
+                elif long_before and rng.random() < 0.3 and attempt(
+                    conn, "select tracker.skip_habit(%s, %s, %s, 'Tired', 'tap', %s)", (user_id, habit["id"], date, now)
+                ):
+                    tally["skipped"] += 1
+                else:
+                    tally["missed"] += 1
+                continue
             if habit["frequency"] == "per_week":
                 log_weekly(conn, user_id, habit, date, now, tally)
                 continue
@@ -261,6 +356,8 @@ def replay(conn, user_id, habits, dates) -> dict[str, int]:
                 tally["missed"] += 1
                 # A slipped Wednesday isn't made up, so the weak day shows.
                 missed_last[habit["id"]] = date.isoweekday() != WEAK_WEEKDAY
+        checkin(conn, user_id, date, long_before)
+        long_before = long_today
     return tally
 
 
@@ -285,7 +382,9 @@ def main() -> None:
             today.fromordinal(today.toordinal() - offset) for offset in range(DAYS, 0, -1)
         ]
 
+        add_pattern_habits(conn, user_id, dates[0])
         clear(conn, user_id, dates[0])
+        clear_checkins(conn, user_id)
         habits = load_habits(conn, user_id)
         if not habits:
             sys.exit("Add a habit in the app first, so there's something to fill.")

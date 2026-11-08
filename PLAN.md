@@ -355,22 +355,23 @@ Pro (the daily check-in is on every plan). Built after Analytics. It finds how h
 ### Daily check-in (all plans, optional)
 
 - **The card:** a one-tap card on Today, in the morning or the evening (the person chooses), with energy 1–5, hours slept (a stepper) and mood 1–5. Under 5 seconds. Skippable, shown at most once a day, and never nags: dismissing it on 3 days in a row asks once whether to turn it off.
-- **By voice:** "slept 6 hours, energy low" fills it in. Low, okay and high map to 2, 3 and 4.
+- **By voice:** "slept 6 hours, energy low" fills it in, on the phone and on every plan. Low, okay and high map to 2, 3 and 4; words like "great" and "exhausted" are 5 and 1. A phrase about sleep alone goes to a habit called Sleep if there is one; energy and mood always mean the check-in.
+- **Setting:** in You, the check-in shows in the morning (all day until answered), the evening (from 5pm), or never. "Delete my check-ins" removes them all, with their `checkin.daily` events: the one exception to the activity log being append-only.
 - **Private:** stored in `checkins` (owner-only RLS, never shared with groups or teams) and recorded in `activity_events` as `checkin.daily`.
 - **Later:** wearable sleep (Health Connect, HealthKit) fills the same fields, with source `wearable`.
 
 ### Pattern engine (no AI)
 
-A deterministic nightly job in the database, per person. A link is found only with **at least 21 days of data**, enough of each kind of day, and a clear effect.
+A deterministic nightly job in the AI service (`backend/app/connections.py`), per Pro person, over the last 90 days from `get_analytics`, check-ins and dated settings. Plain statistics, no AI, the same every run. A link is found only with **at least 21 days of data**, enough of each kind of day, and a clear effect.
 
 | Finding | What's compared | Reported only when |
 | --- | --- | --- |
-| Same-day and next-day effect between habits | Habit B's completion on days after (or the same day as) habit A was done vs not done; for amounts, A above its median vs below | Each group has at least 8 days; the difference is at least 20 percentage points; and it passes the significance check below |
+| Same-day and next-day effect between habits | Habit B's completion on days after (or the same day as) habit A was done vs not done; for amounts, the day after a big amount of A (split at the widest gap in A's amounts) vs other days | Each group has at least 8 days; the difference is at least 20 percentage points; and it passes the significance check below |
 | Amount to amount | Habit A's amount vs habit B's amount, the same or the next day | At least 21 days with both; Spearman ρ of 0.3 or more either way; passes the check below |
 | Check-in signal to habit | A habit's completion on days with low vs normal sleep (under 6 hours), energy (1–2) or mood (1–2) | As for habits: 8 days a side, 20 points, significant |
 | Habit to next-day energy | Next-day energy after a habit was done vs not | 8 days a side; at least 0.75 points on the 1–5 scale; significant |
 | Skip-reason cluster | How often a reason (for example "tired") is given the day after a habit, vs other days | The reason appears at least 3 times; at least half of them follow that habit; at least twice its usual rate |
-| Time-of-day clash | Two habits in the same part of the day that are rarely both done | Both due on at least 14 days; done together at least 25 points less often than if they were unrelated |
+| Time-of-day clash | Two habits in the same part of the day that are rarely both done | Both due on at least 14 days; done together at most half as often as if they were unrelated, and at least 15 points less |
 | Overload | Older habits' completion in the 14 days after a new habit was added or a target raised by over 20%, vs the 14 days before | Two or more older habits each drop 15 points or more, or one drops 25 or more |
 | Positive link | The same tests as above, where doing A makes B more likely | As above |
 

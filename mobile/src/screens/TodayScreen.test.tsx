@@ -60,6 +60,18 @@ jest.mock('../services/tracker', () => ({
     listCompletedHabits: jest.fn(() => Promise.resolve([])),
     updateHabit: jest.fn(() => Promise.resolve()),
     getWeekStatuses: jest.fn(() => Promise.resolve([])),
+    getCheckinState: jest.fn(() => Promise.reject(new Error('off'))),
+    getHeadsUp: jest.fn(() => Promise.resolve(null)),
+    getWarning: jest.fn(() => Promise.resolve(null)),
+    getUnseenAiChanges: jest.fn(() => Promise.resolve([])),
+    applyHeadsUp: jest.fn(() => Promise.resolve('c1')),
+    dismissHeadsUp: jest.fn(() => Promise.resolve()),
+    snoozeWarning: jest.fn(() => Promise.resolve()),
+    undoAiChange: jest.fn(() => Promise.resolve()),
+    markAiChangesSeen: jest.fn(() => Promise.resolve()),
+    saveCheckin: jest.fn(() => Promise.resolve()),
+    skipCheckin: jest.fn(() => Promise.resolve()),
+    answerCheckinOffer: jest.fn(() => Promise.resolve()),
     getAnalytics: jest.fn((from: string, to: string) =>
       Promise.resolve({
         from,
@@ -316,6 +328,127 @@ describe('TodayScreen', () => {
       api.getProfile.mockResolvedValue({ seen_tips: ['habit-tip'] } as never);
       await open([row()]);
       expect(screen.queryByText(tip)).toBeNull();
+    });
+  });
+
+  describe('Habit connections on Today', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const entitlements = require('../hooks/useEntitlements');
+    const headsUp = {
+      finding_id: 'f1', key: 'k', kind: 'after_big_amount', a_id: 'h0', a_title: 'Long run', b_id: 'h1',
+      b_title: 'Study', numbers: { after_big: 43, otherwise: 87 },
+    }; // prettier-ignore
+
+    beforeEach(() => {
+      jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'pro', ready: true, can: () => true });
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    it('gives a morning heads-up, with the fix as a button', async () => {
+      api.getHeadsUp.mockResolvedValue(headsUp as never);
+      await open([row()]);
+      expect(
+        screen.getByText("Heads-up: after a big Long run yesterday, Study often slips (43% against 87%). Make today's Study just the minimum?")
+      ).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Minimum Study today' }));
+      await act(async () => {});
+      expect(api.applyHeadsUp).toHaveBeenCalledWith('f1');
+      expect(screen.queryByTestId('heads-up')).toBeNull();
+    });
+
+    it('lets the heads-up go for today', async () => {
+      api.getHeadsUp.mockResolvedValue(headsUp as never);
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Not today' }));
+      expect(api.dismissHeadsUp).toHaveBeenCalled();
+      expect(screen.queryByTestId('heads-up')).toBeNull();
+    });
+
+    it('warns kindly about a serious pattern, and can be put off for a week', async () => {
+      api.getWarning.mockResolvedValue({ kind: 'dragging', habit: 'Long run', slipping: ['Study', 'Read'] } as never);
+      await open([row()]);
+      expect(screen.getByText(/Long run seems linked to Study and Read slipping/)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Got it: hide this for a week' }));
+      expect(api.snoozeWarning).toHaveBeenCalled();
+      expect(screen.queryByTestId('warning')).toBeNull();
+    });
+
+    it('says what Autopilot changed, with Undo', async () => {
+      api.getUnseenAiChanges.mockResolvedValue([
+        { id: 'c1', habit_title: 'Study', reason: "After Long run yesterday, Study's goal is the minimum today", applied_at: '' },
+      ] as never);
+      await open([row()]);
+      expect(screen.getByText("After Long run yesterday, Study's goal is the minimum today.")).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: /^Undo: After Long run/ }));
+      await act(async () => {});
+      expect(api.undoAiChange).toHaveBeenCalledWith('c1');
+      expect(screen.queryByTestId('autopilot-notice')).toBeNull();
+    });
+
+    it('shows none of it on Free', async () => {
+      jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'free', ready: true, can: () => false });
+      api.getHeadsUp.mockResolvedValue(headsUp as never);
+      await open([row()]);
+      expect(api.getHeadsUp).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('heads-up')).toBeNull();
+    });
+  });
+
+  describe('the daily check-in', () => {
+    const state = (patch = {}) => ({
+      time: 'morning',
+      today: '2026-11-03',
+      hour: 8,
+      checkin: null,
+      skipped_today: false,
+      ask_to_turn_off: false,
+      ...patch,
+    });
+
+    it('takes energy, sleep and mood in a few taps', async () => {
+      api.getCheckinState.mockResolvedValue(state() as never);
+      await open([row()]);
+      expect(screen.getByText('Only you can see this.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Save', disabled: true })).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Energy 2 of 5, low' }));
+      await fireEvent.press(screen.getByRole('button', { name: 'Fewer, Hours slept' }));
+      await fireEvent.press(screen.getByRole('button', { name: 'Mood 4 of 5, good' }));
+      api.getCheckinState.mockResolvedValue(
+        state({ checkin: { date: '2026-11-03', energy: 2, sleep_hours: 6.5, mood: 4, source: 'tap' } }) as never
+      );
+      await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+      await act(async () => {});
+      expect(api.saveCheckin).toHaveBeenCalledWith({ sleep: 6.5, energy: 2, mood: 4 }, 'tap');
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+    });
+
+    it('can be skipped for the day', async () => {
+      api.getCheckinState.mockResolvedValue(state() as never);
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Skip for today' }));
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+      expect(api.skipCheckin).toHaveBeenCalled();
+    });
+
+    it('waits for the evening when set to evening, and stays away when off', async () => {
+      api.getCheckinState.mockResolvedValue(state({ time: 'evening', hour: 10 }) as never);
+      await open([row()]);
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+    });
+
+    it('asks once, after 3 skipped days, whether to turn it off', async () => {
+      api.getCheckinState.mockResolvedValue(state({ ask_to_turn_off: true }) as never);
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Turn off' }));
+      expect(api.answerCheckinOffer).toHaveBeenCalledWith(false);
+      expect(screen.queryByText(/Turn off the daily check-in/)).toBeNull();
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+    });
+
+    it('is simply not there when it cannot load', async () => {
+      await open([row()]);
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+      expect(screen.getByRole('button', { name: /^Run, / })).toBeTruthy();
     });
   });
 

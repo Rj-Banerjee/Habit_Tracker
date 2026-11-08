@@ -4,11 +4,14 @@ import {
   LOCKED_VOICE_HINT,
   lockedMessage,
   answerWhich,
+  checkinReply,
   describeIntents,
   heardLine,
   isUndoPhrase,
   isVoiceAction,
   matchSimplePhrase,
+  mentionsEnergyOrMood,
+  parseCheckinPhrase,
   TodayRow,
   VoiceHabit,
   VoiceIntent,
@@ -54,9 +57,11 @@ interface VoiceOptions {
   refresh: () => Promise<unknown>;
   onClose: () => void;
   onAskCoach: (question: string) => void;
+  // After a check-in by voice, so the card on Today can catch up.
+  onCheckin?: () => void;
 }
 
-export function useVoice({ rows, actions, refresh, onClose, onAskCoach, canUseAi = true }: VoiceOptions) {
+export function useVoice({ rows, actions, refresh, onClose, onAskCoach, onCheckin, canUseAi = true }: VoiceOptions) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [problem, setProblem] = useState<string | null>(null);
   const [question, setQuestion] = useState<VoiceQuestion | null>(null);
@@ -167,6 +172,20 @@ export function useVoice({ rows, actions, refresh, onClose, onAskCoach, canUseAi
     latestLine.current = `Heard: ${text}`;
 
     const simple = matchSimplePhrase(text, habits);
+    // "slept 6 hours, energy low" is today's check-in, on every plan. Sleep alone might be
+    // a habit called Sleep, so a habit match wins unless energy or mood was said.
+    const checkin = parseCheckinPhrase(text);
+    if (checkin && (!simple || mentionsEnergyOrMood(text))) {
+      counted('on_phone');
+      try {
+        await tracker.saveCheckin(checkin, 'voice');
+        finish(checkinReply(checkin), false);
+        onCheckin?.();
+      } catch (err) {
+        fail(err);
+      }
+      return;
+    }
     if (simple) {
       counted('on_phone');
       await run([simple]);

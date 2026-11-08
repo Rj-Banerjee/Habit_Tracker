@@ -1701,3 +1701,86 @@ Two features the user asked to plan, written into PLAN.md:
   - The job was run by hand against live from the Mac, with a one-off secret: 7 insights for the +test account (weak Wednesdays for Read and Morning run, Read's 30-page target, Run done in the morning but set for the evening) and 3 accounts cleared.
 - **Docker** was started only for the SQL tests and the push, then closed.
 - **Tests:** SQL 491, core 1397 (action wording, the shared fixture), mobile 974 (the cards: confirm, cancel, Undo, Not useful, errors, empty, the Free card; the edit form's lighter days; the screens), frontend 28, backend 240 (every rule, an even pattern and too little history finding nothing, wording checks, the job on Pro and Free, running twice, a failed run, the coach's numbers).
+
+### Habit connections, part 1: the daily check-in (8 Nov 2026)
+
+- **The card on Today** (every plan, optional): energy 1–5, hours slept (a stepper by halves, starting at 7) and mood 1–5, then Save, or "Skip for today". It says "Only you can see this."
+  - It shows once a day at most: on the morning setting all day until answered, on the evening setting from 5pm, never when set to Never.
+  - A voice "slept 6 hours" leaves it open for energy and mood.
+  - After 3 skipped days in a row it asks once: "Turn off the daily check-in?", with Keep it or Turn off.
+- **By voice:** "slept 6 hours, energy low", "6 ghante soya, energy kam", "mood great" or "feeling tired" are saved on the phone, on every plan, with no AI. The reply is, for example, "Check-in saved: 6 hours of sleep, energy low." A habit called Sleep keeps "slept 8 hours"; energy and mood always go to the check-in.
+- **You screen:** "Daily check-in: Morning / Evening / Never". Its off option is "Never", because the nudge setting above already has an "Off". "Delete my check-ins" asks first.
+- **Private:**
+  - `checkins` is readable only by its owner, and written only through `save_checkin`.
+  - Each save is recorded as `checkin.daily` (AI-assisted when by voice).
+  - Deleting check-ins removes those events too. That's the activity log's only exception to append-only: allowed just for that person's check-in events, inside `delete_checkins`. A test shows every other event still can't be deleted.
+- **Room for wearables:** the same fields, with source `wearable`.
+- **Migration** `20261108000500_checkins.sql`.
+- **Live:**
+  - The dry run listed only this migration, and the push applied it.
+  - 14 checks passed with two temporary users, who were then deleted: saving and adding to the same day; the card's state; reading their own; another user can't read or write theirs; the publishable key can do neither; skipping; moving to the evening; deleting check-ins and their events while the rest of the log stays.
+  - `rls_auto_enable` and `ensure_rls` are still there; `checkins` has RLS on.
+- **Docker** was on only for the SQL tests and the push.
+- **Tests:** SQL 517, core 1416 (when the card shows; 13 spoken phrases including Hinglish; non-check-in phrases; the replies), mobile 990 (the card: taps, Save, skip, the evening setting, the offer, failing quietly; voice: saving and a Sleep habit; the You setting and delete), frontend 28, backend 240.
+
+### Habit connections, parts 2–3, and the server side of 4 and 6 (8 Nov 2026)
+
+The user asked for all of Habit connections to be finished before one phone build.
+
+- **Pattern engine** (`backend/app/connections.py`, nightly `/jobs/nightly-connections` at 03:30 UTC; no AI):
+  - Over 90 days it tests same-day and next-day links between habits, the day after a big amount, amount against amount, low sleep, energy or mood against each habit, each habit against the next day's energy, skip reasons, time-of-day clashes and overload.
+  - Fisher's exact and seeded permutation tests, with a Benjamini–Hochberg correction across every test for that person.
+  - Each finding is saved with its habits or signals, direction, effect, sample, confidence, range and supporting numbers.
+  - It runs in the AI service rather than SQL (the user allowed either), and PLAN.md says so.
+- **Two thresholds changed while testing,** both written into PLAN.md:
+  - A "big amount" is split at the widest gap in the amounts, not the median. With 16 km sitting on the median, only 11 days counted as big.
+  - A clash is "at most half as often as if unrelated, and 15 points less". "25 points less" could only ever fire for two exactly opposite habits at 50% each.
+- **Explanations:**
+  - Each finding gets a plain "seems linked" sentence and a yes/no question.
+  - The fast model rewords them, kept only if the numbers match exactly, it says "seem", the question is a question, and nothing claims a cause or sounds medical.
+  - Fixes are worked out in code, never by the model: rest the habit after a draining one, a rest day, times per week, another part of the day, first in its part of the day, a lighter weekday. Never a harder target.
+- **Answers:** "No" hides a link for 60 days, "Yes" puts it first, and both reach the engine and the coach.
+- **New dated settings:**
+  - "Rest after a habit" (`light_after`): the day after it's done, the goal is the minimum.
+  - One-day minimums (`day_overrides`) for the heads-up and Autopilot.
+  - Analytics, Today and logging all see them.
+- **Every AI change in one place** (`ai_changes`, via `tracker.apply_change`): insights, connection fixes, the heads-up and Autopilot. Each has an actor (`ai_assisted` or `ai`), a reason, and Undo, and is recorded in `activity_events`. Insights now go through it too.
+- **Heads-up, warning and Autopilot** (database):
+  - The heads-up is before noon, at most one a day: yesterday's draining habit, today's habit that tends to slip, fix "minimum today".
+  - The warning is at most weekly: an overload hitting 2+ habits, one habit linked to 2+ slipping, or 2+ declining.
+  - Autopilot is off by default. The database itself refuses anything but order, part of the day or a one-day minimum from it.
+- **Safety:** two weeks of check-ins with sleep under 5 or over 10 hours, or energy of 1–2, bring a gentle note suggesting a doctor (fixed text, never through the model). Nothing ever suggests a harder target.
+- **Coach chat** gets the links and the answers to them.
+- **Seed script:** check-ins on most days, and a hidden pattern: after a "Long run" of 16 km or more, energy is low and "Study" mostly slips. Both habits are added if missing.
+  - On a local +test account the engine found exactly that, with high confidence: Study 43% against 87% after long runs, 41% against 88% on low-energy days, and next-day energy 2.7 against 4. Nothing else was linked.
+- **Live:**
+  - The dry run listed only migrations 0600, 0700 and 0800, and the push applied them.
+  - 19 checks passed with two temporary users, who were then deleted: the engine's read and save; Pro sees the finding; the heads-up; a fix applied, in the history, and undone; Autopilot lightening today and shown on Today; Autopilot not runnable by a person; "No" hiding the link; the other user and the publishable key getting nothing.
+  - `rls_auto_enable` and `ensure_rls` are still there; RLS is on for all four new tables.
+- **Speed:** a year of 20 habits still loads cold in 0.77–0.88 s.
+- **Tests:** SQL 577, backend 279 (the engine on planted data, pure noise and thresholds; fixes; wording checks with mocked findings; safety; the job and Autopilot's notice; the coach), core 1421.
+
+### Habit connections, the app (8 Nov 2026)
+
+- **Connection cards** in the Overview ("How your habits connect") and in Habit detail:
+  - Each shows the explanation and "Measured over 82 days, a clear pattern."
+  - It asks Yes / No / Not sure, and says what the answer does: "No" hides it for 60 days.
+  - Its fixes have a confirm step, then Undo. A link answered "No" offers no fixes.
+  - Free sees nothing extra here, since the insights card already says "Insights are available on Pro."
+- **Habit map** (from the Overview): habits around a circle, with a calm green link where one seems to help and amber, dashed, where they compete. Thicker means stronger.
+  - Tap a link for its card. Every link is also a button, for screen readers and keyboards.
+  - On wide screens the card sits beside the map.
+  - The colours are theme constants, tested for contrast in light and dark and for colour-blind separation. There's no red.
+- **On Today:**
+  - The morning heads-up: "after a big Long run yesterday, Study often slips (43% against 87%). Make today's Study just the minimum?", with a button, or "Not today".
+  - The weekly warning, firm but kind, with "Got it" for a week.
+  - Autopilot's notice of what it changed, each with Undo, or Keep.
+- **You:**
+  - "AI changes: Ask me first / Autopilot". It asks first by default, with a plain note on what Autopilot can and can't do.
+  - Every AI change, where it came from and when, with Undo on any not yet undone.
+- **Fixed:**
+  - The AI service's job functions crashed reading an empty reply from a database function that returns nothing (`job_release`). So a failed run could never give its claim back, and it would have stopped that person's job for the day. Found while re-running the jobs by hand; it now has a test.
+- **Live:**
+  - The +test account was filled again: 6 habits, including the new "Long run" and "Study", with check-ins.
+  - Both jobs were run by hand from the Mac, with a one-off secret: 3 connections (the planted pattern: Study 43% against 87% after long runs; 41% against 88% on low-energy days; next-day energy 2.7 against 4) and 11 insight cards.
+- **Tests:** core 1423, mobile 1024 (connection cards, the Habit map, the Today cards on Pro and Free, Autopilot and the history in You), frontend 28, backend 280.

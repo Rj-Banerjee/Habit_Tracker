@@ -45,3 +45,15 @@ async def test_coach_event_shape():
         return httpx.Response(201)
 
     await db(handler).record_coach_event("u", "chat", {"turns": 1}, "replied")
+
+
+async def test_a_job_function_that_returns_nothing_is_fine():
+    # job_release returns void, which PostgREST answers with an empty body.
+    def handler(request):
+        assert request.url.path == "/rest/v1/rpc/job_release"
+        return httpx.Response(204)
+
+    from app.service_db import JobDb
+
+    jobs = JobDb(get_settings(), transport=httpx.MockTransport(handler))
+    assert await jobs.release("nightly-insights", "u1:2026-11-08") is None

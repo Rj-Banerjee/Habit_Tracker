@@ -1816,5 +1816,317 @@ select is(
   'and everyone with a habit is considered'
 );
 
+
+-- ---------------------------------------------------------------------------
+-- The daily check-in
+-- ---------------------------------------------------------------------------
+select t.make_user(180, 'Asia/Kolkata');
+select t.make_user(181);
+select is(
+  ((tracker.save_checkin(t.u(180), null, null, 6, null, 'voice', '2026-11-08 08:00+05:30')).sleep_hours),
+  6.0::numeric, 'a check-in saves just what was given'
+);
+select tracker.save_checkin(t.u(180), null, 2::smallint, null, null, 'voice', '2026-11-08 08:01+05:30');
+select is(
+  (select (energy, sleep_hours, mood)::text from public.checkins where user_id = t.u(180) and date = '2026-11-08'),
+  '(2,6.0,)', 'and a second part joins the same day'
+);
+select is(
+  (select count(*)::int from public.activity_events where user_id = t.u(180) and kind = 'checkin.daily'), 2,
+  'each is recorded as checkin.daily'
+);
+select is(
+  (select actor::text from public.activity_events where user_id = t.u(180) and kind = 'checkin.daily' limit 1),
+  'ai_assisted', 'by voice, as AI-assisted'
+);
+select is(
+  ((tracker.save_checkin(t.u(180), null, null, 7.3, null, 'tap', '2026-11-08 09:00+05:30')).sleep_hours),
+  7.5::numeric, 'sleep is kept to the half hour'
+);
+select throws_like($$ select tracker.save_checkin(t.u(180), null, 6::smallint, null, null, 'tap', now()) $$,
+  '%1 to 5%', 'energy goes from 1 to 5');
+select throws_like($$ select tracker.save_checkin(t.u(180), null, null, 20, null, 'tap', now()) $$,
+  '%0 and 16%', 'sleep stays sensible');
+select throws_like($$ select tracker.save_checkin(t.u(180), '2026-11-01', 3::smallint, null, null, 'tap', '2026-11-08 09:00+05:30') $$,
+  '%today or yesterday%', 'only today or yesterday');
+select throws_like($$ select tracker.save_checkin(t.u(180), null, null, null, null, 'tap', now()) $$,
+  '%Nothing to save%', 'an empty check-in saves nothing');
+select lives_ok($$ select tracker.save_checkin(t.u(180), '2026-11-07', 3::smallint, null, null, 'tap', '2026-11-08 09:00+05:30') $$,
+  'a late one for yesterday is fine');
+
+select is(
+  (tracker.checkin_state(t.u(180), '2026-11-08 09:30+05:30') -> 'checkin' ->> 'energy'), '2',
+  'the card knows today is done'
+);
+select is((tracker.checkin_state(t.u(180), '2026-11-08 09:30+05:30') ->> 'hour'), '9', 'and the local hour');
+
+-- Three skipped days in a row ask, once, about turning it off.
+select tracker.skip_checkin(t.u(181), '2026-11-05 09:00+00');
+select tracker.skip_checkin(t.u(181), '2026-11-06 09:00+00');
+select tracker.skip_checkin(t.u(181), '2026-11-06 18:00+00');
+select is((tracker.checkin_state(t.u(181), '2026-11-06 19:00+00') ->> 'ask_to_turn_off'), 'false',
+  'two days skipped is not yet three, however many taps');
+select is((tracker.checkin_state(t.u(181), '2026-11-06 19:00+00') ->> 'skipped_today'), 'true', 'a skip hides it for the day');
+select tracker.skip_checkin(t.u(181), '2026-11-07 09:00+00');
+select is((tracker.checkin_state(t.u(181), '2026-11-07 10:00+00') ->> 'ask_to_turn_off'), 'true', 'the third asks');
+select tracker.skip_checkin(t.u(181), '2026-11-09 09:00+00');
+select is((select checkin_skips from public.users where id = t.u(181)), 1::smallint, 'a gap starts the count again');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(181), 'role', 'authenticated')::text, true);
+update public.users set checkin_skips = 3 where id = t.u(181);
+select public.answer_checkin_offer(false);
+select is((select (checkin_time, checkin_offer_answered)::text from public.users where id = t.u(181)), '(off,t)',
+  '"Turn off" turns it off, and is not asked again');
+select public.set_checkin_time('evening');
+select is((select checkin_time::text from public.users where id = t.u(181)), 'evening', 'the time can be changed');
+set local role authenticated;
+select is((select count(*)::int from public.checkins), 0, 'one person cannot read another''s check-ins');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', t.u(180), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select is((select count(*)::int from public.checkins), 2, 'but reads their own');
+select throws_like($$ insert into public.checkins (user_id, date, energy) values (t.u(180), '2026-11-09', 3) $$,
+  '%permission denied%', 'and only writes through save_checkin');
+reset role;
+select is(public.delete_checkins(), 2, 'they can delete them all');
+select is(
+  (select count(*)::int from public.activity_events where user_id = t.u(180) and kind = 'checkin.daily'), 0,
+  'with their events'
+);
+select throws_like($$ delete from public.activity_events where user_id = t.u(171) $$,
+  '%append-only%', 'every other event stays append-only');
+select throws_like(
+  $$ select set_config('tracker.deleting_checkins', t.u(170)::text, true);
+     delete from public.activity_events where user_id = t.u(170) and kind <> 'checkin.daily' $$,
+  '%append-only%', 'even with the setting, only check-in events can go'
+);
+select set_config('request.jwt.claims', '', true);
+select is(has_table_privilege('anon', 'public.checkins', 'select'), false, 'the publishable key alone reads none');
+
+
+-- ---------------------------------------------------------------------------
+-- Habit connections: what the pattern engine reads and saves
+-- ---------------------------------------------------------------------------
+select t.make_user(190);
+update public.users set plan = 'pro' where id = t.u(190);
+select t.make_habit(900, 190, current_date - 40);
+select t.pages(901, 190);
+update public.habits set starts_on = current_date - 40 where id = t.h(901);
+select t.pin(900);
+select t.pin(901);
+select tracker.save_checkin(t.u(190), null, 2::smallint, 6, 3::smallint, 'tap', now());
+select tracker.update_habit(t.u(190), t.h(901), '{"target": 20}', now());
+create temporary table t_cd as select public.job_connection_data(t.u(190)) as data;
+select ok((select data -> 'analytics' ? 'days' from t_cd), 'the engine gets the analytics');
+select is((select jsonb_array_length(data -> 'checkins') from t_cd), 1, 'and the check-ins');
+select is(
+  (select c ->> 'kind' from t_cd, jsonb_array_elements(data -> 'changes') c where c ->> 'kind' = 'target_raised'),
+  'target_raised', 'and a target raised by over 20%'
+);
+select is(
+  public.job_save_findings(t.u(190), jsonb_build_array(
+    jsonb_build_object('kind', 'next_day', 'key', 'next_day:900:901',
+      'subjects', jsonb_build_array(jsonb_build_object('type', 'habit', 'id', t.h(900), 'title', 'A'), jsonb_build_object('type', 'habit', 'id', t.h(901), 'title', 'B')),
+      'direction', 'competes', 'effect', -0.4, 'sample', 38, 'confidence', 'high', 'range_from', current_date - 40, 'range_to', current_date,
+      'numbers', '{"after": 40, "otherwise": 85}'::jsonb, 'p_value', 0.004),
+    jsonb_build_object('kind', 'next_day', 'key', 'next_day:900:1',
+      'subjects', jsonb_build_array(jsonb_build_object('type', 'habit', 'id', t.h(900), 'title', 'A'), jsonb_build_object('type', 'habit', 'id', t.h(1), 'title', 'Not theirs')),
+      'direction', 'helps', 'effect', 0.3, 'sample', 30, 'confidence', 'medium', 'range_from', current_date - 40, 'range_to', current_date,
+      'p_value', 0.01)
+  )),
+  1, 'findings are saved, never about someone else''s habit'
+);
+select is(public.job_save_findings(t.u(190), '[]'), 0, 'and each night replaces the last');
+select is((select count(*)::int from public.findings where user_id = t.u(190)), 0, 'so a link that faded is gone');
+select is(has_function_privilege('authenticated', 'public.job_connection_data(uuid, timestamptz)', 'execute'), false,
+  'only the AI service reads connection data');
+select is(has_function_privilege('authenticated', 'public.job_save_findings(uuid, jsonb)', 'execute'), false,
+  'or saves findings');
+
+
+-- ---------------------------------------------------------------------------
+-- Connections: fixes, answers, and every AI change in one history
+-- ---------------------------------------------------------------------------
+select t.make_user(191);
+update public.users set plan = 'pro' where id = t.u(191);
+select t.make_habit(910, 191, '2026-11-02');
+insert into public.habit_levels (habit_id, level, description) values (t.h(910), 'full', 'Run'), (t.h(910), 'minimum', 'Shoes on');
+select t.pages(911, 191);
+select t.pin(910);
+
+-- Rest after a habit: the day after Run (910) is done, Study's (911) goal is its minimum.
+select tracker.change_habit(t.u(191), t.h(911), jsonb_build_object('light_after', jsonb_build_array(t.h(910))), '2000-01-01 12:00+00');
+insert into public.habit_logs (habit_id, date, level_done, status) values (t.h(910), '2026-11-04', 'full', 'done');
+select is(
+  array[tracker.target_on(t.h(911), '2026-11-05'), tracker.target_on(t.h(911), '2026-11-06')],
+  array[2, 10]::numeric[], 'the day after Run, Study''s target is the minimum; otherwise it''s full'
+);
+select is(
+  (select (f.target)::numeric from tracker.day_facts(t.u(191), '2026-11-05', '2026-11-05', t.noon(191, '2026-11-07')) f where f.habit_id = t.h(911)),
+  2::numeric, 'and analytics agrees'
+);
+
+-- A day made lighter on its own.
+create temporary table t_change (id uuid);
+insert into t_change select tracker.apply_change(t.u(191), t.h(911), '{"type": "light_today", "date": "2026-11-10"}', 'ai', 'autopilot', 'x', 'Long run yesterday', now());
+select is(tracker.target_on(t.h(911), '2026-11-10'), 2::numeric, 'Autopilot can make one day''s goal the minimum');
+select is((select (actor, source)::text from public.ai_changes where id = (select id from t_change)), '(ai,autopilot)',
+  'recorded as made by the AI');
+select ok(exists (select 1 from public.activity_events where user_id = t.u(191) and kind = 'ai_change_applied' and actor = 'ai'),
+  'and in the activity log');
+select tracker.undo_change(t.u(191), (select id from t_change), now());
+select is(tracker.target_on(t.h(911), '2026-11-10'), 10::numeric, 'undo takes it back');
+select throws_like($$ select tracker.undo_change(t.u(191), (select id from t_change), now()) $$, '%Already undone%', 'once');
+
+select throws_like(
+  $$ select tracker.apply_change(t.u(191), t.h(911), '{"type": "change_target", "target": 5}', 'ai', 'autopilot', 'x', null, now()) $$,
+  '%only make small changes%', 'Autopilot can never change a target'
+);
+select throws_like(
+  $$ select tracker.apply_change(t.u(191), t.h(911), '{"type": "rest_day", "weekday": 1}', 'ai', 'autopilot', 'x', null, now()) $$,
+  '%only make small changes%', 'or the days'
+);
+select lives_ok(
+  $$ select tracker.apply_change(t.u(191), t.h(911), '{"type": "move_time", "time_of_day": "evening"}', 'ai', 'autopilot', 'x', null, now()) $$,
+  'but it can move the time of day'
+);
+select throws_like(
+  $$ select tracker.apply_change(t.u(191), t.h(1), '{"type": "light_today"}', 'ai_assisted', 'connection', 'x', null, now()) $$,
+  '%not found%', 'and only ever on their own habits'
+);
+
+-- A rest day, and the first place in its part of the day.
+select tracker.apply_change(t.u(191), t.h(910), '{"type": "rest_day", "weekday": 3}', 'ai_assisted', 'connection', 'x', null, now());
+select is((select schedule_days from public.habits where id = t.h(910)), '{1,2,4,5,6,7}'::smallint[], 'a rest day comes off the schedule');
+
+-- Findings, answers and fixes.
+select public.job_save_findings(t.u(191), jsonb_build_array(
+  jsonb_build_object('kind', 'after_big_amount', 'key', 'after_big_amount:910:911',
+    'subjects', jsonb_build_array(jsonb_build_object('type', 'habit', 'id', t.h(910), 'title', 'Run'), jsonb_build_object('type', 'habit', 'id', t.h(911), 'title', 'Study')),
+    'direction', 'competes', 'effect', -0.45, 'sample', 60, 'confidence', 'high', 'range_from', '2026-09-01', 'range_to', '2026-11-08',
+    'numbers', '{"after_big": 40, "otherwise": 85}'::jsonb, 'p_value', 0.003,
+    'explanation', 'After a long Run, you complete Study 40% of the time, against 85%. They seem linked.',
+    'question', 'Does a long Run leave less room for Study?',
+    'fixes', jsonb_build_array(
+      jsonb_build_object('label', 'Rest Study after Run', 'habit_id', t.h(911), 'action', jsonb_build_object('type', 'move_time', 'time_of_day', 'morning')),
+      jsonb_build_object('label', 'Not yours', 'habit_id', t.h(1), 'action', '{"type": "move_first"}'::jsonb)))
+));
+select is((select jsonb_array_length(fixes) from public.findings where user_id = t.u(191)), 1,
+  'a fix for someone else''s habit is never saved');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(191), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.get_connections(null)), 1, 'Pro sees their connections');
+select is((select count(*)::int from public.get_connections(t.h(911))), 1, 'and each habit''s own');
+select is((select count(*)::int from public.get_connections(t.h(1))), 0, 'but not for other habits');
+select ok(public.apply_connection_fix((select id from public.findings where user_id = t.u(191)), 0) is not null, 'a fix is applied');
+select is((select time_of_day::text from public.habits where id = t.h(911)), 'morning', 'and changes the habit');
+select is(
+  (select (source, actor)::text from public.get_ai_changes(50) where source = 'connection' and action ->> 'type' = 'move_time'), '(connection,ai_assisted)',
+  'it shows in the AI changes history as approved'
+);
+select public.undo_ai_change((select id from public.get_ai_changes(50) where source = 'connection' and action ->> 'type' = 'move_time'));
+select is((select time_of_day::text from public.habits where id = t.h(911)), 'evening', 'undo from the history');
+select throws_like($$ select public.apply_connection_fix((select id from public.findings where user_id = t.u(191)), 5) $$,
+  '%No such fix%', 'only its own fixes');
+
+select public.answer_finding((select id from public.findings where user_id = t.u(191)), 'yes');
+select is((select answer from public.get_connections(null)), 'yes', 'an answer is kept');
+select public.answer_finding((select id from public.findings where user_id = t.u(191)), 'no');
+select is((select count(*)::int from public.get_connections(null)), 0, '"No" hides the link');
+select throws_like($$ select public.answer_finding((select id from public.findings where user_id = t.u(191)), 'maybe') $$,
+  '%yes, no or not sure%', 'answers are yes, no or not sure');
+select set_config('request.jwt.claims', '', true);
+select ok(public.job_connection_data(t.u(191)) -> 'hidden' ? 'after_big_amount:910:911', 'the engine leaves it out for 60 days');
+update public.finding_answers set answered_at = now() - interval '61 days' where user_id = t.u(191);
+select is(jsonb_array_length(public.job_connection_data(t.u(191)) -> 'hidden'), 0, 'and brings it back after');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(172), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.get_ai_changes(50)), 0, 'nobody sees another''s AI changes');
+select throws_like($$ select public.undo_ai_change((select id from t_change)) $$, '%not found%', 'or undoes them');
+select is((select count(*)::int from public.get_connections(null)), 0, 'Free sees no connections');
+select set_config('request.jwt.claims', '', true);
+
+
+-- ---------------------------------------------------------------------------
+-- The morning heads-up, the weekly warning, and Autopilot
+-- ---------------------------------------------------------------------------
+select t.make_user(192, 'UTC');
+update public.users set plan = 'pro' where id = t.u(192);
+select t.make_habit(920, 192, current_date - 30);
+select t.pages(921, 192);
+update public.habits set starts_on = current_date - 30 where id = t.h(921);
+select t.make_habit(922, 192, current_date - 30);
+select t.pin(920);
+select t.pin(922);
+insert into public.habit_logs (habit_id, date, level_done, status, amount)
+values (t.h(920), tracker.local_date(t.u(192), now()) - 1, 'full', 'done', 18);
+select public.job_save_findings(t.u(192), jsonb_build_array(
+  jsonb_build_object('kind', 'after_big_amount', 'key', 'after_big_amount:920:921',
+    'subjects', jsonb_build_array(jsonb_build_object('type', 'habit', 'id', t.h(920), 'title', 'Run'), jsonb_build_object('type', 'habit', 'id', t.h(921), 'title', 'Study')),
+    'direction', 'competes', 'effect', -0.45, 'sample', 60, 'confidence', 'high', 'range_from', current_date - 30, 'range_to', current_date,
+    'numbers', '{"after_big": 40, "otherwise": 85, "at_least": 16, "unit": "km"}'::jsonb, 'p_value', 0.003),
+  jsonb_build_object('kind', 'next_day', 'key', 'next_day:920:922',
+    'subjects', jsonb_build_array(jsonb_build_object('type', 'habit', 'id', t.h(920), 'title', 'Run'), jsonb_build_object('type', 'habit', 'id', t.h(922), 'title', 'Journal')),
+    'direction', 'competes', 'effect', -0.3, 'sample', 50, 'confidence', 'medium', 'range_from', current_date - 30, 'range_to', current_date,
+    'numbers', '{"after": 50, "otherwise": 80}'::jsonb, 'p_value', 0.01)
+));
+
+select is(
+  (select array_agg(b_title order by b_title) from tracker.heads_up_candidates(t.u(192), now())),
+  array['Journal', 'Study'], 'yesterday''s long Run matches both links for today'
+);
+update public.habit_logs set amount = 8 where habit_id = t.h(920);
+select is(
+  (select array_agg(b_title) from tracker.heads_up_candidates(t.u(192), now())),
+  array['Journal'], 'a short run isn''t a big amount'
+);
+update public.habit_logs set amount = 18 where habit_id = t.h(920);
+
+-- Autopilot: off by default, so nothing happens.
+select is((select count(*)::int from public.job_autopilot(t.u(192))), 0, 'Autopilot is off by default');
+update public.users set autopilot = true where id = t.u(192);
+select is((select count(*)::int from public.job_autopilot(t.u(192))), 2, 'on, it makes today''s goals the minimum');
+select is(tracker.target_on(t.h(921), tracker.local_date(t.u(192), now())), 2::numeric, 'Study''s goal is its minimum today');
+select is((select count(*)::int from tracker.heads_up_candidates(t.u(192), now())), 0,
+  'and the heads-up has nothing left to suggest');
+select is((select count(*)::int from public.job_autopilot(t.u(192))), 0, 'running it again changes nothing');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(192), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.get_unseen_ai_changes()), 2, 'Today shows what Autopilot did');
+select public.undo_ai_change((select id from public.get_unseen_ai_changes() where habit_title = 'Habit 921'));
+select is(tracker.target_on(t.h(921), tracker.local_date(t.u(192), now())), 10::numeric, 'and it can be undone');
+select public.mark_ai_changes_seen();
+select is((select count(*)::int from public.get_unseen_ai_changes()), 0, 'seen, the notice goes');
+select public.set_autopilot(false);
+select is((select autopilot from public.users where id = t.u(192)), false, 'Autopilot can be turned off');
+
+-- The heads-up, by hand, when it's morning. Study's override was undone, so it's back.
+select is(
+  (select (public.get_heads_up() ->> 'b_title') is not null or extract(hour from now() at time zone 'UTC') >= 12),
+  true, 'in the morning there is a heads-up'
+);
+select ok(public.apply_heads_up((select finding_id from tracker.heads_up_candidates(t.u(192), now()) where b_title = 'Study')) is not null,
+  'its fix makes today''s goal the minimum');
+select is((select (source, actor)::text from public.get_ai_changes(50) where source = 'heads_up'), '(heads_up,ai_assisted)', 'as an approved change');
+select is(public.get_heads_up(), null, 'and then it''s gone for the day');
+select throws_like($$ select public.apply_heads_up((select id from public.findings where key = 'after_big_amount:920:921')) $$,
+  '%Nothing to do today%', 'once');
+
+-- The warning: one habit linked to two slipping.
+select is((public.get_warning() ->> 'kind'), 'dragging', 'a habit linked to two others slipping brings a warning');
+select is((select jsonb_array_length(public.get_warning() -> 'slipping')), 2, 'naming both');
+select public.snooze_warning();
+select is(public.get_warning(), null, 'snoozed, it waits a week');
+reset role;
+update public.users set warning_shown_on = current_date - 8 where id = t.u(192);
+select isnt(public.get_warning(), null, 'and comes back after');
+
+select set_config('request.jwt.claims', json_build_object('sub', t.u(172), 'role', 'authenticated')::text, true);
+select is(public.get_warning(), null, 'Free gets no warning');
+select is(public.get_heads_up(), null, 'or heads-up');
+select set_config('request.jwt.claims', '', true);
+select is(has_function_privilege('authenticated', 'public.job_autopilot(uuid, timestamptz)', 'execute'), false,
+  'only the AI service runs Autopilot');
+
 select * from finish();
 rollback;

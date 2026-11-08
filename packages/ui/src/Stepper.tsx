@@ -14,13 +14,17 @@ interface StepperProps {
   unit?: string;
   // Going past max calls this instead, for "7 a week is every day".
   onPastMax?: () => void;
+  // How far one tap moves it. Hours of sleep go by halves.
+  step?: number;
 }
 
 // A number set with − and +, readable and adjustable by screen readers in one go.
-export function Stepper({ label, value, min, max, onChange, unit, onPastMax }: StepperProps) {
+export function Stepper({ label, value, min, max, onChange, unit, onPastMax, step = 1 }: StepperProps) {
   const spoken = unit ? `${value} ${unit}` : String(value);
-  const up = () => (value < max ? onChange(value + 1) : onPastMax?.());
-  const down = () => value > min && onChange(value - 1);
+  // Rounded, so halves never drift to 6.499999.
+  const by = (delta: number) => Math.round((value + delta) / step) * step;
+  const up = () => (value < max ? onChange(Math.min(max, by(step))) : onPastMax?.());
+  const down = () => value > min && onChange(Math.max(min, by(-step)));
   return (
     <View
       style={styles.row}

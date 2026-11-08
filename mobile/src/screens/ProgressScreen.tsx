@@ -22,10 +22,12 @@ import {
 } from '@habit-tracker/core';
 import { Button, Chip, SegmentedControl, Text, useLayoutSize, useTheme } from '@habit-tracker/ui';
 import { DayBars } from '../analytics/DayBars';
+import { ConnectionCards } from '../analytics/ConnectionCards';
 import { InsightCards } from '../analytics/InsightCards';
 import { Stat, StatGrid } from '../analytics/StatGrid';
 import { useOverview } from '../hooks/useOverview';
 import { HabitDetailScreen } from './HabitDetailScreen';
+import { HabitMapScreen } from './HabitMapScreen';
 
 const RANGES: AnalyticsRange[] = ['7d', '30d', '90d', '1y', 'all'];
 const TREND_WORDS = { up: 'up', down: 'down', same: 'about the same as' } as const;
@@ -68,6 +70,7 @@ export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressSc
   const [range, setRange] = useState<AnalyticsRange>('30d');
   const [compare, setCompare] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const { loaded, loading, failed, load } = useOverview(active, range);
   const wide = size !== 'compact';
 
@@ -186,6 +189,11 @@ export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressSc
         <Section title="Insights">
           <InsightCards habitId={null} titles={view.titles} onChanged={() => void load()} />
         </Section>
+
+        <Section title="How your habits connect">
+          <ConnectionCards habitId={null} onChanged={() => void load()} />
+          <Button label="Open the Habit map" quiet onPress={() => setMapOpen(true)} />
+        </Section>
       </>
     );
   };
@@ -199,6 +207,7 @@ export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressSc
         <Button label="Sunday Review" quiet onPress={onOpenReview} />
         {body()}
       </ScrollView>
+      {mapOpen ? <HabitMapScreen onClose={() => setMapOpen(false)} /> : null}
       {detail && view ? (
         <HabitDetailScreen
           habitId={detail.id}

@@ -14,6 +14,8 @@ import {
   useTheme,
 } from '@habit-tracker/ui';
 import { WhySection } from '../coach/WhySection';
+import { AutopilotSetting } from '../components/AutopilotSetting';
+import { CheckinSetting } from '../components/CheckinSetting';
 import { NudgeSetting } from '../components/NudgeSetting';
 import { useCompletedHabits } from '../hooks/useCompletedHabits';
 import {
@@ -158,6 +160,8 @@ export function YouScreen({ userId, email, onSignedOut }: YouScreenProps) {
           </View>
         ) : null}
         <NudgeSetting />
+        <CheckinSetting />
+        <AutopilotSetting />
         <WhySection />
         {COMING_SOON.map((label) => (
           <View key={label} style={styles.group}>

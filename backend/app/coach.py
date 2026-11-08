@@ -48,8 +48,12 @@ Their numbers, last 30 days (strength is out of 100 and builds over time):
 Insights already found from their numbers:
 {insights}
 
-If they ask why something slipped or what's working, answer from these numbers and \
-insights. Say what the numbers show; never claim one habit causes another."""
+Links measured between their habits (and their check-ins), with what they said about each:
+{connections}
+
+If they ask why something slipped, what's working, or about a link, answer from these \
+numbers, insights and links. Say what the numbers show and that things "seem linked"; never \
+claim one habit causes another, and never give medical advice."""
 
 
 LETTER_SYSTEM = """Write a short letter to this person from themselves, one year from \
@@ -158,6 +162,21 @@ async def describe_insights(tracker: Tracker) -> str:
     return "\n".join(f"- {row['text']}" for row in rows) or "None yet."
 
 
+ANSWERS = {"yes": "they said yes", "no": "they said no", "not_sure": "they weren't sure"}
+
+
+async def describe_connections(tracker: Tracker) -> str:
+    try:
+        rows = await tracker.connections()
+    except TrackerUnavailable:
+        return "Not available right now."
+    lines = []
+    for row in rows:
+        said = f" ({ANSWERS[row['answer']]})" if row.get("answer") in ANSWERS else ""
+        lines.append(f"- {row['explanation']}{said}")
+    return "\n".join(lines) or "None found yet."
+
+
 async def letter(
     provider: LLMProvider, tracker: Tracker, wins: list[str], mood: str | None
 ) -> AsyncIterator[str]:
@@ -189,6 +208,7 @@ async def reply(
         patterns=describe_patterns(await tracker.patterns()),
         numbers=await describe_analytics(tracker),
         insights=await describe_insights(tracker),
+        connections=await describe_connections(tracker),
     )
     if miss_review:
         system = f"{system}\n\n{MISS_NOTE}"

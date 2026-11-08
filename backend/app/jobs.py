@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
-from . import coach, insights
+from . import coach, connections, insights
 from .auth import CurrentUser
 from .config import Settings, get_settings
 from .data_policy import may_reach_provider
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/jobs")
 DAY = 24 * 3600
 REMINDER_TITLE = "Time for your habits"
 REMINDER_BODY = "A small version still counts."
+AUTOPILOT_TITLE = "Autopilot"
 
 
 def hour_label(hour: int) -> str:
@@ -65,6 +66,54 @@ class ContextTracker:
 @router.post("/nightly-patterns", dependencies=[Depends(job_secret)])
 async def nightly_patterns(request: Request) -> dict:
     return {"job": "nightly-patterns", "people": await request.app.state.db.rebuild_patterns()}
+
+
+@router.post("/nightly-connections", dependencies=[Depends(job_secret)])
+async def nightly_connections(request: Request, settings: Settings = Depends(get_settings)) -> dict:
+    """Measures how each Pro person's habits affect each other with plain statistics, then
+    has the model reword each finding's explanation, checked against its numbers."""
+    db = request.app.state.db
+    saved = cleared = failed = autopiloted = 0
+    day = date.today().isoformat()
+    for person in await db.insight_people():
+        user = CurrentUser(person["user_id"], "")
+        plan = effective_plan(user, as_plan(person["plan"]), settings)
+        if not has_feature(plan, "ai.insights"):
+            await db.save_findings(user.id, [])
+            cleared += 1
+            continue
+        if not await db.claim("nightly-connections", f"{user.id}:{day}"):
+            continue
+        try:
+            data = await db.connection_data(user.id)
+            rows = connections.with_words_and_fixes(data, connections.find(data))
+            # The model only rewords what was measured, and only for those it may reach.
+            if rows and may_reach_provider(user, settings, request.app.state.provider):
+                metered = MeteredProvider(request.app.state.provider)
+                rows = await connections.explain(metered, rows)
+                await db.spend(f"user:{user.id}:tokens", metered.tokens, DAY)
+            await db.save_findings(user.id, rows)
+            # Autopilot, if they turned it on: small changes only, each told and undoable.
+            for change in await db.autopilot(user.id):
+                tokens = await db.push_tokens(user.id)
+                if tokens:
+                    await request.app.state.push.send(
+                        tokens, AUTOPILOT_TITLE, f"{change['reason']}. Open the app to undo it.",
+                        {"kind": "autopilot", "change_id": change["change_id"]},
+                    )  # fmt: skip
+                autopiloted += 1
+            saved += 1
+        except Unavailable as error:
+            log.warning("Connections not measured: %s", type(error).__name__)
+            await db.release("nightly-connections", f"{user.id}:{day}")
+            failed += 1
+    return {
+        "job": "nightly-connections",
+        "saved": saved,
+        "cleared": cleared,
+        "failed": failed,
+        "autopilot": autopiloted,
+    }
 
 
 @router.post("/nightly-insights", dependencies=[Depends(job_secret)])

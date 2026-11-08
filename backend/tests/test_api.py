@@ -64,6 +64,9 @@ class FakeTracker:
     async def insights(self):
         return [{"text": "You do Read on 40% of Wednesdays, against 85% on other days."}]
 
+    async def connections(self):
+        return [{"explanation": "After Run of 16 km or more, you complete Study 40% of the time. They seem linked.", "answer": "yes"}]
+
 
 def analytics_day(day: str, status: str) -> dict:
     return {
@@ -144,6 +147,7 @@ def test_chat_can_answer_from_their_analytics(api):
     assert ", strength " in system
     assert "You do Read on 40% of Wednesdays, against 85% on other days." in system
     assert "never claim one habit causes another" in system
+    assert "After Run of 16 km or more, you complete Study 40% of the time. They seem linked. (they said yes)" in system
 
 
 def test_chat_still_works_without_the_analytics(api, monkeypatch):
@@ -152,6 +156,7 @@ def test_chat_still_works_without_the_analytics(api, monkeypatch):
 
     monkeypatch.setattr(FakeTracker, "analytics", down)
     monkeypatch.setattr(FakeTracker, "insights", down)
+    monkeypatch.setattr(FakeTracker, "connections", down)
     provider = use(FakeProvider(["ok"]))
     assert api.post("/coach/chat", json=ASK).status_code == 200
     assert "Not available right now." in provider.seen[-1]["system"]
