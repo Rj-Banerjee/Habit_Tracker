@@ -33,6 +33,23 @@ jest.mock('../services/tracker', () => ({
     getCheckinState: jest.fn(() => Promise.resolve({ time: 'morning' })),
     setCheckinTime: jest.fn(() => Promise.resolve()),
     deleteCheckins: jest.fn(() => Promise.resolve(12)),
+    getAutopilot: jest.fn(() => Promise.resolve(false)),
+    setAutopilot: jest.fn(() => Promise.resolve()),
+    getAiChanges: jest.fn(() =>
+      Promise.resolve([
+        {
+          id: 'c1', habit_id: 'h1', habit_title: 'Study', source: 'autopilot', action: { type: 'light_today' },
+          actor: 'ai', reason: "After Long run yesterday, Study's goal is the minimum today",
+          applied_at: '2026-11-08T03:30:00Z', undone_at: null, seen_at: null,
+        },
+        {
+          id: 'c2', habit_id: 'h2', habit_title: 'Read', source: 'insight', action: { type: 'light_day', weekday: 3 },
+          actor: 'ai_assisted', reason: 'Wednesdays slip', applied_at: '2026-11-07T10:00:00Z',
+          undone_at: '2026-11-07T11:00:00Z', seen_at: null,
+        },
+      ])
+    ),
+    undoAiChange: jest.fn(() => Promise.resolve()),
   },
 }));
 jest.mock('../services/reminders', () => ({
@@ -70,6 +87,36 @@ describe('YouScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     signOut.mockResolvedValue({ error: null });
+  });
+
+  describe('AI changes, on Pro', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const entitlements = require('../hooks/useEntitlements');
+    beforeEach(() => {
+      jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'pro', ready: true, can: () => true });
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    it('asks first by default, and Autopilot can be turned on', async () => {
+      await open();
+      expect(screen.getByRole('button', { name: 'Ask me first', selected: true })).toBeTruthy();
+      expect(screen.getByText(/Targets, limits and ending a habit always wait for you/)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Autopilot' }));
+      expect(tracker.setAutopilot).toHaveBeenCalledWith(true);
+    });
+
+    it('lists every change the AI made, and undoes one', async () => {
+      await open();
+      expect(screen.getAllByTestId('ai-change')).toHaveLength(2);
+      expect(screen.getByText(/By Autopilot/)).toBeTruthy();
+      expect(screen.getByText(/From an insight .* undone/)).toBeTruthy();
+      // Only the one not undone yet can be.
+      const undo = screen.getAllByRole('button', { name: /^Undo:/ });
+      expect(undo).toHaveLength(1);
+      await fireEvent.press(undo[0]);
+      await act(async () => {});
+      expect(tracker.undoAiChange).toHaveBeenCalledWith('c1');
+    });
   });
 
   it('sets when the daily check-in shows', async () => {

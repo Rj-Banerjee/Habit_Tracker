@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { contrast, deltaE, hexToRgb, simulateCvd } from './colorChecks';
 import {
   Connection,
+  LINK_COLORS,
   headsUpText,
   linkWidth,
   mapHabits,
@@ -78,5 +80,26 @@ describe('Habit connections', () => {
     expect(mapLinks([connection(), signal]).map((l) => [l.from, l.to])).toEqual([['run', 'study']]);
     expect(mapHabits([connection(), signal]).map((h) => h.title)).toEqual(['Run', 'Study']);
     expect(subjectName({ type: 'signal', name: 'energy' })).toBe('Energy');
+  });
+});
+
+describe('the Habit map colours', () => {
+  const canvases = { light: '#F4EFE7', dark: '#1D1A16' };
+
+  it('stand out from the page in both modes', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      expect(contrast(LINK_COLORS[mode].helps, canvases[mode])).toBeGreaterThanOrEqual(3);
+      expect(contrast(LINK_COLORS[mode].competes, canvases[mode])).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('stay apart for colour-blind eyes too, besides the dashes', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const a = hexToRgb(LINK_COLORS[mode].helps);
+      const b = hexToRgb(LINK_COLORS[mode].competes);
+      for (const type of ['protanopia', 'deuteranopia'] as const) {
+        expect(deltaE(simulateCvd(a, type), simulateCvd(b, type))).toBeGreaterThan(8);
+      }
+    }
   });
 });

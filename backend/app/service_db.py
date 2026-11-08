@@ -87,7 +87,8 @@ class JobDb(ServiceDb):
             response.raise_for_status()
         except httpx.HTTPError as error:
             raise Unavailable(f"{name} failed") from error
-        return response.json()
+        # A function that returns nothing answers with an empty body.
+        return response.json() if response.content else None
 
     async def claim(self, job: str, key: str) -> bool:
         return bool(await self.rpc("job_claim", {"p_job": job, "p_run_key": key}))

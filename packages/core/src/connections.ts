@@ -153,3 +153,10 @@ export function mapHabits(connections: Connection[]) {
 
 export const AUTOPILOT_HINT =
   'When on, the AI may make small changes by itself: the order of habits, their part of the day, or the minimum for one day. You get a notice each time, with Undo. Targets, limits and ending a habit always wait for you.';
+
+// The Habit map's two link colours: a calm green for links that help, amber for ones that
+// compete. Never red. Shape says it too: competing links are dashed.
+export const LINK_COLORS: Record<'light' | 'dark', { helps: string; competes: string }> = {
+  light: { helps: '#2F7D5B', competes: '#A8650A' },
+  dark: { helps: '#6CC49B', competes: '#E2A54A' },
+};

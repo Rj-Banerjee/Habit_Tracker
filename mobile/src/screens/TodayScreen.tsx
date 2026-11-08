@@ -57,6 +57,7 @@ import { useCoach } from '../hooks/useCoach';
 import { useEntitlements } from '../hooks/useEntitlements';
 import { useCompletedHabits } from '../hooks/useCompletedHabits';
 import { useCheckin } from '../hooks/useCheckin';
+import { useTodayAi } from '../hooks/useTodayAi';
 import { useHabitTip } from '../hooks/useHabitTip';
 import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
@@ -64,6 +65,7 @@ import { useRuleCard } from '../hooks/useRuleCard';
 import { useTimeSuggestion } from '../hooks/useTimeSuggestion';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
+import { AutopilotNotice, HeadsUpCard, WarningCard } from '../today/AiCards';
 import { CheckinCard, CheckinOffer } from '../today/CheckinCard';
 import { ShrinkSheet } from '../today/ShrinkSheet';
 import { DragSpacer, DragToMove } from '../today/DragToMove';
@@ -102,6 +104,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const ruleCard = useRuleCard(rows, repairs, loading);
   const habitTip = useHabitTip(rows);
   const checkin = useCheckin();
+  const todayAi = useTodayAi(() => refresh());
   const completed = useCompletedHabits();
   const timeMove = useTimeSuggestion(rows, ready && can('ai.nudges'));
   // Whenever Today changes, a done habit stops reminding and a new one starts.
@@ -378,6 +381,27 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             habits={welcomeHabits}
             onDismiss={moments.dismissWelcomeBack}
           />
+        ) : null}
+
+        {todayAi.unseen.length > 0 ? (
+          <AutopilotNotice
+            changes={todayAi.unseen}
+            onUndo={(id) => void todayAi.undoAutopilot(id)}
+            onKeep={todayAi.keepAutopilot}
+          />
+        ) : null}
+        {todayAi.headsUp ? (
+          <HeadsUpCard
+            headsUp={todayAi.headsUp}
+            onApply={() => void todayAi.applyHeadsUp()}
+            onDismiss={todayAi.dismissHeadsUp}
+          />
+        ) : null}
+        {todayAi.warning ? <WarningCard warning={todayAi.warning} onSnooze={todayAi.snoozeWarning} /> : null}
+        {todayAi.problem ? (
+          <Text variant="small" muted accessibilityLiveRegion="polite">
+            {todayAi.problem}
+          </Text>
         ) : null}
 
         {checkin.askToTurnOff ? (

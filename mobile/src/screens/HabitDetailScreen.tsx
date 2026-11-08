@@ -33,6 +33,7 @@ import {
   withinRange,
 } from '@habit-tracker/core';
 import { Button, SegmentedControl, StreakChain, Text, useShortcut, useTheme } from '@habit-tracker/ui';
+import { ConnectionCards } from '../analytics/ConnectionCards';
 import { DayBars } from '../analytics/DayBars';
 import { InsightCards } from '../analytics/InsightCards';
 import { HourHeatmap } from '../analytics/HourHeatmap';
@@ -172,6 +173,7 @@ export function HabitDetailScreen({ habitId, title, identityName, today, onClose
                 titles={{ [habitId]: title }}
                 onChanged={() => setReload((count) => count + 1)}
               />
+              <ConnectionCards habitId={habitId} onChanged={() => setReload((count) => count + 1)} />
             </Section>
 
             <Section title="Strength">

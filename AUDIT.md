@@ -1758,4 +1758,29 @@ The user asked for all of Habit connections to be finished before one phone buil
   - 19 checks passed with two temporary users, who were then deleted: the engine's read and save; Pro sees the finding; the heads-up; a fix applied, in the history, and undone; Autopilot lightening today and shown on Today; Autopilot not runnable by a person; "No" hiding the link; the other user and the publishable key getting nothing.
   - `rls_auto_enable` and `ensure_rls` are still there; RLS is on for all four new tables.
 - **Speed:** a year of 20 habits still loads cold in 0.77–0.88 s.
-- **Tests:** SQL 577, backend 281 (the engine on planted data, pure noise and thresholds; fixes; wording checks with mocked findings; safety; the job and Autopilot's notice; the coach), core 1421.
+- **Tests:** SQL 577, backend 279 (the engine on planted data, pure noise and thresholds; fixes; wording checks with mocked findings; safety; the job and Autopilot's notice; the coach), core 1421.
+
+### Habit connections, the app (8 Nov 2026)
+
+- **Connection cards** in the Overview ("How your habits connect") and in Habit detail:
+  - Each shows the explanation and "Measured over 82 days, a clear pattern."
+  - It asks Yes / No / Not sure, and says what the answer does: "No" hides it for 60 days.
+  - Its fixes have a confirm step, then Undo. A link answered "No" offers no fixes.
+  - Free sees nothing extra here, since the insights card already says "Insights are available on Pro."
+- **Habit map** (from the Overview): habits around a circle, with a calm green link where one seems to help and amber, dashed, where they compete. Thicker means stronger.
+  - Tap a link for its card. Every link is also a button, for screen readers and keyboards.
+  - On wide screens the card sits beside the map.
+  - The colours are theme constants, tested for contrast in light and dark and for colour-blind separation. There's no red.
+- **On Today:**
+  - The morning heads-up: "after a big Long run yesterday, Study often slips (43% against 87%). Make today's Study just the minimum?", with a button, or "Not today".
+  - The weekly warning, firm but kind, with "Got it" for a week.
+  - Autopilot's notice of what it changed, each with Undo, or Keep.
+- **You:**
+  - "AI changes: Ask me first / Autopilot". It asks first by default, with a plain note on what Autopilot can and can't do.
+  - Every AI change, where it came from and when, with Undo on any not yet undone.
+- **Fixed:**
+  - The AI service's job functions crashed reading an empty reply from a database function that returns nothing (`job_release`). So a failed run could never give its claim back, and it would have stopped that person's job for the day. Found while re-running the jobs by hand; it now has a test.
+- **Live:**
+  - The +test account was filled again: 6 habits, including the new "Long run" and "Study", with check-ins.
+  - Both jobs were run by hand from the Mac, with a one-off secret: 3 connections (the planted pattern: Study 43% against 87% after long runs; 41% against 88% on low-energy days; next-day energy 2.7 against 4) and 11 insight cards.
+- **Tests:** core 1423, mobile 1024 (connection cards, the Habit map, the Today cards on Pro and Free, Autopilot and the history in You), frontend 28, backend 280.

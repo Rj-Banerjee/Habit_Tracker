@@ -61,6 +61,14 @@ jest.mock('../services/tracker', () => ({
     updateHabit: jest.fn(() => Promise.resolve()),
     getWeekStatuses: jest.fn(() => Promise.resolve([])),
     getCheckinState: jest.fn(() => Promise.reject(new Error('off'))),
+    getHeadsUp: jest.fn(() => Promise.resolve(null)),
+    getWarning: jest.fn(() => Promise.resolve(null)),
+    getUnseenAiChanges: jest.fn(() => Promise.resolve([])),
+    applyHeadsUp: jest.fn(() => Promise.resolve('c1')),
+    dismissHeadsUp: jest.fn(() => Promise.resolve()),
+    snoozeWarning: jest.fn(() => Promise.resolve()),
+    undoAiChange: jest.fn(() => Promise.resolve()),
+    markAiChangesSeen: jest.fn(() => Promise.resolve()),
     saveCheckin: jest.fn(() => Promise.resolve()),
     skipCheckin: jest.fn(() => Promise.resolve()),
     answerCheckinOffer: jest.fn(() => Promise.resolve()),
@@ -320,6 +328,69 @@ describe('TodayScreen', () => {
       api.getProfile.mockResolvedValue({ seen_tips: ['habit-tip'] } as never);
       await open([row()]);
       expect(screen.queryByText(tip)).toBeNull();
+    });
+  });
+
+  describe('Habit connections on Today', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const entitlements = require('../hooks/useEntitlements');
+    const headsUp = {
+      finding_id: 'f1', key: 'k', kind: 'after_big_amount', a_id: 'h0', a_title: 'Long run', b_id: 'h1',
+      b_title: 'Study', numbers: { after_big: 43, otherwise: 87 },
+    }; // prettier-ignore
+
+    beforeEach(() => {
+      jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'pro', ready: true, can: () => true });
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    it('gives a morning heads-up, with the fix as a button', async () => {
+      api.getHeadsUp.mockResolvedValue(headsUp as never);
+      await open([row()]);
+      expect(
+        screen.getByText("Heads-up: after a big Long run yesterday, Study often slips (43% against 87%). Make today's Study just the minimum?")
+      ).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Minimum Study today' }));
+      await act(async () => {});
+      expect(api.applyHeadsUp).toHaveBeenCalledWith('f1');
+      expect(screen.queryByTestId('heads-up')).toBeNull();
+    });
+
+    it('lets the heads-up go for today', async () => {
+      api.getHeadsUp.mockResolvedValue(headsUp as never);
+      await open([row()]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Not today' }));
+      expect(api.dismissHeadsUp).toHaveBeenCalled();
+      expect(screen.queryByTestId('heads-up')).toBeNull();
+    });
+
+    it('warns kindly about a serious pattern, and can be put off for a week', async () => {
+      api.getWarning.mockResolvedValue({ kind: 'dragging', habit: 'Long run', slipping: ['Study', 'Read'] } as never);
+      await open([row()]);
+      expect(screen.getByText(/Long run seems linked to Study and Read slipping/)).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Got it: hide this for a week' }));
+      expect(api.snoozeWarning).toHaveBeenCalled();
+      expect(screen.queryByTestId('warning')).toBeNull();
+    });
+
+    it('says what Autopilot changed, with Undo', async () => {
+      api.getUnseenAiChanges.mockResolvedValue([
+        { id: 'c1', habit_title: 'Study', reason: "After Long run yesterday, Study's goal is the minimum today", applied_at: '' },
+      ] as never);
+      await open([row()]);
+      expect(screen.getByText("After Long run yesterday, Study's goal is the minimum today.")).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: /^Undo: After Long run/ }));
+      await act(async () => {});
+      expect(api.undoAiChange).toHaveBeenCalledWith('c1');
+      expect(screen.queryByTestId('autopilot-notice')).toBeNull();
+    });
+
+    it('shows none of it on Free', async () => {
+      jest.spyOn(entitlements, 'useEntitlements').mockReturnValue({ plan: 'free', ready: true, can: () => false });
+      api.getHeadsUp.mockResolvedValue(headsUp as never);
+      await open([row()]);
+      expect(api.getHeadsUp).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('heads-up')).toBeNull();
     });
   });
 
