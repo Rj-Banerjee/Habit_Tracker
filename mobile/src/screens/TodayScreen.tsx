@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   addDays,
   dayHeading,
-  dayStrip,
+  stripWeeks,
   filterByTime,
   isoWeekday,
   reviewWeekStart,
@@ -417,7 +417,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             )}
           </DayHeader>
           <DateStrip
-            days={dayStrip(currentDay, shownDay)}
+            weeks={stripWeeks(currentDay, shownDay)}
             marked={yesterday.length > 0 ? [yesterday[0].day] : []}
             onSelect={(day) => setPicked(day === currentDay ? null : day)}
           />

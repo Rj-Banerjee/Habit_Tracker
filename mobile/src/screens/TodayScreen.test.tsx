@@ -671,8 +671,24 @@ describe('TodayScreen', () => {
       await open([row()]);
       expect(screen.getByRole('header', { name: 'TODAY' })).toBeTruthy();
       expect(screen.getByText('Tuesday, Nov 3')).toBeTruthy();
-      expect(tab(/^Today, Tuesday, November 3/).props.accessibilityState).toEqual({ selected: true });
+      expect(tab(/^Today, Tuesday, November 3/).props.accessibilityState).toMatchObject({ selected: true });
       expect(api.getDay).not.toHaveBeenCalled();
+    });
+
+    it('pages a week at a time, Monday to Sunday, from last week to next', async () => {
+      await open([row()]);
+      const weeks = screen.getAllByTestId(/^week-/).map((w) => w.props.testID);
+      expect(weeks).toEqual(['week-2026-10-26', 'week-2026-11-02', 'week-2026-11-09']);
+      expect(screen.getByTestId('date-strip').props.pagingEnabled).toBe(true);
+    });
+
+    it("dims the days get_day can't reach, and they can't be picked", async () => {
+      await open([row()]);
+      const far = tab(/^Monday, October 26$/);
+      expect(far.props.accessibilityState).toMatchObject({ disabled: true });
+      await fireEvent.press(far);
+      expect(api.getDay).not.toHaveBeenCalled();
+      expect(tab(/^Tuesday, October 27$/).props.accessibilityState).toMatchObject({ disabled: false });
     });
 
     it('loads another day, and logs one still in its back-log window', async () => {
@@ -763,7 +779,7 @@ describe('TodayScreen', () => {
     it('says when a day could not load', async () => {
       api.getDay.mockRejectedValueOnce(new Error('offline'));
       await open([row()]);
-      await fireEvent.press(tab(/^Sunday, November 1/));
+      await fireEvent.press(tab(/^Sunday, November 1$/));
       await act(async () => {});
       expect(screen.getByText("That day couldn't load.")).toBeTruthy();
     });
