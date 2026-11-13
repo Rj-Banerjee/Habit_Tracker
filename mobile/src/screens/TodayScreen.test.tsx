@@ -689,6 +689,57 @@ describe('TodayScreen', () => {
       expect(screen.getByRole('header', { name: 'TODAY' })).toBeTruthy();
     });
 
+    describe('ticking a day in its back-log window', () => {
+      const yesterday = (patch: Partial<TodayRow> = {}) =>
+        row({ day: '2026-11-02', is_today: false, can_change: true, ...patch });
+      const card = () => screen.getByRole('button', { name: /^Run, / }).props.accessibilityLabel as string;
+      const never = () => new Promise<never>(() => {});
+
+      // Every later read of the day says what the server has: the row as it was.
+      afterEach(() => api.getDay.mockImplementation(() => Promise.resolve([])));
+      const viewYesterday = async (first: TodayRow) => {
+        api.getDay.mockResolvedValue([first]);
+        await open([row()]);
+        await fireEvent.press(tab(/^Monday, November 2/));
+        await act(async () => {});
+      };
+
+      it('ticks at once, before the server has answered', async () => {
+        await viewYesterday(yesterday());
+        api.logHabit.mockImplementationOnce(never);
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        expect(card()).toMatch(/^Run, Done/);
+      });
+
+      it('unticks at once too', async () => {
+        await viewYesterday(yesterday({ status: 'done', level_done: 'full' }));
+        api.undoLog.mockImplementationOnce(never);
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        expect(card()).not.toMatch(/Done/);
+      });
+
+      it("isn't undone by a read that started before the tap", async () => {
+        await viewYesterday(yesterday());
+        let land: (value: unknown) => void = () => {};
+        api.logHabit.mockImplementationOnce(() => new Promise((resolve) => (land = resolve)) as never);
+        // Reads while it saves still say pending.
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        await act(async () => {});
+        expect(card()).toMatch(/^Run, Done/);
+        api.getDay.mockResolvedValue([yesterday({ status: 'done', level_done: 'full' })]);
+        await act(async () => land(null));
+        expect(card()).toMatch(/^Run, Done/);
+      });
+
+      it('goes back if the save fails', async () => {
+        await viewYesterday(yesterday());
+        api.logHabit.mockRejectedValueOnce(new Error('That day is closed'));
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        await act(async () => {});
+        expect(card()).not.toMatch(/Done/);
+      });
+    });
+
     it('shows an older day as view only', async () => {
       api.getDay.mockResolvedValueOnce([row({ day: '2026-10-30', is_today: false, status: 'missed', can_change: false })]);
       await open([row()]);

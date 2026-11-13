@@ -24,6 +24,7 @@ export * from './colorChecks';
 export * from './dates';
 export * from './dayStrip';
 export * from './dragOrder';
+export * from './rowPatch';
 export * from './habitCardStatus';
 export * from './habitDetail';
 export * from './habitForm';
