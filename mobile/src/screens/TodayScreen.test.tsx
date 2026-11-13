@@ -242,9 +242,10 @@ describe('TodayScreen', () => {
 
     it('has a chip for each part of the day, and a quiet line under one with nothing in it', async () => {
       await open([row({ time_of_day: 'morning' })]);
-      for (const name of ['All habits', 'Morning habits', 'Afternoon habits', 'Evening habits', 'Anytime habits']) {
+      for (const name of ['All habits', 'Morning habits', 'Afternoon habits', 'Evening habits']) {
         expect(screen.getByRole('tab', { name })).toBeTruthy();
       }
+      expect(screen.queryByRole('tab', { name: 'Anytime habits' })).toBeNull();
       expect(screen.getByRole('tab', { name: 'All habits', selected: true })).toBeTruthy();
       await fireEvent.press(screen.getByRole('tab', { name: 'Evening habits' }));
       expect(screen.getByRole('tab', { name: 'Evening habits', selected: true })).toBeTruthy();
@@ -657,8 +658,7 @@ describe('TodayScreen', () => {
       await open(habits);
       await fireEvent.press(screen.getByRole('tab', { name: 'Morning habits' }));
       expect(cards()).toEqual(['Read']);
-      await fireEvent.press(screen.getByRole('tab', { name: 'Anytime habits' }));
-      expect(cards()).toEqual(['Water']);
+      expect(screen.queryByRole('tab', { name: 'Anytime habits' })).toBeNull();
       await fireEvent.press(screen.getByRole('tab', { name: 'All habits' }));
       expect(cards()).toHaveLength(3);
     });
@@ -671,8 +671,24 @@ describe('TodayScreen', () => {
       await open([row()]);
       expect(screen.getByRole('header', { name: 'TODAY' })).toBeTruthy();
       expect(screen.getByText('Tuesday, Nov 3')).toBeTruthy();
-      expect(tab(/^Today, Tuesday, November 3/).props.accessibilityState).toEqual({ selected: true });
+      expect(tab(/^Today, Tuesday, November 3/).props.accessibilityState).toMatchObject({ selected: true });
       expect(api.getDay).not.toHaveBeenCalled();
+    });
+
+    it('pages a week at a time, Monday to Sunday, from last week to next', async () => {
+      await open([row()]);
+      const weeks = screen.getAllByTestId(/^week-/).map((w) => w.props.testID);
+      expect(weeks).toEqual(['week-2026-10-26', 'week-2026-11-02', 'week-2026-11-09']);
+      expect(screen.getByTestId('date-strip').props.pagingEnabled).toBe(true);
+    });
+
+    it("dims the days get_day can't reach, and they can't be picked", async () => {
+      await open([row()]);
+      const far = tab(/^Monday, October 26$/);
+      expect(far.props.accessibilityState).toMatchObject({ disabled: true });
+      await fireEvent.press(far);
+      expect(api.getDay).not.toHaveBeenCalled();
+      expect(tab(/^Tuesday, October 27$/).props.accessibilityState).toMatchObject({ disabled: false });
     });
 
     it('loads another day, and logs one still in its back-log window', async () => {
@@ -687,6 +703,57 @@ describe('TodayScreen', () => {
       // Back to today, its own list again.
       await fireEvent.press(tab(/^Today, /));
       expect(screen.getByRole('header', { name: 'TODAY' })).toBeTruthy();
+    });
+
+    describe('ticking a day in its back-log window', () => {
+      const yesterday = (patch: Partial<TodayRow> = {}) =>
+        row({ day: '2026-11-02', is_today: false, can_change: true, ...patch });
+      const card = () => screen.getByRole('button', { name: /^Run, / }).props.accessibilityLabel as string;
+      const never = () => new Promise<never>(() => {});
+
+      // Every later read of the day says what the server has: the row as it was.
+      afterEach(() => api.getDay.mockImplementation(() => Promise.resolve([])));
+      const viewYesterday = async (first: TodayRow) => {
+        api.getDay.mockResolvedValue([first]);
+        await open([row()]);
+        await fireEvent.press(tab(/^Monday, November 2/));
+        await act(async () => {});
+      };
+
+      it('ticks at once, before the server has answered', async () => {
+        await viewYesterday(yesterday());
+        api.logHabit.mockImplementationOnce(never);
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        expect(card()).toMatch(/^Run, Done/);
+      });
+
+      it('unticks at once too', async () => {
+        await viewYesterday(yesterday({ status: 'done', level_done: 'full' }));
+        api.undoLog.mockImplementationOnce(never);
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        expect(card()).not.toMatch(/Done/);
+      });
+
+      it("isn't undone by a read that started before the tap", async () => {
+        await viewYesterday(yesterday());
+        let land: (value: unknown) => void = () => {};
+        api.logHabit.mockImplementationOnce(() => new Promise((resolve) => (land = resolve)) as never);
+        // Reads while it saves still say pending.
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        await act(async () => {});
+        expect(card()).toMatch(/^Run, Done/);
+        api.getDay.mockResolvedValue([yesterday({ status: 'done', level_done: 'full' })]);
+        await act(async () => land(null));
+        expect(card()).toMatch(/^Run, Done/);
+      });
+
+      it('goes back if the save fails', async () => {
+        await viewYesterday(yesterday());
+        api.logHabit.mockRejectedValueOnce(new Error('That day is closed'));
+        await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+        await act(async () => {});
+        expect(card()).not.toMatch(/Done/);
+      });
     });
 
     it('shows an older day as view only', async () => {
@@ -712,7 +779,7 @@ describe('TodayScreen', () => {
     it('says when a day could not load', async () => {
       api.getDay.mockRejectedValueOnce(new Error('offline'));
       await open([row()]);
-      await fireEvent.press(tab(/^Sunday, November 1/));
+      await fireEvent.press(tab(/^Sunday, November 1$/));
       await act(async () => {});
       expect(screen.getByText("That day couldn't load.")).toBeTruthy();
     });

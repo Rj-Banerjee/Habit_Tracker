@@ -1,24 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
   amountFromText,
   DEFAULT_REMINDERS,
   HabitLevel,
-  levelTarget,
+  loggedPatch,
   OFFLINE_NOTE,
+  patchRow,
   progressLine,
+  repairedPatch,
   RepairRow,
+  revertOf,
+  RowPatch,
+  rowKey,
+  skippedPatch,
   TimeOfDay,
   TodayRow,
+  undonePatch,
+  withPending,
 } from '@habit-tracker/core';
 import { watchMyActivity } from '../services/live';
 import { loadToday, offlineTracker } from '../services/logQueue';
 import { tracker } from '../services/tracker';
 import { refreshWidget } from '../services/widget';
-
-type Patch = Partial<
-  Pick<TodayRow, 'status' | 'level_done' | 'amount' | 'current_streak' | 'time_of_day' | 'reminder_time'>
->;
 
 export function useToday() {
   const [rows, setRows] = useState<TodayRow[]>([]);
@@ -27,12 +31,17 @@ export function useToday() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  // Taps still saving, laid over every read until the server has them.
+  const pending = useRef(new Map<string, RowPatch>());
+  // Only the newest read is shown, so a slow one can't land on top of a newer one.
+  const reads = useRef(0);
 
-  const refresh = useCallback(
-    () =>
-      loadToday()
+  const refresh = useCallback(() => {
+    const read = ++reads.current;
+    return loadToday()
         .then(async ({ rows: today, offline, note }) => {
-          setRows(today);
+          if (read !== reads.current) return;
+          setRows(withPending(today, pending.current));
           setLoadFailed(false);
           setOffline(offline);
           if (note) setMessage(note);
@@ -41,10 +50,11 @@ export function useToday() {
             void refreshWidget();
           }
         })
-        .catch(() => setLoadFailed(true))
-        .finally(() => setLoading(false)),
-    []
-  );
+        .catch(() => {
+          if (read === reads.current) setLoadFailed(true);
+        })
+        .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -60,34 +70,35 @@ export function useToday() {
     };
   }, [refresh]);
 
-  // Shows the change at once, then lets the server have the final word.
+  // Shows the change at once, then lets the server have the final word. It's done once the
+  // save lands; the fresh read that follows happens without anyone waiting on it.
   const change = useCallback(
-    async (row: TodayRow, patch: Patch, save: () => Promise<unknown>) => {
-      const before = rows;
+    async (row: TodayRow, patch: RowPatch, save: () => Promise<unknown>): Promise<boolean> => {
+      const key = rowKey(row);
+      const back = revertOf(row, patch);
       setMessage(null);
-      setRows((current) =>
-        current.map((r) =>
-          r.habit_id === row.habit_id && r.day === row.day ? { ...r, ...patch } : r
-        )
-      );
+      pending.current.set(key, patch);
+      setRows((current) => patchRow(current, row, patch));
       try {
         await save();
-        await refresh();
+        if (pending.current.get(key) === patch) pending.current.delete(key);
+        void refresh();
+        return true;
       } catch (err) {
-        setRows(before);
+        if (pending.current.get(key) === patch) {
+          pending.current.delete(key);
+          setRows((current) => patchRow(current, row, back));
+        }
         setMessage((err as Error).message);
+        return false;
       }
     },
-    [rows, refresh]
+    [refresh]
   );
 
   const log = (row: TodayRow, level: HabitLevel) => {
-    const amount = levelTarget(row, level);
-    return change(
-      row,
-      { status: 'done', level_done: level, amount, current_streak: row.current_streak + 1 },
-      () => offlineTracker.logHabit(row.habit_id, row.day, level, amount)
-    );
+    const patch = loggedPatch(row, level);
+    return change(row, patch, () => offlineTracker.logHabit(row.habit_id, row.day, level, patch.amount ?? null));
   };
 
   // "3", "2-3 pages" or "500 m", added to the day. The reply says where it stands.
@@ -148,23 +159,13 @@ export function useToday() {
   };
 
   const undo = (row: TodayRow) =>
-    change(
-      row,
-      { status: 'pending', level_done: null, amount: null, current_streak: Math.max(0, row.current_streak - 1) },
-      () => offlineTracker.undoLog(row.habit_id, row.day)
-    );
+    change(row, undonePatch(row), () => offlineTracker.undoLog(row.habit_id, row.day));
 
   const skip = (row: TodayRow, reason: string) =>
-    change(row, { status: 'skipped', level_done: null, amount: null }, () =>
-      offlineTracker.skipHabit(row.habit_id, row.day, reason)
-    );
+    change(row, skippedPatch(), () => offlineTracker.skipHabit(row.habit_id, row.day, reason));
 
   const repair = (row: TodayRow) =>
-    change(
-      row,
-      { status: 'done', level_done: 'full', amount: row.repair_amount },
-      () => offlineTracker.repairHabit(row.habit_id, row.day, row.repair_amount)
-    );
+    change(row, repairedPatch(row), () => offlineTracker.repairHabit(row.habit_id, row.day, row.repair_amount));
 
   return {
     rows,

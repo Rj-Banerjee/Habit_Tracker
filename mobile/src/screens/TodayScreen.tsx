@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   addDays,
   dayHeading,
-  dayStrip,
+  stripWeeks,
   filterByTime,
   isoWeekday,
   reviewWeekStart,
@@ -26,7 +26,12 @@ import {
   isWeekly,
   lockedMessage,
   layout,
+  loggedPatch,
   progressLabel,
+  repairedPatch,
+  RowPatch,
+  skippedPatch,
+  undonePatch,
   repairOnLabel,
   RepairRow,
   showYesterdayFirst,
@@ -47,6 +52,7 @@ import {
 } from '@habit-tracker/ui';
 import { repairHabitOf } from '../chain/CardChain';
 import { useMotionSettings } from '../chain/useMotionSettings';
+import { useHoldPager } from '../components/TabPager';
 import { useWeeklyReport } from '../hooks/useWeeklyReport';
 import { FinishCard } from '../chain/FinishCard';
 import { WelcomeBack } from '../chain/WelcomeBack';
@@ -164,6 +170,8 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     const sub = AppState.addEventListener('change', (next) => next === 'active' && resumeFocus());
     return () => sub.remove();
   }, [focusId, resumeFocus]);
+  // Details and Tunnel Vision cover Today, so a sideways swipe on them stays on them.
+  useHoldPager(focusRow !== null || detailRow !== null);
   const chainOf = (habitId: string) => chains.find((c) => c.habitId === habitId)?.chain;
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -228,14 +236,17 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   const reloadOther = () => {
     if (viewing) void other.reload();
   };
-  const thenReload = (done: unknown) => {
-    void Promise.resolve(done).then(reloadOther);
+  // A change on another day shows on its card at once, like one on today, and is settled
+  // by the save rather than by a fresh read of the whole day.
+  const shown = (row: TodayRow, patch: RowPatch, saved: Promise<boolean>) => {
+    if (viewing && row.day === viewing) other.patch(row, patch, saved);
   };
 
   const tap = (row: TodayRow) => {
     // A tap never waits for an animation: it jumps to the end and logs.
     moments.interrupt(row.habit_id);
-    return thenReload(isLogged(row) ? undo(row) : log(row, 'full'));
+    if (isLogged(row)) shown(row, undonePatch(row), undo(row));
+    else shown(row, loggedPatch(row, 'full'), log(row, 'full'));
   };
 
   // Today's habits by part of the day: what a drag reorders within.
@@ -409,7 +420,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
             )}
           </DayHeader>
           <DateStrip
-            days={dayStrip(currentDay, shownDay)}
+            weeks={stripWeeks(currentDay, shownDay)}
             marked={yesterday.length > 0 ? [yesterday[0].day] : []}
             onSelect={(day) => setPicked(day === currentDay ? null : day)}
           />
@@ -611,11 +622,11 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onClose={() => setShrinkRow(null)}
         onLog={(row: TodayRow, level: HabitLevel) => {
           setShrinkRow(null);
-          thenReload(log(row, level));
+          shown(row, loggedPatch(row, level), log(row, level));
         }}
         onRepair={(row) => {
           setShrinkRow(null);
-          thenReload(repair(row));
+          shown(row, repairedPatch(row), repair(row));
         }}
         onAddAmount={async (row, text) => {
           const added = await addAmount(row, text);
@@ -661,7 +672,7 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         visible={skipRow !== null}
         onClose={() => setSkipRow(null)}
         onSkip={(reason) => {
-          if (skipRow) thenReload(skip(skipRow, reason));
+          if (skipRow) shown(skipRow, skippedPatch(), skip(skipRow, reason));
           setSkipRow(null);
         }}
       />

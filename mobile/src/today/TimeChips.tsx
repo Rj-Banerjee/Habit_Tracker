@@ -63,15 +63,9 @@ function TimeIcon({ filter, color }: { filter: TimeFilter; color: string }) {
             );
           })}
         </>
-      ) : filter === 'evening' ? (
+      ) : (
         // A crescent moon.
         <Path d="M12.5 10.2A5.2 5.2 0 0 1 5.8 3.5a5.2 5.2 0 1 0 6.7 6.7z" {...stroke} />
-      ) : (
-        // Any time: a clock.
-        <>
-          <Circle cx="8" cy="8" r="6" {...stroke} />
-          <Path d="M8 4.8V8l2.2 1.4" {...stroke} />
-        </>
       )}
     </Svg>
   );
@@ -138,7 +132,7 @@ function Chip({
   );
 }
 
-// ALL, MORNING, AFTERNOON, EVENING, ANYTIME: which part of the day the list shows.
+// ALL, MORNING, AFTERNOON, EVENING: which part of the day the list shows.
 export const TimeChips = forwardRef<TimeChipsHandle, TimeChipsProps>(function TimeChips(
   { active, onChange, target = null, reducedMotion = false },
   ref

@@ -26,6 +26,7 @@ import { ConnectionCards } from '../analytics/ConnectionCards';
 import { InsightCards } from '../analytics/InsightCards';
 import { Stat, StatGrid } from '../analytics/StatGrid';
 import { useOverview } from '../hooks/useOverview';
+import { useHoldPager } from '../components/TabPager';
 import { HabitDetailScreen } from './HabitDetailScreen';
 import { HabitMapScreen } from './HabitMapScreen';
 
@@ -100,6 +101,8 @@ export function ProgressScreen({ active, onOpenReview, onEditHabit }: ProgressSc
   }, [loaded, range]);
 
   const detail = view?.habits.find((h) => h.id === detailId);
+  // The Habit map and a habit's details cover Progress, so a sideways swipe stays on them.
+  useHoldPager(mapOpen || Boolean(detail && view));
 
   const body = () => {
     if (loading && !loaded) {
