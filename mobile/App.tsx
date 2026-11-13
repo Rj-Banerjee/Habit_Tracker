@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
@@ -94,6 +94,11 @@ function SignedIn({ session }: { session: Session }) {
   );
 }
 
+// Memoised, so moving between tabs only redraws what changed.
+const TodayPage = memo(TodayScreen);
+const ProgressPage = memo(ProgressScreen);
+const YouPage = memo(YouScreen);
+
 function SignedInScreens({
   session,
   onboarding,
@@ -108,6 +113,14 @@ function SignedInScreens({
   const [reviewing, setReviewing] = useState(false);
   // From Progress or You, back goes to Today; from Today it leaves the app as usual.
   useHardwareBack(() => setTab('today'), tab !== 'today');
+  // The page that has finished sliding in. Progress waits for it to load its charts, so
+  // the slide never stalls behind them.
+  const [settled, setSettled] = useState<Tab>('today');
+  // The same functions every render, so a tab change re-renders none of the screens.
+  const addHabit = useCallback((title?: string) => setHabitForm({ title }), []);
+  const editHabit = useCallback((habitId: string) => setHabitForm({ habitId }), []);
+  const openReview = useCallback(() => setReviewing(true), []);
+  const signedOut = useCallback(() => setTab('today'), []);
 
   if (onboarding.needed === undefined) {
     return (
@@ -139,22 +152,10 @@ function SignedInScreens({
   // swipe moves between them, as the tab bar does.
   return (
     <View style={[styles.root, { backgroundColor: colors.canvas }]}>
-      <TabPager tab={tab} onChange={setTab}>
-        <TodayScreen
-          onAddHabit={(title) => setHabitForm({ title })}
-          onEditHabit={(habitId) => setHabitForm({ habitId })}
-          onOpenReview={() => setReviewing(true)}
-        />
-        <ProgressScreen
-          active={tab === 'progress'}
-          onOpenReview={() => setReviewing(true)}
-          onEditHabit={(habitId) => setHabitForm({ habitId })}
-        />
-        <YouScreen
-          userId={session.user.id}
-          email={session.user.email ?? ''}
-          onSignedOut={() => setTab('today')}
-        />
+      <TabPager tab={tab} onChange={setTab} onSettle={setSettled}>
+        <TodayPage onAddHabit={addHabit} onEditHabit={editHabit} onOpenReview={openReview} />
+        <ProgressPage active={settled === 'progress'} onOpenReview={openReview} onEditHabit={editHabit} />
+        <YouPage userId={session.user.id} email={session.user.email ?? ''} onSignedOut={signedOut} />
       </TabPager>
       <TabBar active={tab} onChange={setTab} />
     </View>

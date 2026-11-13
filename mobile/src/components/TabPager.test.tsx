@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { act, render, screen } from '@testing-library/react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { Tab } from './TabBar';
 import { TabPager, useHoldPager } from './TabPager';
@@ -52,12 +52,20 @@ const swipe = async (dx: number) => {
   });
 };
 
-function Pages({ start = 'today', held = false }: { start?: Tab; held?: boolean }) {
+function Pages({
+  start = 'today',
+  held = false,
+  onSettle,
+}: {
+  start?: Tab;
+  held?: boolean;
+  onSettle?: (tab: Tab) => void;
+}) {
   const [tab, setTab] = useState<Tab>(start);
   return (
     <>
       <Text testID="tab">{tab}</Text>
-      <TabPager tab={tab} onChange={setTab}>
+      <TabPager tab={tab} onChange={setTab} onSettle={onSettle}>
         <Holder held={held} />
         <Text>Progress page</Text>
         <Text>You page</Text>
@@ -84,6 +92,15 @@ describe('TabPager', () => {
     expect(shown()).toBe('progress');
     await swipe(400);
     expect(shown()).toBe('today');
+  });
+
+  it('says a page has settled only once it has slid in, for heavy work to wait on', async () => {
+    const onSettle = jest.fn();
+    await render(<Pages onSettle={onSettle} />);
+    await swipe(-400);
+    expect(shown()).toBe('progress');
+    await waitFor(() => expect(onSettle).toHaveBeenCalledWith('progress'));
+    expect(onSettle).toHaveBeenCalledTimes(1);
   });
 
   it('stays put past the first and last page, and for a short drag', async () => {
