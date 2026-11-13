@@ -18,6 +18,7 @@ import {
 import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
 import { EntitlementsProvider } from './src/hooks/useEntitlements';
+import { useHardwareBack } from './src/hooks/useHardwareBack';
 import { useNeedsOnboarding } from './src/hooks/useNeedsOnboarding';
 import { DesignReviewScreen } from './src/screens/DesignReviewScreen';
 import { HabitFormScreen } from './src/screens/HabitFormScreen';
@@ -104,6 +105,8 @@ function SignedInScreens({
   const [habitForm, setHabitForm] = useState<{ habitId?: string; title?: string } | null>(null);
   const [tab, setTab] = useState<Tab>('today');
   const [reviewing, setReviewing] = useState(false);
+  // From Progress or You, back goes to Today; from Today it leaves the app as usual.
+  useHardwareBack(() => setTab('today'), tab !== 'today');
 
   if (onboarding.needed === undefined) {
     return (

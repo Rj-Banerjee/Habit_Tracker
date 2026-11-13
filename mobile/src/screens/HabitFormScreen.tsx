@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -37,6 +36,7 @@ import { DaysField, EndField, MinimumField, ReminderField, TimeOfDayField } from
 import { IdentitySection } from '../habits/IdentitySection';
 import { ReviewCard } from '../habits/ReviewCard';
 import { useHabitForm } from '../hooks/useHabitForm';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 
 interface FieldAnchorProps {
   field: HabitFormField;
@@ -110,14 +110,9 @@ export function HabitFormScreen({ habitId, initialTitle, onClose }: HabitFormScr
   // uses keyup because the sheet's Modal closes on keyup: a keydown would open the
   // sheet and the same key press would then close it. This also covers Escape
   // while typing, which useShortcut leaves alone.
+  useHardwareBack(back);
   useEffect(() => {
-    if (Platform.OS !== 'web') {
-      const hardwareBack = BackHandler.addEventListener('hardwareBackPress', () => {
-        back();
-        return true;
-      });
-      return () => hardwareBack.remove();
-    }
+    if (Platform.OS !== 'web') return undefined;
 
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key === 'Escape') back();

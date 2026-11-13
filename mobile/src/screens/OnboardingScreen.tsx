@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import React from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   EXAMPLE_HABITS,
@@ -19,6 +19,7 @@ import {
   useLayoutSize,
   useTheme,
 } from '@habit-tracker/ui';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 import { STEPS, useOnboarding } from '../hooks/useOnboarding';
 
 interface OnboardingScreenProps {
@@ -31,11 +32,7 @@ export function OnboardingScreen({ userId, onDone }: OnboardingScreenProps) {
   const size = useLayoutSize();
   const flow = useOnboarding(userId, onDone);
 
-  useEffect(() => {
-    if (Platform.OS === 'web') return undefined;
-    const hardwareBack = BackHandler.addEventListener('hardwareBackPress', flow.back);
-    return () => hardwareBack.remove();
-  });
+  useHardwareBack(flow.back);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.canvas }]}>

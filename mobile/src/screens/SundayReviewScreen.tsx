@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { layout, lockedMessage, space } from '@habit-tracker/core';
 import { Button, FormMessage, Text, TextField, useLayoutSize, useTheme } from '@habit-tracker/ui';
 import { useEntitlements } from '../hooks/useEntitlements';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 import { useSundayReview } from '../hooks/useSundayReview';
 
 const WIN_LIMIT = 200;
@@ -19,6 +20,7 @@ export function SundayReviewScreen({ userId, onClose }: SundayReviewScreenProps)
   const { colors } = useTheme();
   const size = useLayoutSize();
   const review = useSundayReview(userId);
+  useHardwareBack(onClose);
 
   const body = () => {
     if (review.status === 'loading') {

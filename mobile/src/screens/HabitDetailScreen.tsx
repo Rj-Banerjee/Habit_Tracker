@@ -41,6 +41,7 @@ import { StatGrid } from '../analytics/StatGrid';
 import { StrengthLine } from '../analytics/StrengthLine';
 import { WeekdayRates } from '../analytics/WeekdayRates';
 import { useHabitAnalytics } from '../hooks/useHabitAnalytics';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 import { Forecaster } from '../progress/Forecaster';
 import { Heatmap } from '../progress/Heatmap';
 import { StreakHistory } from '../progress/StreakHistory';
@@ -92,6 +93,7 @@ export function HabitDetailScreen({ habitId, title, identityName, today, onClose
   const [reload, setReload] = useState(0);
   const { loaded, failed, loading } = useHabitAnalytics(habitId, today, range === 'all', reload);
   useShortcut('Escape', onClose);
+  useHardwareBack(onClose);
 
   const view = useMemo(() => {
     const habit = loaded?.data.habits.find((h) => h.id === habitId);
