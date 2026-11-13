@@ -41,6 +41,9 @@ export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
         if (dx <= -TRIGGER_DISTANCE) latest.current.onSkip();
       },
       onPanResponderTerminate: settle,
+      // A skip swipe that has started stays a skip swipe: the pages behind Today ask for
+      // every sideways move too, and would otherwise take it over.
+      onPanResponderTerminationRequest: () => false,
     });
   });
 
@@ -51,7 +54,7 @@ export function SwipeToSkip({ enabled, onSkip, children }: SwipeToSkipProps) {
           Skip
         </Text>
       </View>
-      <Animated.View style={{ transform: [{ translateX: offset }] }} {...responder.panHandlers}>
+      <Animated.View style={{ transform: [{ translateX: offset }] }} testID="swipe-to-skip" {...responder.panHandlers}>
         {children}
       </Animated.View>
     </View>
