@@ -9,6 +9,8 @@ interface CheckinCardProps {
   problem: string | null;
   onSave: (answer: CheckinAnswer) => void;
   onSkip: () => void;
+  // Inside a sheet, which brings its own surface and title.
+  bare?: boolean;
 }
 
 const LEVELS = [1, 2, 3, 4, 5];
@@ -35,7 +37,7 @@ function Scale({ name, value, onChange }: { name: string; value: number | null; 
 }
 
 // Energy, sleep and mood in a few taps. Skippable, and quiet about it.
-export function CheckinCard({ existing, problem, onSave, onSkip }: CheckinCardProps) {
+export function CheckinCard({ existing, problem, onSave, onSkip, bare = false }: CheckinCardProps) {
   const { colors, radii } = useTheme();
   const [energy, setEnergy] = useState<number | null>(existing?.energy ?? null);
   const [mood, setMood] = useState<number | null>(existing?.mood ?? null);
@@ -50,12 +52,18 @@ export function CheckinCard({ existing, problem, onSave, onSkip }: CheckinCardPr
 
   return (
     <View
-      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
+      style={
+        bare
+          ? styles.bare
+          : [styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]
+      }
       testID="checkin-card"
     >
-      <Text variant="small" muted accessibilityRole="header">
-        Daily check-in
-      </Text>
+      {bare ? null : (
+        <Text variant="small" muted accessibilityRole="header">
+          Daily check-in
+        </Text>
+      )}
       <Scale name="Energy" value={energy} onChange={setEnergy} />
       <Stepper
         label="Hours slept"
@@ -104,6 +112,7 @@ export function CheckinOffer({ onKeep, onTurnOff }: CheckinOfferProps) {
 
 const styles = StyleSheet.create({
   card: { padding: space.lg, gap: space.md, borderWidth: StyleSheet.hairlineWidth },
+  bare: { gap: space.md },
   field: { gap: space.xs },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
 });

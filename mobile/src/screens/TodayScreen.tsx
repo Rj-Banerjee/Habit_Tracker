@@ -30,6 +30,7 @@ import {
   VOICE_LINK,
 } from '@habit-tracker/core';
 import {
+  BottomSheet,
   Button,
   HabitCard,
   SkipSheet,
@@ -406,13 +407,6 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
 
         {checkin.askToTurnOff ? (
           <CheckinOffer onKeep={() => void checkin.answerOffer(true)} onTurnOff={() => void checkin.answerOffer(false)} />
-        ) : checkin.visible ? (
-          <CheckinCard
-            existing={checkin.state?.checkin ?? null}
-            problem={checkin.problem}
-            onSave={(answer) => void checkin.save(answer)}
-            onSkip={() => void checkin.skip()}
-          />
         ) : null}
 
         {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
@@ -539,6 +533,23 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           openFocus(row.habit_id);
         }}
       />
+      {/* The day's first open: the check-in slides up, once, when nothing else is open. */}
+      <BottomSheet
+        visible={checkin.popupDue && !loading && panel === null && focusId === null && detailRow === null && shrinkRow === null && skipRow === null}
+        title="Daily check-in"
+        onClose={checkin.dismissPopup}
+      >
+        <CheckinCard
+          bare
+          existing={checkin.state?.checkin ?? null}
+          problem={checkin.problem}
+          onSave={(answer) => void checkin.save(answer)}
+          onSkip={() => {
+            checkin.dismissPopup();
+            void checkin.skip();
+          }}
+        />
+      </BottomSheet>
       <SkipSheet
         visible={skipRow !== null}
         onClose={() => setSkipRow(null)}

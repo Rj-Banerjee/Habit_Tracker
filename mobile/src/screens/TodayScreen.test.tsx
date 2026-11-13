@@ -1,12 +1,14 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RULE_CARDS, TodayRow } from '@habit-tracker/core';
 import { ThemeProvider } from '@habit-tracker/ui';
 import { watchMyActivity } from '../services/live';
 import { syncHabitReminders } from '../services/reminders';
 import type { AmountResult } from '@habit-tracker/core';
+import { CHECKIN_POPUP_KEY } from '../hooks/useCheckin';
 import { tracker } from '../services/tracker';
 import { TodayScreen } from './TodayScreen';
 
@@ -395,6 +397,11 @@ describe('TodayScreen', () => {
   });
 
   describe('the daily check-in', () => {
+    beforeEach(async () => {
+      await AsyncStorage.clear();
+      api.getCheckinState.mockRejectedValue(new Error('off'));
+    });
+
     const state = (patch = {}) => ({
       time: 'morning',
       today: '2026-11-03',
@@ -428,6 +435,31 @@ describe('TodayScreen', () => {
       await fireEvent.press(screen.getByRole('button', { name: 'Skip for today' }));
       expect(screen.queryByTestId('checkin-card')).toBeNull();
       expect(api.skipCheckin).toHaveBeenCalled();
+    });
+
+    it('slides up from the bottom once a day', async () => {
+      api.getCheckinState.mockResolvedValue(state() as never);
+      await open([row()]);
+      expect(screen.getByRole('header', { name: 'Daily check-in' })).toBeTruthy();
+      // Closed without an answer, by the backdrop (or Android's back).
+      await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+      expect(await AsyncStorage.getItem(CHECKIN_POPUP_KEY)).toBe('2026-11-03');
+      expect(api.skipCheckin).not.toHaveBeenCalled();
+    });
+
+    it('stays down for the rest of a day it already came up', async () => {
+      await AsyncStorage.setItem(CHECKIN_POPUP_KEY, '2026-11-03');
+      api.getCheckinState.mockResolvedValue(state() as never);
+      await open([row()]);
+      expect(screen.queryByTestId('checkin-card')).toBeNull();
+    });
+
+    it('comes back the next day', async () => {
+      await AsyncStorage.setItem(CHECKIN_POPUP_KEY, '2026-11-02');
+      api.getCheckinState.mockResolvedValue(state() as never);
+      await open([row()]);
+      expect(screen.getByTestId('checkin-card')).toBeTruthy();
     });
 
     it('waits for the evening when set to evening, and stays away when off', async () => {
