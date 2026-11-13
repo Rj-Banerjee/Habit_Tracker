@@ -22,6 +22,7 @@ export * from './widget';
 export * from './api';
 export * from './colorChecks';
 export * from './dates';
+export * from './dayStrip';
 export * from './dragOrder';
 export * from './habitCardStatus';
 export * from './habitDetail';

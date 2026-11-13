@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  addDays,
+  dayHeading,
+  dayStrip,
+  filterByTime,
   isoWeekday,
   reviewWeekStart,
   coachCard,
@@ -13,6 +17,7 @@ import {
   DragTarget,
   emptySectionLine,
   groupByTimeOfDay,
+  TimeFilter,
   orderAfterDrop,
   radius,
   HABIT_TIP_TEXT,
@@ -26,10 +31,12 @@ import {
   RepairRow,
   showYesterdayFirst,
   space,
+  TimeOfDay,
   TodayRow,
   VOICE_LINK,
 } from '@habit-tracker/core';
 import {
+  BottomSheet,
   Button,
   HabitCard,
   SkipSheet,
@@ -63,12 +70,17 @@ import { useMoments } from '../hooks/useMoments';
 import { useNudges } from '../hooks/useNudges';
 import { useRuleCard } from '../hooks/useRuleCard';
 import { useTimeSuggestion } from '../hooks/useTimeSuggestion';
+import { useDay } from '../hooks/useDay';
 import { useToday } from '../hooks/useToday';
 import { useVoice } from '../hooks/useVoice';
 import { AutopilotNotice, HeadsUpCard, WarningCard } from '../today/AiCards';
 import { CheckinCard, CheckinOffer } from '../today/CheckinCard';
 import { ShrinkSheet } from '../today/ShrinkSheet';
-import { DragSpacer, DragToMove } from '../today/DragToMove';
+import { DateStrip } from '../today/DateStrip';
+import { FadeSwap } from '../today/FadeSwap';
+import { DayHeader } from '../today/DayHeader';
+import { DragToMove } from '../today/DragToMove';
+import { ChipRect, chipAt, TimeChips, TimeChipsHandle } from '../today/TimeChips';
 import { useDragBoard } from '../today/useDragBoard';
 import { SwipeToSkip } from '../today/SwipeToSkip';
 import { TodayCard } from '../today/TodayCard';
@@ -200,80 +212,129 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     refresh();
   }, [refresh]);
 
+  // The strip across the top: today unless another day is picked. Today's date comes from
+  // the server's rows, so it follows the profile's timezone.
+  const currentDay =
+    today[0]?.day ??
+    (yesterday[0] ? addDays(yesterday[0].day, 1) : localDate(Intl.DateTimeFormat().resolvedOptions().timeZone));
+  const [picked, setPicked] = useState<string | null>(null);
+  const viewing = picked !== null && picked !== currentDay ? picked : null;
+  const other = useDay(viewing);
+  const shownDay = viewing ?? currentDay;
+  const heading = dayHeading(currentDay, shownDay);
+  const [filter, setFilter] = useState<TimeFilter>('all');
+
+  // Changing another day reloads it, after Today has had its say.
+  const reloadOther = () => {
+    if (viewing) void other.reload();
+  };
+  const thenReload = (done: unknown) => {
+    void Promise.resolve(done).then(reloadOther);
+  };
+
   const tap = (row: TodayRow) => {
     // A tap never waits for an animation: it jumps to the end and logs.
     moments.interrupt(row.habit_id);
-    return isLogged(row) ? undo(row) : log(row, 'full');
+    return thenReload(isLogged(row) ? undo(row) : log(row, 'full'));
   };
 
-  // Today's sections, each with its title and its cards (or its quiet empty line), in
-  // screen order: what a drag measures against.
+  // Today's habits by part of the day: what a drag reorders within.
   const groups = groupByTimeOfDay(today, true);
-  const boardOrder = groups.flatMap((group) => [
-    `head:${group.time}`,
-    ...(group.rows.length > 0 ? group.rows.map((row) => `card:${row.habit_id}`) : [`empty:${group.time}`]),
-  ]);
+  const timeOf = (row: TodayRow): TimeOfDay => row.time_of_day ?? 'anytime';
+  // A card in the list only moves among its own part of the day; a chip moves it to another.
+  const orderFor = (row: TodayRow) =>
+    groups.find((group) => group.time === timeOf(row))?.rows.map((r) => `card:${r.habit_id}`) ?? [];
 
-  // Where the card landed: its section and place, saved together.
+  // The chips, measured as a drag starts, so a card can be dropped on one.
+  const chipsRef = useRef<TimeChipsHandle>(null);
+  const chipRects = useRef<ChipRect[]>([]);
+  const [chipTarget, setChipTarget] = useState<TimeFilter | null>(null);
+  const chipUnder = (row: TodayRow, x: number, y: number) => {
+    const chip = chipAt(chipRects.current, x, y);
+    return chip && chip !== 'all' && chip !== timeOf(row) ? chip : null;
+  };
+
+  // Where the card landed in its part of the day, saved.
   const land = (row: TodayRow, target: DragTarget | null) => {
     setArmed(null);
     const section = groups.find((group) => group.time === target?.time);
     if (!target || !section) return board.settle();
     const before = section.rows.map((r) => r.habit_id);
     const order = orderAfterDrop(before, row.habit_id, target.index);
-    const moved = target.time !== (row.time_of_day ?? 'anytime');
-    if (!moved && order.join() === before.join()) return board.settle();
+    if (order.join() === before.join()) return board.settle();
     void moveTo(row, target.time, order);
     // The new order is drawn first, then the cards drop their offsets, so nothing jumps.
     requestAnimationFrame(() => requestAnimationFrame(board.settle));
   };
 
-  const renderCard = (row: TodayRow) => (
-    <DragToMove
-      key={`${row.habit_id}-${row.day}`}
-      armed={row.is_today && armed === row.habit_id}
-      offset={board.offsetOf(row.is_today ? `card:${row.habit_id}` : `past:${row.habit_id}`)}
-      onLayout={(y, height) =>
-        row.is_today && board.place(`card:${row.habit_id}`, { kind: 'card', time: row.time_of_day ?? 'anytime', y, height })
-      }
-      onDragStart={() => {
-        setShrinkRow(null);
-        board.start(`card:${row.habit_id}`);
-      }}
-      onMove={(dy) => board.move(`card:${row.habit_id}`, dy, boardOrder)}
-      onDrop={(dy) => board.drop(`card:${row.habit_id}`, dy, boardOrder, (target) => land(row, target))}
-      onCancel={() => {
-        setArmed(null);
-        board.cancel();
-      }}
-      onDisarm={() => setArmed(null)}
-    >
-    <SwipeToSkip
-      enabled={!isLogged(row) && !isWeekly(row)}
-      onSkip={() => setSkipRow(row)}
-    >
-      <TodayCard
-        row={row}
-        chain={row.is_today ? chainOf(row.habit_id) : undefined}
-        playing={row.is_today ? moments.playing[row.habit_id] : undefined}
-        settings={motionSettings}
-        onPress={() => tap(row)}
-        onLongPress={() => {
-          moments.interrupt(row.habit_id);
-          setArmed(row.habit_id);
-          setShrinkRow(row);
+  const renderCard = (row: TodayRow) => {
+    // A day still to come, or past its back-log window, is there to look at.
+    const readOnly = row.can_change === false;
+    return (
+      <DragToMove
+        key={`${row.habit_id}-${row.day}`}
+        armed={row.is_today && !viewing && armed === row.habit_id}
+        offset={board.offsetOf(row.is_today && !viewing ? `card:${row.habit_id}` : `past:${row.habit_id}-${row.day}`)}
+        onLayout={(y, height) =>
+          row.is_today && !viewing && board.place(`card:${row.habit_id}`, { kind: 'card', time: timeOf(row), y, height })
+        }
+        onDragStart={() => {
+          setShrinkRow(null);
+          board.start(`card:${row.habit_id}`);
+          void chipsRef.current?.measure().then((rects) => (chipRects.current = rects));
         }}
-        onSkip={isWeekly(row) ? undefined : () => setSkipRow(row)}
-        onMomentFinish={() => moments.finish(row.habit_id)}
-        onOpenDetail={() => {
-          moments.interrupt(row.habit_id);
-          setDetailRow(row);
+        onMove={(dy, x, y) => {
+          const chip = chipUnder(row, x, y);
+          setChipTarget((current) => (current === chip ? current : chip));
+          board.move(`card:${row.habit_id}`, chip ? 0 : dy, orderFor(row));
         }}
-        onFocus={row.is_today ? () => openFocus(row.habit_id) : undefined}
-      />
-    </SwipeToSkip>
-    </DragToMove>
-  );
+        onDrop={(dy, x, y) => {
+          setChipTarget(null);
+          const chip = chipUnder(row, x, y);
+          if (chip) {
+            // Onto another part of the day: it goes to the end of that part.
+            setArmed(null);
+            board.cancel();
+            void moveTo(row, chip);
+            return;
+          }
+          board.drop(`card:${row.habit_id}`, dy, orderFor(row), (target) => land(row, target));
+        }}
+        onCancel={() => {
+          setArmed(null);
+          setChipTarget(null);
+          board.cancel();
+        }}
+        onDisarm={() => setArmed(null)}
+      >
+        <SwipeToSkip enabled={!readOnly && !isLogged(row) && !isWeekly(row)} onSkip={() => setSkipRow(row)}>
+          <TodayCard
+            row={row}
+            readOnly={readOnly}
+            chain={row.is_today ? chainOf(row.habit_id) : undefined}
+            playing={row.is_today ? moments.playing[row.habit_id] : undefined}
+            settings={motionSettings}
+            onPress={() => {
+              if (!readOnly) tap(row);
+            }}
+            onLongPress={() => {
+              if (readOnly) return;
+              moments.interrupt(row.habit_id);
+              setArmed(row.habit_id);
+              setShrinkRow(row);
+            }}
+            onSkip={isWeekly(row) || readOnly ? undefined : () => setSkipRow(row)}
+            onMomentFinish={() => moments.finish(row.habit_id)}
+            onOpenDetail={() => {
+              moments.interrupt(row.habit_id);
+              setDetailRow(row);
+            }}
+            onFocus={row.is_today && !viewing ? () => openFocus(row.habit_id) : undefined}
+          />
+        </SwipeToSkip>
+      </DragToMove>
+    );
+  };
 
   const welcomeHabits = today.flatMap((row) => {
     const chain = chainOf(row.habit_id);
@@ -307,13 +368,14 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
       </View>
     ) : null;
 
+  const yesterdayShown = filterByTime(yesterday, filter);
   const yesterdaySection =
-    yesterday.length > 0 ? (
+    yesterdayShown.length > 0 ? (
       <View style={styles.group}>
         <Text variant="small" muted accessibilityRole="header">
           Still open from yesterday
         </Text>
-        {yesterday.map(renderCard)}
+        {yesterdayShown.map(renderCard)}
       </View>
     ) : null;
 
@@ -321,22 +383,50 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.canvas }]}>
       <ScrollView
         scrollEnabled={board.dragged === null}
+        // The chips stay in reach while the list scrolls, as somewhere to drop a card.
+        stickyHeaderIndices={[1]}
         contentContainerStyle={[styles.content, size !== 'compact' && styles.contentWide]}
       >
-        <View style={styles.header}>
-          <Text variant="small" muted>
-            {greeting(part)}
-          </Text>
-          <Text variant="title" accessibilityRole="header" numeric>
-            {progressLabel(today) || 'Today'}
-          </Text>
-          {part === 'evening' && eveningNote(today) ? (
-            <Text variant="small" muted numeric>
-              {eveningNote(today)}
-            </Text>
-          ) : null}
+        <View style={styles.top}>
+          <DayHeader title={heading.title} subtitle={heading.subtitle} onAdd={() => onAddHabit()}>
+            {viewing ? (
+              other.rows.length > 0 ? (
+                <Text variant="small" muted numeric>
+                  {progressLabel(other.rows)}
+                </Text>
+              ) : null
+            ) : (
+              <>
+                <Text variant="small" muted numeric>
+                  {[greeting(part), progressLabel(today)].filter(Boolean).join(' · ')}
+                </Text>
+                {part === 'evening' && eveningNote(today) ? (
+                  <Text variant="small" muted numeric>
+                    {eveningNote(today)}
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </DayHeader>
+          <DateStrip
+            days={dayStrip(currentDay, shownDay)}
+            marked={yesterday.length > 0 ? [yesterday[0].day] : []}
+            onSelect={(day) => setPicked(day === currentDay ? null : day)}
+          />
         </View>
 
+        <View style={[styles.chips, { backgroundColor: colors.canvas }]}>
+          <TimeChips
+            ref={chipsRef}
+            active={filter}
+            onChange={setFilter}
+            target={chipTarget}
+            reducedMotion={motionSettings.reducedMotion}
+          />
+        </View>
+
+        {viewing ? null : (
+        <>
         <View style={styles.actions}>
           <View style={styles.action}>
             <Button
@@ -406,13 +496,6 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
 
         {checkin.askToTurnOff ? (
           <CheckinOffer onKeep={() => void checkin.answerOffer(true)} onTurnOff={() => void checkin.answerOffer(false)} />
-        ) : checkin.visible ? (
-          <CheckinCard
-            existing={checkin.state?.checkin ?? null}
-            problem={checkin.problem}
-            onSave={(answer) => void checkin.save(answer)}
-            onSkip={() => void checkin.skip()}
-          />
         ) : null}
 
         {ruleCard.rule ? <RuleCard rule={ruleCard.rule} onDismiss={ruleCard.dismiss} /> : null}
@@ -441,13 +524,47 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           />
         ) : null}
 
+        </>
+        )}
+
         {message ? (
           <Text variant="small" muted accessibilityLiveRegion="polite">
             {message}
           </Text>
         ) : null}
 
-        {loading ? (
+        {viewing ? (
+          other.loading ? (
+            <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading that day" />
+          ) : other.failed ? (
+            <View style={styles.notice}>
+              <Text>That day couldn&apos;t load.</Text>
+              <Button label="Try again" onPress={() => void other.reload()} />
+            </View>
+          ) : (
+            <FadeSwap swapKey={`${shownDay}:${filter}`} reducedMotion={motionSettings.reducedMotion} style={styles.group}>
+              {other.rows.length === 0 ? (
+                <Text variant="small" muted>
+                  {viewing > currentDay ? 'Nothing is scheduled that day.' : 'Nothing was due that day.'}
+                </Text>
+              ) : (
+                <>
+                  {other.rows.some((r) => r.can_change === false) ? (
+                    <Text variant="small" muted>
+                      {viewing > currentDay
+                        ? 'Still to come, so nothing can be logged yet.'
+                        : 'Past its back-log window, so this day is view only.'}
+                    </Text>
+                  ) : null}
+                  {filterByTime(other.rows, filter).map(renderCard)}
+                  {filter !== 'all' && filterByTime(other.rows, filter).length === 0 ? (
+                    <EmptyLine text={emptySectionLine(filter)} />
+                  ) : null}
+                </>
+              )}
+            </FadeSwap>
+          )
+        ) : loading ? (
           <ActivityIndicator color={colors.textMuted} accessibilityLabel="Loading your habits" />
         ) : loadFailed ? (
           <View style={styles.notice}>
@@ -465,39 +582,22 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         ) : (
           <>
             {showYesterdayFirst(part) ? yesterdaySection : null}
-            {groups.map((group) => (
-              <View
-                key={group.time}
-                onLayout={(event) => board.placeSection(group.time, event.nativeEvent.layout.y)}
-                style={styles.group}
-              >
-                <DragSpacer
-                  offset={board.offsetOf(`head:${group.time}`)}
-                  onLayout={(y, height) => board.place(`head:${group.time}`, { kind: 'header', time: group.time, y, height })}
-                >
-                  <Text variant="small" muted accessibilityRole="header">
-                    {group.name}
-                  </Text>
-                </DragSpacer>
-                {group.rows.length > 0 ? (
-                  group.rows.map(renderCard)
-                ) : (
-                  <DragSpacer
-                    offset={board.offsetOf(`empty:${group.time}`)}
-                    onLayout={(y, height) => board.place(`empty:${group.time}`, { kind: 'empty', time: group.time, y, height })}
-                  >
-                    <View style={[styles.emptySection, { borderColor: colors.border, borderRadius: radius.md }]}>
-                      <Text variant="small" muted>
-                        {emptySectionLine(group.time)}
-                      </Text>
-                    </View>
-                  </DragSpacer>
-                )}
-              </View>
-            ))}
+            <FadeSwap
+              swapKey={filter}
+              reducedMotion={motionSettings.reducedMotion}
+              style={styles.group}
+              // One list now, so every part of the day starts where it does.
+              onLayout={(event) => {
+                for (const group of groups) board.placeSection(group.time, event.nativeEvent.layout.y);
+              }}
+            >
+              {filterByTime(today, filter).map(renderCard)}
+              {filterByTime(today, filter).length === 0 && today.length + yesterday.length > 0 ? (
+                <EmptyLine text={filter === 'all' ? 'Nothing left for today' : emptySectionLine(filter)} />
+              ) : null}
+            </FadeSwap>
             {showYesterdayFirst(part) ? null : yesterdaySection}
             {repairSection}
-            <Button label="Add habit" quiet onPress={() => onAddHabit()} />
           </>
         )}
       </ScrollView>
@@ -511,14 +611,15 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
         onClose={() => setShrinkRow(null)}
         onLog={(row: TodayRow, level: HabitLevel) => {
           setShrinkRow(null);
-          log(row, level);
+          thenReload(log(row, level));
         }}
         onRepair={(row) => {
           setShrinkRow(null);
-          repair(row);
+          thenReload(repair(row));
         }}
         onAddAmount={async (row, text) => {
           const added = await addAmount(row, text);
+          reloadOther();
           if (added) setShrinkRow(null);
           return added;
         }}
@@ -539,11 +640,28 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
           openFocus(row.habit_id);
         }}
       />
+      {/* The day's first open: the check-in slides up, once, when nothing else is open. */}
+      <BottomSheet
+        visible={checkin.popupDue && !loading && panel === null && focusId === null && detailRow === null && shrinkRow === null && skipRow === null}
+        title="Daily check-in"
+        onClose={checkin.dismissPopup}
+      >
+        <CheckinCard
+          bare
+          existing={checkin.state?.checkin ?? null}
+          problem={checkin.problem}
+          onSave={(answer) => void checkin.save(answer)}
+          onSkip={() => {
+            checkin.dismissPopup();
+            void checkin.skip();
+          }}
+        />
+      </BottomSheet>
       <SkipSheet
         visible={skipRow !== null}
         onClose={() => setSkipRow(null)}
         onSkip={(reason) => {
-          if (skipRow) skip(skipRow, reason);
+          if (skipRow) thenReload(skip(skipRow, reason));
           setSkipRow(null);
         }}
       />
@@ -608,6 +726,18 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
   );
 }
 
+// Where a chip has nothing under it.
+function EmptyLine({ text }: { text: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.emptySection, { borderColor: colors.border, borderRadius: radius.md }]}>
+      <Text variant="small" muted>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: {
@@ -618,7 +748,9 @@ const styles = StyleSheet.create({
     padding: space.lg,
   },
   contentWide: { paddingTop: space.xxl },
-  header: { gap: space.xs, paddingTop: space.lg },
+  top: { gap: space.md, paddingTop: space.lg },
+  // Stuck to the top while scrolling, so it covers what passes under it.
+  chips: { marginHorizontal: -space.lg, paddingHorizontal: space.lg, paddingVertical: space.xs },
   actions: { flexDirection: 'row', gap: space.sm },
   action: { flex: 1 },
   emptySection: {

@@ -14,6 +14,7 @@ import {
 } from '@habit-tracker/core';
 import { Button, Text, useLayoutSize, useShortcut, useTheme } from '@habit-tracker/ui';
 import { ConnectionCards } from '../analytics/ConnectionCards';
+import { useHardwareBack } from '../hooks/useHardwareBack';
 import { tracker } from '../services/tracker';
 
 const NODE = 22;
@@ -38,6 +39,7 @@ export function HabitMapScreen({ onClose }: HabitMapScreenProps) {
   const [width, setWidth] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   useShortcut('Escape', onClose);
+  useHardwareBack(onClose);
 
   useEffect(() => {
     Promise.resolve()

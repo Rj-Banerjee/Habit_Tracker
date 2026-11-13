@@ -52,6 +52,8 @@ export interface TodayRow {
   ends_on?: string | null;
   // Where it was dragged to in its section, top first; null if never moved.
   sort_order?: number | null;
+  // From get_day only: false for a day still to come or past its back-log window.
+  can_change?: boolean;
 }
 
 // One week of a times-per-week habit, for its chain.
@@ -288,6 +290,8 @@ export function createTrackerApi(client: SupabaseClient) {
 
   return {
     getToday: () => call<TodayRow[]>('get_today'),
+    // One day of the strip on Today, up to a week either side.
+    getDay: (day: string) => call<TodayRow[]>('get_day', { p_day: day }),
     getRepairs: () => call<RepairRow[]>('get_repairs'),
     getStreaks: () => call<HabitStreak[]>('get_streaks'),
     getGraceBank: () => call<number>('get_grace_bank'),
