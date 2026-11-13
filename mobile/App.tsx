@@ -17,6 +17,7 @@ import {
 } from '@expo-google-fonts/atkinson-hyperlegible';
 import type { Session } from '@supabase/supabase-js';
 import { Tab, TabBar } from './src/components/TabBar';
+import { TabPager } from './src/components/TabPager';
 import { EntitlementsProvider } from './src/hooks/useEntitlements';
 import { useHardwareBack } from './src/hooks/useHardwareBack';
 import { useNeedsOnboarding } from './src/hooks/useNeedsOnboarding';
@@ -134,30 +135,27 @@ function SignedInScreens({
     );
   }
 
-  // Both stay mounted, so a coach conversation survives a look at the You tab.
+  // All stay mounted, so a coach conversation survives a look at the You tab. A sideways
+  // swipe moves between them, as the tab bar does.
   return (
     <View style={[styles.root, { backgroundColor: colors.canvas }]}>
-      <View style={[styles.root, tab !== 'today' && styles.hidden]}>
+      <TabPager tab={tab} onChange={setTab}>
         <TodayScreen
           onAddHabit={(title) => setHabitForm({ title })}
           onEditHabit={(habitId) => setHabitForm({ habitId })}
           onOpenReview={() => setReviewing(true)}
         />
-      </View>
-      <View style={[styles.root, tab !== 'progress' && styles.hidden]}>
         <ProgressScreen
           active={tab === 'progress'}
           onOpenReview={() => setReviewing(true)}
           onEditHabit={(habitId) => setHabitForm({ habitId })}
         />
-      </View>
-      <View style={[styles.root, tab !== 'you' && styles.hidden]}>
         <YouScreen
           userId={session.user.id}
           email={session.user.email ?? ''}
           onSignedOut={() => setTab('today')}
         />
-      </View>
+      </TabPager>
       <TabBar active={tab} onChange={setTab} />
     </View>
   );
@@ -202,5 +200,4 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, justifyContent: 'center' },
-  hidden: { display: 'none' },
 });

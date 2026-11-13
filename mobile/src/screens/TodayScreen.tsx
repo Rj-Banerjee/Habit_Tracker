@@ -52,6 +52,7 @@ import {
 } from '@habit-tracker/ui';
 import { repairHabitOf } from '../chain/CardChain';
 import { useMotionSettings } from '../chain/useMotionSettings';
+import { useHoldPager } from '../components/TabPager';
 import { useWeeklyReport } from '../hooks/useWeeklyReport';
 import { FinishCard } from '../chain/FinishCard';
 import { WelcomeBack } from '../chain/WelcomeBack';
@@ -169,6 +170,8 @@ export function TodayScreen({ onAddHabit, onEditHabit, onOpenReview }: TodayScre
     const sub = AppState.addEventListener('change', (next) => next === 'active' && resumeFocus());
     return () => sub.remove();
   }, [focusId, resumeFocus]);
+  // Details and Tunnel Vision cover Today, so a sideways swipe on them stays on them.
+  useHoldPager(focusRow !== null || detailRow !== null);
   const chainOf = (habitId: string) => chains.find((c) => c.habitId === habitId)?.chain;
   const switching = useRef<ReturnType<typeof setTimeout> | null>(null);
 
