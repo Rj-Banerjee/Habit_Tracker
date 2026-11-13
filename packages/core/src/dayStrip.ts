@@ -53,8 +53,9 @@ export function dayHeading(today: string, selected: string): { title: string; su
     : { title: short.toUpperCase(), subtitle: weekday };
 }
 
-export type TimeFilter = 'all' | TimeOfDay;
-export const TIME_FILTERS: TimeFilter[] = ['all', ...TIMES_IN_ORDER];
+// No chip for anytime: those habits are under ALL, with everything else.
+export type TimeFilter = 'all' | Exclude<TimeOfDay, 'anytime'>;
+export const TIME_FILTERS: TimeFilter[] = ['all', 'morning', 'afternoon', 'evening'];
 
 export const timeFilterLabel = (filter: TimeFilter) => filter.toUpperCase();
 

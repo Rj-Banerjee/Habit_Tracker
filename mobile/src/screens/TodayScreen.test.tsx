@@ -242,9 +242,10 @@ describe('TodayScreen', () => {
 
     it('has a chip for each part of the day, and a quiet line under one with nothing in it', async () => {
       await open([row({ time_of_day: 'morning' })]);
-      for (const name of ['All habits', 'Morning habits', 'Afternoon habits', 'Evening habits', 'Anytime habits']) {
+      for (const name of ['All habits', 'Morning habits', 'Afternoon habits', 'Evening habits']) {
         expect(screen.getByRole('tab', { name })).toBeTruthy();
       }
+      expect(screen.queryByRole('tab', { name: 'Anytime habits' })).toBeNull();
       expect(screen.getByRole('tab', { name: 'All habits', selected: true })).toBeTruthy();
       await fireEvent.press(screen.getByRole('tab', { name: 'Evening habits' }));
       expect(screen.getByRole('tab', { name: 'Evening habits', selected: true })).toBeTruthy();
@@ -657,8 +658,7 @@ describe('TodayScreen', () => {
       await open(habits);
       await fireEvent.press(screen.getByRole('tab', { name: 'Morning habits' }));
       expect(cards()).toEqual(['Read']);
-      await fireEvent.press(screen.getByRole('tab', { name: 'Anytime habits' }));
-      expect(cards()).toEqual(['Water']);
+      expect(screen.queryByRole('tab', { name: 'Anytime habits' })).toBeNull();
       await fireEvent.press(screen.getByRole('tab', { name: 'All habits' }));
       expect(cards()).toHaveLength(3);
     });

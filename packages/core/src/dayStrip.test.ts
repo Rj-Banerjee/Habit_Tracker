@@ -13,7 +13,7 @@ const row = (habit_id: string, patch: Partial<TodayRow> = {}): TodayRow => ({
   identity_name: 'Reader',
   colour_token: 'identity-1',
   title: habit_id,
-  habit_type: 'checkbox',
+  habit_type: 'boolean',
   target: null,
   unit: null,
   status: 'pending',
@@ -79,13 +79,13 @@ describe('filterByTime', () => {
     ]);
   });
 
-  it('keeps one part of the day, with no time counting as anytime', () => {
+  it('keeps one part of the day, and an anytime habit only under all', () => {
     expect(filterByTime(rows, 'morning').map((r) => r.habit_id)).toEqual(['early-morning', 'late-morning']);
-    expect(filterByTime(rows, 'anytime').map((r) => r.habit_id)).toEqual(['loose']);
+    expect(filterByTime(rows, 'all').map((r) => r.habit_id)).toContain('loose');
     expect(filterByTime([], 'evening')).toEqual([]);
   });
 
   it('has a chip for all, then each part of the day', () => {
-    expect(TIME_FILTERS).toEqual(['all', 'morning', 'afternoon', 'evening', 'anytime']);
+    expect(TIME_FILTERS).toEqual(['all', 'morning', 'afternoon', 'evening']);
   });
 });

@@ -10,7 +10,7 @@ const row = (habit_id: string, patch: Partial<TodayRow> = {}): TodayRow => ({
   identity_name: 'Reader',
   colour_token: 'identity-1',
   title: habit_id,
-  habit_type: 'checkbox',
+  habit_type: 'boolean',
   target: null,
   unit: null,
   status: 'pending',
