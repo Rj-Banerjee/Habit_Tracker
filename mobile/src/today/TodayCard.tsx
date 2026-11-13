@@ -28,6 +28,8 @@ interface TodayCardProps {
   onOpenDetail: () => void;
   // Tunnel Vision, for today's habits.
   onFocus?: () => void;
+  // A day that can't be changed any more, or yet: the card shows, but taps do nothing.
+  readOnly?: boolean;
 }
 
 function FocusButton({ title, onPress }: { title: string; onPress: () => void }) {
@@ -59,6 +61,7 @@ export function TodayCard({
   onMomentFinish,
   onOpenDetail,
   onFocus,
+  readOnly = false,
 }: TodayCardProps) {
   const count = useCountUp(row.current_streak);
   const weld = playing?.moment.kind === 'weld' ? playing.moment : null;
@@ -73,9 +76,9 @@ export function TodayCard({
       streak={count.shown ?? row.current_streak}
       streakUnit={streakUnit(row)}
       detail={cardDetail(row)}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      onSkip={onSkip}
+      onPress={readOnly ? undefined : onPress}
+      onLongPress={readOnly ? undefined : onLongPress}
+      onSkip={readOnly ? undefined : onSkip}
       onCheckOff={checkOffTick}
       onFocusMode={onFocus}
       footer={

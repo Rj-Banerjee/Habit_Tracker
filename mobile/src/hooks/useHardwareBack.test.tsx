@@ -4,7 +4,7 @@ import { useHardwareBack } from './useHardwareBack';
 
 // Like React Native: the newest listener runs first, and back leaves the app when none
 // of them takes it.
-let listeners: (() => boolean | null | undefined)[] = [];
+let listeners: ((event: never) => boolean | null | undefined)[] = [];
 let exited = 0;
 beforeEach(() => {
   listeners = [];
@@ -18,7 +18,7 @@ afterEach(() => jest.restoreAllMocks());
 
 const pressBack = () =>
   act(() => {
-    if (![...listeners].reverse().some((handler) => handler())) exited += 1;
+    if (![...listeners].reverse().some((handler) => handler({} as never))) exited += 1;
   });
 
 describe('useHardwareBack', () => {

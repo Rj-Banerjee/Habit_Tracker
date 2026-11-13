@@ -16,8 +16,9 @@ interface DragToMoveProps {
   offset: Animated.Value;
   onLayout: (y: number, height: number) => void;
   onDragStart: () => void;
-  onMove: (dy: number) => void;
-  onDrop: (dy: number) => void;
+  // With where the finger is on screen, for dropping on something outside the list.
+  onMove: (dy: number, x: number, y: number) => void;
+  onDrop: (dy: number, x: number, y: number) => void;
   onCancel: () => void;
   // The finger lifted without dragging.
   onDisarm: () => void;
@@ -59,11 +60,11 @@ export function DragToMove({
         lift(LIFTED_SCALE);
         latest.current.onDragStart();
       },
-      onPanResponderMove: (_, { dy }) => latest.current.onMove(dy),
-      onPanResponderRelease: (_, { dy }) => {
+      onPanResponderMove: (_, { dy, moveX, moveY }) => latest.current.onMove(dy, moveX, moveY),
+      onPanResponderRelease: (_, { dy, moveX, moveY }) => {
         setDragging(false);
         lift(1);
-        latest.current.onDrop(dy);
+        latest.current.onDrop(dy, moveX, moveY);
       },
       onPanResponderTerminate: () => {
         setDragging(false);
@@ -86,26 +87,6 @@ export function DragToMove({
       onTouchEnd={() => {
         if (!dragging) latest.current.onDisarm();
       }}
-    >
-      {children}
-    </Animated.View>
-  );
-}
-
-// A section title or an empty section's line: not draggable, but moves aside for a card.
-export function DragSpacer({
-  offset,
-  onLayout,
-  children,
-}: {
-  offset: Animated.Value;
-  onLayout: (y: number, height: number) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Animated.View
-      onLayout={(event: LayoutChangeEvent) => onLayout(event.nativeEvent.layout.y, event.nativeEvent.layout.height)}
-      style={{ transform: [{ translateY: offset }] }}
     >
       {children}
     </Animated.View>

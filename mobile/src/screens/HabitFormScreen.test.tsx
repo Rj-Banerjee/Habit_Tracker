@@ -1122,13 +1122,15 @@ describe('Today entry points', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('offers Add habit in the empty state', async () => {
+  it('offers Add habit in the empty state, as well as in the header', async () => {
     await openToday([]);
-    await press('Add habit');
+    const buttons = screen.getAllByRole('button', { name: 'Add habit' });
+    expect(buttons).toHaveLength(2);
+    await fireEvent.press(buttons[1]);
     expect(onAddHabit).toHaveBeenCalled();
   });
 
-  it('offers Add habit under the list, with no limit', async () => {
+  it('offers Add habit in the header, with no limit', async () => {
     await openToday([row]);
     await press('Add habit');
     expect(onAddHabit).toHaveBeenCalled();

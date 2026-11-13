@@ -45,6 +45,7 @@ jest.mock('../voice/speech', () => ({ speechInput: () => null }));
 
 jest.mock('../services/tracker', () => ({
   tracker: {
+    getDay: jest.fn(() => Promise.resolve([])),
     listVoiceHabits: jest.fn(() => Promise.resolve([])),
     getToday: jest.fn(),
     getRepairs: jest.fn(() => Promise.resolve([])),
@@ -239,11 +240,16 @@ describe('TodayScreen', () => {
       expect(screen.queryByRole('button', { name: /^Move to/ })).toBeNull();
     });
 
-    it('shows every part of the day, with a quiet line where nothing is, to drag into', async () => {
+    it('has a chip for each part of the day, and a quiet line under one with nothing in it', async () => {
       await open([row({ time_of_day: 'morning' })]);
-      expect(screen.getByText('Nothing in the afternoon yet')).toBeTruthy();
+      for (const name of ['All habits', 'Morning habits', 'Afternoon habits', 'Evening habits', 'Anytime habits']) {
+        expect(screen.getByRole('tab', { name })).toBeTruthy();
+      }
+      expect(screen.getByRole('tab', { name: 'All habits', selected: true })).toBeTruthy();
+      await fireEvent.press(screen.getByRole('tab', { name: 'Evening habits' }));
+      expect(screen.getByRole('tab', { name: 'Evening habits', selected: true })).toBeTruthy();
       expect(screen.getByText('Nothing in the evening yet')).toBeTruthy();
-      expect(screen.getByText('Nothing for anytime yet')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Run/ })).toBeNull();
     });
 
     describe('on Pro', () => {
@@ -632,13 +638,84 @@ describe('TodayScreen', () => {
     });
   });
 
-  it('groups habits by time of day', async () => {
-    await open([
+  describe('the time-of-day chips', () => {
+    const habits = [
       row({ time_of_day: 'evening' }),
       row({ habit_id: 'h2', title: 'Read', identity_id: 'i2', identity_name: 'The Reader', time_of_day: 'morning' }),
-    ]);
-    const headers = screen.getAllByRole('header').map((h) => h.props.children);
-    expect(headers.filter((h) => ['Morning', 'Evening'].includes(h))).toEqual(['Morning', 'Evening']);
+      row({ habit_id: 'h3', title: 'Water' }),
+    ];
+    const cards = () => screen.getAllByRole('button', { name: /^(Run|Read|Water), / }).map((b) => b.props.accessibilityLabel.split(',')[0]);
+
+    it('lists every habit in the order of the day under ALL, with no section headings', async () => {
+      await open(habits);
+      expect(cards()).toEqual(['Read', 'Run', 'Water']);
+      const headers = screen.getAllByRole('header').map((h) => h.props.children);
+      expect(headers.filter((h) => ['Morning', 'Afternoon', 'Evening', 'Anytime'].includes(h))).toEqual([]);
+    });
+
+    it('shows one part of the day at a time', async () => {
+      await open(habits);
+      await fireEvent.press(screen.getByRole('tab', { name: 'Morning habits' }));
+      expect(cards()).toEqual(['Read']);
+      await fireEvent.press(screen.getByRole('tab', { name: 'Anytime habits' }));
+      expect(cards()).toEqual(['Water']);
+      await fireEvent.press(screen.getByRole('tab', { name: 'All habits' }));
+      expect(cards()).toHaveLength(3);
+    });
+  });
+
+  describe('the date strip', () => {
+    const tab = (name: RegExp) => screen.getByRole('tab', { name });
+
+    it('starts on today, under a big TODAY', async () => {
+      await open([row()]);
+      expect(screen.getByRole('header', { name: 'TODAY' })).toBeTruthy();
+      expect(screen.getByText('Tuesday, Nov 3')).toBeTruthy();
+      expect(tab(/^Today, Tuesday, November 3/).props.accessibilityState).toEqual({ selected: true });
+      expect(api.getDay).not.toHaveBeenCalled();
+    });
+
+    it('loads another day, and logs one still in its back-log window', async () => {
+      api.getDay.mockResolvedValueOnce([row({ day: '2026-11-02', is_today: false, can_change: true })]);
+      await open([row()]);
+      await fireEvent.press(tab(/^Monday, November 2/));
+      await act(async () => {});
+      expect(api.getDay).toHaveBeenCalledWith('2026-11-02');
+      expect(screen.getByRole('header', { name: 'YESTERDAY' })).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+      expect(api.logHabit).toHaveBeenCalledWith('h1', '2026-11-02', 'full', null, 'tap');
+      // Back to today, its own list again.
+      await fireEvent.press(tab(/^Today, /));
+      expect(screen.getByRole('header', { name: 'TODAY' })).toBeTruthy();
+    });
+
+    it('shows an older day as view only', async () => {
+      api.getDay.mockResolvedValueOnce([row({ day: '2026-10-30', is_today: false, status: 'missed', can_change: false })]);
+      await open([row()]);
+      await fireEvent.press(tab(/^Friday, October 30/));
+      await act(async () => {});
+      expect(screen.getByRole('header', { name: 'OCT 30' })).toBeTruthy();
+      expect(screen.getByText('Past its back-log window, so this day is view only.')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: /^Run, / }));
+      expect(api.logHabit).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: 'Log by voice' })).toBeNull();
+    });
+
+    it('shows what is coming on a later day, without logging it', async () => {
+      api.getDay.mockResolvedValueOnce([row({ day: '2026-11-05', is_today: false, can_change: false })]);
+      await open([row()]);
+      await fireEvent.press(tab(/^Thursday, November 5/));
+      await act(async () => {});
+      expect(screen.getByText('Still to come, so nothing can be logged yet.')).toBeTruthy();
+    });
+
+    it('says when a day could not load', async () => {
+      api.getDay.mockRejectedValueOnce(new Error('offline'));
+      await open([row()]);
+      await fireEvent.press(tab(/^Sunday, November 1/));
+      await act(async () => {});
+      expect(screen.getByText("That day couldn't load.")).toBeTruthy();
+    });
   });
 
   it('logs the full version with one tap', async () => {
@@ -793,14 +870,19 @@ describe('TodayScreen', () => {
   });
 
   describe.each([
-    [9, ['Still open from yesterday', 'Anytime']],
-    [20, ['Anytime', 'Still open from yesterday']],
+    [9, ['Still open from yesterday', 'Today']],
+    [20, ['Today', 'Still open from yesterday']],
   ])('at %i:00', (hour, order) => {
     it('orders the sections for that time of day', async () => {
       jest.useFakeTimers({ now: new Date(2026, 10, 3, hour), doNotFake: ['nextTick', 'setImmediate'] });
       await open([row(), row({ day: '2026-11-02', is_today: false })]);
-      const headers = screen.getAllByRole('header').map((h) => h.props.children);
-      expect(headers.filter((h) => order.includes(h))).toEqual(order);
+      // Today's cards, then yesterday's, or the other way round in the morning.
+      const parts = screen
+        .getAllByRole(/^(header|button)$/)
+        .map((el) => (el.props.children === 'Still open from yesterday' ? 'Still open from yesterday' : el.props.accessibilityLabel))
+        .filter((name) => name === 'Still open from yesterday' || /^Run, Due today/.test(name ?? ''))
+        .map((name) => (name === 'Still open from yesterday' ? name : 'Today'));
+      expect(parts).toEqual(order);
       jest.useRealTimers();
     });
   });
